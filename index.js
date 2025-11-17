@@ -92,7 +92,7 @@ class TwitchEventSubClient {
       process.exit(1);
     }
 
-    // Subscribe to channel points redemption update event
+    // Subscribe to channel points custom reward add event
     await this.subscribeToEvent();
   }
 
@@ -134,10 +134,10 @@ class TwitchEventSubClient {
   }
 
   async subscribeToEvent() {
-    console.log('\nSubscribing to channel.channel_points_custom_reward_redemption.update...');
+    console.log('\nSubscribing to channel.channel_points_custom_reward.add...');
 
     const subscriptionData = {
-      type: 'channel.channel_points_custom_reward_redemption.update',
+      type: 'channel.channel_points_custom_reward.add',
       version: '1',
       condition: {
         broadcaster_user_id: this.broadcasterId
@@ -164,7 +164,7 @@ class TwitchEventSubClient {
       console.log('Subscription successful!');
       console.log('Subscription ID:', response.data.data[0].id);
       console.log('Status:', response.data.data[0].status);
-      console.log('\nWaiting for channel points redemption events...\n');
+      console.log('\nWaiting for custom reward creation events...\n');
     } catch (error) {
       console.error('Failed to subscribe to event:');
       if (error.response) {
@@ -178,20 +178,36 @@ class TwitchEventSubClient {
   }
 
   handleNotification(payload) {
-    console.log('\n🎉 CHANNEL POINTS REDEMPTION EVENT RECEIVED!');
+    console.log('\n🎁 CUSTOM REWARD CREATED EVENT RECEIVED!');
     console.log('━'.repeat(60));
 
     const event = payload.event;
 
-    console.log(`Reward: ${event.reward.title}`);
-    console.log(`Cost: ${event.reward.cost} points`);
-    console.log(`Redeemed by: ${event.user_name} (${event.user_login})`);
-    console.log(`Status: ${event.status}`);
-    console.log(`Redemption ID: ${event.id}`);
-    console.log(`Timestamp: ${event.redeemed_at}`);
+    console.log(`Reward Title: ${event.title}`);
+    console.log(`Cost: ${event.cost} points`);
+    console.log(`Reward ID: ${event.id}`);
+    console.log(`Broadcaster: ${event.broadcaster_user_name} (${event.broadcaster_user_login})`);
+    console.log(`Enabled: ${event.is_enabled}`);
+    console.log(`User Input Required: ${event.is_user_input_required}`);
 
-    if (event.user_input) {
-      console.log(`User Input: ${event.user_input}`);
+    if (event.prompt) {
+      console.log(`Prompt: ${event.prompt}`);
+    }
+
+    if (event.background_color) {
+      console.log(`Background Color: ${event.background_color}`);
+    }
+
+    if (event.global_cooldown_setting && event.global_cooldown_setting.is_enabled) {
+      console.log(`Global Cooldown: ${event.global_cooldown_setting.global_cooldown_seconds}s`);
+    }
+
+    if (event.max_per_stream_setting && event.max_per_stream_setting.is_enabled) {
+      console.log(`Max Per Stream: ${event.max_per_stream_setting.max_per_stream}`);
+    }
+
+    if (event.max_per_user_per_stream_setting && event.max_per_user_per_stream_setting.is_enabled) {
+      console.log(`Max Per User Per Stream: ${event.max_per_user_per_stream_setting.max_per_user_per_stream}`);
     }
 
     console.log('━'.repeat(60));
