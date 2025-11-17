@@ -230,7 +230,7 @@
         <div id="token-display" class="token-display">
             <h3>Access Token:</h3>
             <div class="token-value" id="token-value"></div>
-            <button class="copy-btn" onclick="copyToken()">Copy to Clipboard</button>
+            <button class="copy-btn" onclick="copyToken(event)">Copy to Clipboard</button>
             <p style="margin-top: 15px; font-size: 13px; color: #666;">
                 Add this token to your <code>.env</code> file as <code>TWITCH_ACCESS_TOKEN</code>
             </p>
@@ -266,7 +266,7 @@
             statusDiv.textContent = `Error: ${error}${errorDescription ? ' - ' + errorDescription : ''}`;
         }
 
-        function copyToken() {
+        function copyToken(event) {
             const tokenValue = document.getElementById('token-value').textContent;
             navigator.clipboard.writeText(tokenValue).then(() => {
                 const btn = event.target;
