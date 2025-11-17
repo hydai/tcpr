@@ -6,6 +6,7 @@ import { Logger } from './lib/logger.js';
 import { WebSocketManager } from './client/WebSocketManager.js';
 import { EventSubSubscriber } from './client/EventSubSubscriber.js';
 import { EventFormatter } from './client/EventFormatter.js';
+import { PacketFilter } from './client/PacketFilter.js';
 
 dotenv.config();
 
@@ -36,6 +37,22 @@ class TwitchEventSubClient {
   }
 
   /**
+   * Configure packet filter options
+   * @param {Object} filterOptions - Filter configuration
+   */
+  configureFilter(filterOptions) {
+    PacketFilter.configure(filterOptions);
+  }
+
+  /**
+   * Get current filter configuration
+   * @returns {Object} Current filter options
+   */
+  getFilterConfig() {
+    return PacketFilter.getConfig();
+  }
+
+  /**
    * Connect to EventSub and start listening
    * @returns {Promise<void>}
    */
@@ -49,6 +66,12 @@ class TwitchEventSubClient {
    */
   handleMessage(message) {
     const { metadata, payload } = message;
+
+    // Apply packet filter to determine if message should be processed
+    if (!PacketFilter.filter(message)) {
+      Logger.debug(`Filtered out message type: ${metadata.message_type}`);
+      return;
+    }
 
     Logger.eventSubMessage(metadata.message_type);
 
