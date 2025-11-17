@@ -1,6 +1,9 @@
 # Environment variables
 .env
 
+# Secret configuration file (contains sensitive credentials)
+.secret
+
 # Output
 dist/
 

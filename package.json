@@ -10,11 +10,12 @@
     "oauth": "node oauth-server.js",
     "gui": "electron .",
     "gui:dev": "cross-env NODE_ENV=development electron .",
-    "build": "electron-builder --win --mac",
-    "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
-    "build:dir": "electron-builder --win --mac --dir",
-    "dist": "electron-builder"
+    "prebuild": "node scripts/prebuild.js",
+    "build": "npm run prebuild && electron-builder --win --mac",
+    "build:win": "npm run prebuild && electron-builder --win",
+    "build:mac": "npm run prebuild && electron-builder --mac",
+    "build:dir": "npm run prebuild && electron-builder --win --mac --dir",
+    "dist": "npm run prebuild && electron-builder"
   },
   "build": {
     "appId": "com.twitch.channelpoints.monitor",
