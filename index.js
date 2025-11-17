@@ -167,7 +167,6 @@ class TwitchEventSubClient {
   handleRevocation(payload) {
     console.log('Subscription revoked:');
     console.log('Subscription type:', payload.subscription.type);
-    console.log('Status:', payload.subscription.status);
     console.log('Reason:', payload.subscription.status);
   }
 
