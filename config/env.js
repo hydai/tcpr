@@ -24,7 +24,7 @@ export class Config {
       accessToken: process.env.TWITCH_ACCESS_TOKEN,
       broadcasterId: process.env.TWITCH_BROADCASTER_ID,
       redirectUri: process.env.REDIRECT_URI || DEFAULTS.REDIRECT_URI,
-      port: parseInt(process.env.PORT || String(DEFAULTS.PORT), 10)
+      port: process.env.PORT ? parseInt(process.env.PORT, 10) : DEFAULTS.PORT
     };
 
     // Validate required fields based on context
