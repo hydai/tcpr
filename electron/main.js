@@ -231,11 +231,11 @@ ipcMain.handle('config:save', async (event, config) => {
     const shouldSaveClientId = shouldSaveCredential(config.TWITCH_CLIENT_ID, BUILTIN_CONFIG.clientId);
     const shouldSaveClientSecret = shouldSaveCredential(config.TWITCH_CLIENT_SECRET, BUILTIN_CONFIG.clientSecret);
 
-    if (shouldSaveClientId) {
-      lines.push(`TWITCH_CLIENT_ID=${config.TWITCH_CLIENT_ID || ''}`);
+    if (shouldSaveClientId && config.TWITCH_CLIENT_ID) {
+      lines.push(`TWITCH_CLIENT_ID=${config.TWITCH_CLIENT_ID}`);
     }
-    if (shouldSaveClientSecret) {
-      lines.push(`TWITCH_CLIENT_SECRET=${config.TWITCH_CLIENT_SECRET || ''}`);
+    if (shouldSaveClientSecret && config.TWITCH_CLIENT_SECRET) {
+      lines.push(`TWITCH_CLIENT_SECRET=${config.TWITCH_CLIENT_SECRET}`);
     }
 
     lines.push(`TWITCH_ACCESS_TOKEN=${config.TWITCH_ACCESS_TOKEN || ''}`);
