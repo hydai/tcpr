@@ -10,6 +10,7 @@
     "oauth": "node oauth-server.js",
     "gui": "electron .",
     "gui:dev": "cross-env NODE_ENV=development electron .",
+    "postinstall": "node scripts/init-config.js",
     "prebuild": "node scripts/prebuild.js",
     "build": "npm run prebuild && electron-builder --win --mac",
     "build:win": "npm run prebuild && electron-builder --win",
