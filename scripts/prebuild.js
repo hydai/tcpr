@@ -76,8 +76,8 @@ try {
   }
 
   console.log('Pre-build: Found valid credentials');
-  console.log(`  - Client ID: ${secrets.TWITCH_CLIENT_ID.substring(0, 8)}...`);
-  console.log(`  - Client Secret: ${secrets.TWITCH_CLIENT_SECRET.substring(0, 8)}...`);
+  console.log(`  - Client ID: ${secrets.TWITCH_CLIENT_ID.slice(0, 8)}...`);
+  console.log(`  - Client Secret: ${secrets.TWITCH_CLIENT_SECRET.slice(0, 8)}...`);
 
   // Generate builtin config file
   const builtinConfig = `/**
@@ -88,8 +88,8 @@ try {
 
 export const BUILTIN_CONFIG = {
   hasBuiltinCredentials: true,
-  clientId: '${secrets.TWITCH_CLIENT_ID}',
-  clientSecret: '${secrets.TWITCH_CLIENT_SECRET}'
+  clientId: ${JSON.stringify(secrets.TWITCH_CLIENT_ID)},
+  clientSecret: ${JSON.stringify(secrets.TWITCH_CLIENT_SECRET)}
 };
 `;
 

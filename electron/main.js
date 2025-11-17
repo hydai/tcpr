@@ -186,7 +186,7 @@ async function loadConfig() {
         if (line && !line.startsWith('#')) {
           const [key, ...valueParts] = line.split('=');
           const value = valueParts.join('=').trim();
-          if (value) {  // Only override if value is not empty
+          if (value) {  // Only override if value is not an empty string
             config[key.trim()] = value;
           }
         }
@@ -223,11 +223,13 @@ ipcMain.handle('config:save', async (event, config) => {
 
     lines.push('');
 
+    // Helper function to determine if a credential should be saved
+    const shouldSaveCredential = (value, builtinValue) =>
+      !BUILTIN_CONFIG.hasBuiltinCredentials || (value && value !== builtinValue);
+
     // Only save Client ID and Secret if they differ from builtin or if no builtin exists
-    const shouldSaveClientId = !BUILTIN_CONFIG.hasBuiltinCredentials ||
-                                (config.TWITCH_CLIENT_ID && config.TWITCH_CLIENT_ID !== BUILTIN_CONFIG.clientId);
-    const shouldSaveClientSecret = !BUILTIN_CONFIG.hasBuiltinCredentials ||
-                                    (config.TWITCH_CLIENT_SECRET && config.TWITCH_CLIENT_SECRET !== BUILTIN_CONFIG.clientSecret);
+    const shouldSaveClientId = shouldSaveCredential(config.TWITCH_CLIENT_ID, BUILTIN_CONFIG.clientId);
+    const shouldSaveClientSecret = shouldSaveCredential(config.TWITCH_CLIENT_SECRET, BUILTIN_CONFIG.clientSecret);
 
     if (shouldSaveClientId) {
       lines.push(`TWITCH_CLIENT_ID=${config.TWITCH_CLIENT_ID || ''}`);
