@@ -6,10 +6,16 @@ Get started with the Twitch Channel Points Monitor desktop application in 5 minu
 
 ### Option 1: Download Installer (Easiest)
 
+**For Windows:**
 1. Download the latest release from [GitHub Releases](#)
 2. Run `Twitch Channel Points Monitor Setup.exe`
 3. Follow the installation wizard
 4. Launch from Start Menu
+
+**For macOS:**
+1. Download the latest `.dmg` file from [GitHub Releases](#)
+2. Open the DMG and drag the app to Applications
+3. Launch from Applications (right-click and select "Open" on first launch)
 
 ### Option 2: Run from Source
 
@@ -148,7 +154,8 @@ The application will stay open as long as the window is open. Minimize it to kee
 
 ### Configuration Location
 Your settings are saved in:
-- Windows: `%APPDATA%/twitch-channel-points-redemption/.env`
+- **Windows**: `%APPDATA%/twitch-channel-points-redemption/.env`
+- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/.env`
 
 ### Event History
 Events are kept in memory while the app is running. They'll be cleared when you restart the app or click "Clear".

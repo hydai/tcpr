@@ -1,6 +1,6 @@
 # Twitch Channel Points Monitor - Desktop GUI
 
-A beautiful, user-friendly Windows desktop application for monitoring Twitch channel points custom reward events in real-time.
+A beautiful, user-friendly desktop application for Windows and macOS for monitoring Twitch channel points custom reward events in real-time.
 
 ## Features
 
@@ -11,7 +11,7 @@ A beautiful, user-friendly Windows desktop application for monitoring Twitch cha
 - **First-run detection** automatically launches the wizard for new users
 
 ### 💻 Modern Desktop Experience
-- **Native Windows application** built with Electron
+- **Native desktop application** built with Electron for Windows and macOS
 - **Clean, dark-themed interface** matching Twitch's branding
 - **Real-time event monitoring** with live dashboard
 - **System tray integration** (coming soon)
@@ -32,10 +32,17 @@ A beautiful, user-friendly Windows desktop application for monitoring Twitch cha
 
 ### Option 1: Download Pre-built Package (Recommended)
 
+**For Windows:**
 1. Go to the [Releases](https://github.com/hydai/tcpr/releases) page
 2. Download the latest `.exe` installer for Windows
 3. Run the installer and follow the prompts
 4. Launch "Twitch Channel Points Monitor" from your Start Menu
+
+**For macOS:**
+1. Go to the [Releases](https://github.com/hydai/tcpr/releases) page
+2. Download the latest `.dmg` file for macOS
+3. Open the DMG and drag the app to your Applications folder
+4. Launch "Twitch Channel Points Monitor" from Applications (you may need to right-click and select "Open" on first launch)
 
 ### Option 2: Build from Source
 
@@ -62,9 +69,14 @@ A beautiful, user-friendly Windows desktop application for monitoring Twitch cha
    npm run gui:dev
    ```
 
-4. **Build for Windows**
+4. **Build for your platform**
    ```bash
+   # Build for both Windows and macOS
    npm run build
+
+   # Or build for specific platform
+   npm run build:win   # Windows only
+   npm run build:mac   # macOS only
    ```
 
    The installer will be created in the `dist/` directory.
@@ -165,7 +177,9 @@ tcpr/
 
 - `npm run gui` - Run the GUI in production mode
 - `npm run gui:dev` - Run the GUI in development mode (with DevTools)
-- `npm run build` - Build Windows installer
+- `npm run build` - Build installers for both Windows and macOS
+- `npm run build:win` - Build Windows installer only
+- `npm run build:mac` - Build macOS installer only
 - `npm run build:dir` - Build unpacked directory (for testing)
 - `npm run dist` - Build for all configured platforms
 
@@ -180,6 +194,7 @@ In development mode, you get:
 
 1. Create or obtain icon files:
    - `icon.ico` (256x256 for Windows)
+   - `icon.icns` (512x512+ for macOS)
    - `icon.png` (512x512 for the app window)
 
 2. Place them in the `build/` directory
@@ -189,13 +204,14 @@ In development mode, you get:
    npm run build
    ```
 
-See `build/ICONS_README.txt` for more details.
+See `build/ICONS_README.txt` for more details and platform-specific icon creation instructions.
 
 ## Configuration Files
 
 ### Configuration Location
 
 - **Windows**: `%APPDATA%/twitch-channel-points-redemption/.env`
+- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/.env`
 - **Development**: `<project-root>/.env`
 
 ### Configuration Format
@@ -250,8 +266,8 @@ PORT=3000
    ```
 
 2. **Prepare icons** (optional but recommended):
-   - Add `icon.ico` to `build/` directory
-   - Ensure it's 256x256 or larger
+   - Add `icon.ico` to `build/` directory for Windows (256x256 or larger)
+   - Add `icon.icns` to `build/` directory for macOS (512x512 or larger)
 
 3. **Update version** in `package.json`
 
@@ -259,30 +275,38 @@ PORT=3000
 
 **Windows Installer (NSIS)**:
 ```bash
-npm run build
+npm run build:win
 ```
 Creates: `dist/Twitch Channel Points Monitor Setup X.X.X.exe`
 
-**Portable Executable**:
+**macOS Installer (DMG)**:
+```bash
+npm run build:mac
+```
+Creates: `dist/Twitch Channel Points Monitor-X.X.X.dmg` and `dist/Twitch Channel Points Monitor-X.X.X-mac.zip`
+
+**Both Platforms**:
 ```bash
 npm run build
 ```
-Creates: `dist/Twitch Channel Points Monitor X.X.X.exe` (portable)
+Creates installers for both Windows and macOS
 
 **Test Build (unpacked)**:
 ```bash
 npm run build:dir
 ```
-Creates: `dist/win-unpacked/` (for testing without installation)
+Creates: `dist/win-unpacked/` and `dist/mac/` (for testing without installation)
 
 ### Distribution Checklist
 
 - [ ] Update version in `package.json`
 - [ ] Test application thoroughly
-- [ ] Create icons for Windows
+- [ ] Create icons for Windows (.ico) and macOS (.icns)
 - [ ] Build for Windows
-- [ ] Test installer
-- [ ] Test portable version
+- [ ] Build for macOS
+- [ ] Test Windows installer
+- [ ] Test Windows portable version
+- [ ] Test macOS DMG installer
 - [ ] Create release notes
 - [ ] Upload to GitHub Releases
 
@@ -380,7 +404,7 @@ MIT License - See [LICENSE](LICENSE) file for details
 - [ ] Event statistics and analytics
 - [ ] Dark/Light theme toggle
 - [ ] Auto-update functionality
-- [ ] macOS and Linux support
+- [ ] Linux support
 
 ### Version History
 
@@ -389,7 +413,8 @@ MIT License - See [LICENSE](LICENSE) file for details
 - Setup wizard with tutorial
 - OAuth integration
 - Real-time event monitoring
-- Windows desktop application
+- Windows and macOS desktop applications
+- Cross-platform support
 
 ---
 

@@ -10,8 +10,10 @@
     "oauth": "node oauth-server.js",
     "gui": "electron .",
     "gui:dev": "cross-env NODE_ENV=development electron .",
-    "build": "electron-builder --win",
-    "build:dir": "electron-builder --win --dir",
+    "build": "electron-builder --win --mac",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:dir": "electron-builder --win --mac --dir",
     "dist": "electron-builder"
   },
   "build": {
@@ -51,6 +53,40 @@
         }
       ],
       "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,

@@ -4,7 +4,7 @@ A Node.js WebSocket client that subscribes to Twitch EventSub custom reward crea
 
 ## 🖥️ Desktop GUI Available!
 
-**New!** We now offer a beautiful, user-friendly Windows desktop application with:
+**New!** We now offer a beautiful, user-friendly desktop application for Windows and macOS with:
 - 🧙‍♂️ **Step-by-step setup wizard** - no technical knowledge required
 - 🔐 **Automated OAuth flow** - secure authentication made easy
 - 📊 **Real-time dashboard** - monitor events with a clean interface
