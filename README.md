@@ -24,34 +24,52 @@ A simple Node.js WebSocket client that subscribes to Twitch EventSub custom rewa
 2. Click "Register Your Application"
 3. Fill in the required information:
    - Name: Choose any name for your application
-   - OAuth Redirect URLs: `http://localhost:3000` (or any URL)
+   - OAuth Redirect URLs: `http://localhost:3000/callback` (required for OAuth flow)
    - Category: Choose appropriate category
 4. Click "Create"
-5. Copy your **Client ID**
+5. Copy your **Client ID** and **Client Secret**
 
 ### 2. Generate an Access Token
 
-You need a **User Access Token** with the `channel:read:redemptions` scope.
+You need a **User Access Token** with the `channel:read:redemptions` and `channel:manage:redemptions` scopes.
 
-**Option A: Using Twitch CLI (Recommended)**
+**Option A: Using OAuth Web Server (Recommended)**
+
+This repository includes a built-in OAuth server that makes it easy to generate access tokens:
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Configure your application credentials
+cp .env.example .env
+# Edit .env and add your TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET
+
+# 3. Start the OAuth server
+npm run oauth
+
+# 4. Open your browser and navigate to http://localhost:3000
+# 5. Click "Connect with Twitch"
+# 6. Authorize the application
+# 7. Copy the access token displayed on the success page
+# 8. Add it to your .env file as TWITCH_ACCESS_TOKEN
+```
+
+The OAuth server will also display your broadcaster user ID, which you'll need for the next step.
+
+**Option B: Using Twitch CLI**
 ```bash
 # Install Twitch CLI
 # Visit: https://dev.twitch.tv/docs/cli
 
-# Generate token
-twitch token -u -s channel:read:redemptions
+# Generate token with required scopes
+twitch token -u -s "channel:read:redemptions channel:manage:redemptions"
 ```
 
-**Option B: Manual Token Generation**
+**Option C: Manual Token Generation**
 1. Go to [Twitch Token Generator](https://twitchtokengenerator.com/)
-2. Select `channel:read:redemptions` scope
+2. Select `channel:read:redemptions` and `channel:manage:redemptions` scopes
 3. Generate and copy the token
-
-**Option C: OAuth Flow**
-Construct this URL (replace `YOUR_CLIENT_ID`):
-```
-https://id.twitch.tv/oauth2/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:3000&response_type=token&scope=channel:read:redemptions
-```
 
 ### 3. Get Your Broadcaster User ID
 
@@ -72,10 +90,18 @@ Visit [StreamWeasels Username to User ID Converter](https://www.streamweasels.co
 
 2. Edit `.env` and fill in your credentials:
    ```env
+   # Required for main application
    TWITCH_CLIENT_ID=your_client_id_here
    TWITCH_ACCESS_TOKEN=your_access_token_here
    TWITCH_BROADCASTER_ID=your_broadcaster_id_here
+
+   # Required only for OAuth server (npm run oauth)
+   TWITCH_CLIENT_SECRET=your_client_secret_here
+   REDIRECT_URI=http://localhost:3000/callback
+   PORT=3000
    ```
+
+   **Note:** If you used the OAuth web server (Option A in step 2), you'll already have these values!
 
 ### 5. Install Dependencies
 
@@ -84,6 +110,23 @@ npm install
 ```
 
 ## Usage
+
+### OAuth Server (Optional)
+
+If you need to generate or refresh your access token, use the built-in OAuth server:
+
+```bash
+npm run oauth
+```
+
+This will:
+1. Start a web server on `http://localhost:3000`
+2. Provide a user-friendly interface to connect with Twitch
+3. Handle the complete OAuth authorization flow
+4. Display your access token and broadcaster ID
+5. Provide instructions for adding the token to your `.env` file
+
+**Important:** Make sure to add `http://localhost:3000/callback` as an OAuth Redirect URL in your Twitch application settings.
 
 ### Validate Your Configuration (Recommended)
 
