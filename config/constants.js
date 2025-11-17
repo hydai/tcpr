@@ -35,16 +35,14 @@ export const SCOPES = {
  * Array of required scopes (at least one needed)
  */
 export const REQUIRED_SCOPES = [
-  SCOPES.READ_REDEMPTIONS,
-  SCOPES.MANAGE_REDEMPTIONS
+  SCOPES.READ_REDEMPTIONS
 ];
 
 /**
  * Default scopes for OAuth flow
  */
 export const DEFAULT_OAUTH_SCOPES = [
-  SCOPES.READ_REDEMPTIONS,
-  SCOPES.MANAGE_REDEMPTIONS
+  SCOPES.READ_REDEMPTIONS
 ];
 
 /**
