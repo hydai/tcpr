@@ -16,7 +16,8 @@ const state = {
   monitoringActive: false,
   eventCount: 0,
   startTime: null,
-  uptimeInterval: null
+  uptimeInterval: null,
+  allEvents: [] // Store all events for export
 };
 
 // Initialize app on load
@@ -589,7 +590,8 @@ function handleEventSubLog(data) {
   const eventItem = document.createElement('div');
   eventItem.className = 'event-item';
 
-  const timestamp = new Date().toLocaleTimeString();
+  const timestamp = new Date().toISOString();
+  const displayTime = new Date().toLocaleTimeString();
   const isError = data.type === 'error';
 
   eventItem.innerHTML = `
@@ -597,7 +599,7 @@ function handleEventSubLog(data) {
       <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}">
         ${isError ? '❌ Error' : '📢 Event'}
       </span>
-      <span class="event-time">${timestamp}</span>
+      <span class="event-time">${displayTime}</span>
     </div>
     <div class="event-details">
       <pre>${escapeHtml(data.message)}</pre>
@@ -607,11 +609,18 @@ function handleEventSubLog(data) {
   // Add to top of list
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
+  // Store event in persistent array for export
+  state.allEvents.push({
+    timestamp: timestamp,
+    type: data.type || 'info',
+    message: data.message
+  });
+
   // Increment event count
   state.eventCount++;
   document.getElementById('eventCount').textContent = state.eventCount;
 
-  // Limit to 100 events
+  // Limit to 100 events in UI (but keep all in allEvents)
   while (eventsList.children.length > 100) {
     eventsList.removeChild(eventsList.lastChild);
   }
@@ -660,7 +669,73 @@ function clearEvents() {
   `;
 
   state.eventCount = 0;
+  state.allEvents = []; // Clear all stored events
   document.getElementById('eventCount').textContent = '0';
+}
+
+// Export Events
+async function exportEvents() {
+  if (state.allEvents.length === 0) {
+    alert('No events to export. Start monitoring to capture events.');
+    return;
+  }
+
+  try {
+    // Show save dialog
+    const result = await window.electronAPI.showSaveDialog({
+      title: 'Export Events',
+      defaultPath: `twitch-events-${new Date().toISOString().split('T')[0]}.json`,
+      filters: [
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return;
+    }
+
+    // Determine format based on file extension
+    const filePath = result.filePath;
+    const ext = filePath.split('.').pop().toLowerCase();
+
+    let content;
+    if (ext === 'csv') {
+      // Export as CSV
+      content = convertToCSV(state.allEvents);
+    } else {
+      // Export as JSON (default)
+      content = JSON.stringify(state.allEvents, null, 2);
+    }
+
+    // Save the file
+    const saveResult = await window.electronAPI.saveEventLog(filePath, content);
+
+    if (saveResult.success) {
+      alert(`Successfully exported ${state.allEvents.length} events to ${filePath}`);
+    } else {
+      alert(`Failed to export events: ${saveResult.error}`);
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    alert(`Failed to export events: ${error.message}`);
+  }
+}
+
+// Convert events to CSV format
+function convertToCSV(events) {
+  const headers = ['Timestamp', 'Type', 'Message'];
+  const rows = [headers.join(',')];
+
+  events.forEach(event => {
+    const timestamp = event.timestamp;
+    const type = event.type;
+    const message = event.message.replace(/"/g, '""'); // Escape quotes
+    rows.push(`"${timestamp}","${type}","${message}"`);
+  });
+
+  return rows.join('\n');
 }
 
 // Open External URL
@@ -693,4 +768,5 @@ window.refreshOAuth = refreshOAuth;
 window.startMonitoring = startMonitoring;
 window.stopMonitoring = stopMonitoring;
 window.clearEvents = clearEvents;
+window.exportEvents = exportEvents;
 window.openExternal = openExternal;

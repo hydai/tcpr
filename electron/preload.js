@@ -50,5 +50,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Dialogs
   showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpen', options),
-  showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options)
+  showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
+
+  // Event log export
+  saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content)
 });

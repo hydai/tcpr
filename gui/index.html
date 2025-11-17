@@ -313,7 +313,10 @@
         <div class="events-container">
           <div class="events-header">
             <h3>Event Log</h3>
-            <button class="btn btn-sm btn-secondary" onclick="clearEvents()">Clear</button>
+            <div>
+              <button class="btn btn-sm btn-primary" onclick="exportEvents()">Export</button>
+              <button class="btn btn-sm btn-secondary" onclick="clearEvents()">Clear</button>
+            </div>
           </div>
           <div id="eventsList" class="events-list">
             <div class="empty-state">
