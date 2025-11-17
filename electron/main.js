@@ -233,9 +233,13 @@ ipcMain.handle('app:isFirstRun', async () => {
 // Validate token
 ipcMain.handle('token:validate', async (event, accessToken) => {
   try {
-    const { default: validateToken } = await import('../lib/tokenValidator.js');
-    const result = await validateToken(accessToken);
-    return { success: true, data: result };
+    const { TokenValidator } = await import('../lib/tokenValidator.js');
+    const result = await TokenValidator.quickCheck(accessToken);
+    if (result) {
+      return { success: true, data: result };
+    } else {
+      return { success: false, error: 'Invalid or expired access token' };
+    }
   } catch (error) {
     return { success: false, error: error.message };
   }
