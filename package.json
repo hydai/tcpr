@@ -6,14 +6,21 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "validate": "node validateToken.js"
+    "validate": "node validateToken.js",
+    "oauth": "node oauth-server.js"
   },
-  "keywords": ["twitch", "eventsub", "websocket", "channel-points"],
+  "keywords": [
+    "twitch",
+    "eventsub",
+    "websocket",
+    "channel-points"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "ws": "^8.14.2",
+    "axios": "^1.6.0",
     "dotenv": "^16.3.1",
-    "axios": "^1.6.0"
+    "express": "^5.1.0",
+    "ws": "^8.14.2"
   }
 }
