@@ -10,11 +10,11 @@ import { MESSAGE_TYPES, EVENT_TYPES } from '../config/constants.js';
 /**
  * Filter options configuration
  * @typedef {Object} FilterOptions
- * @property {boolean} allowKeepalive - Whether to allow keepalive messages (default: false)
- * @property {boolean} allowRewardAdd - Whether to allow reward add events (default: true)
- * @property {boolean} allowRewardUpdate - Whether to allow reward update events (default: true)
- * @property {boolean} allowRedemptionAdd - Whether to allow redemption add events (default: true)
- * @property {boolean} allowRedemptionUpdate - Whether to allow redemption update events (default: true)
+ * @property {boolean} allowKeepalive - Whether to allow keepalive messages through the filter for processing (default: false)
+ * @property {boolean} allowRewardAdd - Whether to allow reward add events through the filter for processing (default: true)
+ * @property {boolean} allowRewardUpdate - Whether to allow reward update events through the filter for processing (default: true)
+ * @property {boolean} allowRedemptionAdd - Whether to allow redemption add events through the filter for processing (default: true)
+ * @property {boolean} allowRedemptionUpdate - Whether to allow redemption update events through the filter for processing (default: true)
  */
 
 export class PacketFilter {
@@ -131,7 +131,12 @@ export class PacketFilter {
    * @returns {boolean} true if event is points-related
    */
   static isPointsEvent(eventType) {
-    return Object.values(EVENT_TYPES).includes(eventType);
+    return [
+      EVENT_TYPES.REWARD_ADD,
+      EVENT_TYPES.REWARD_UPDATE,
+      EVENT_TYPES.REDEMPTION_ADD,
+      EVENT_TYPES.REDEMPTION_UPDATE,
+    ].includes(eventType);
   }
 }
 
