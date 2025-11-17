@@ -699,7 +699,7 @@ async function exportEvents() {
 
     // Determine format based on file extension
     const filePath = result.filePath;
-    const ext = window.electronAPI.path.extname(filePath).toLowerCase().replace('.', '');
+    const ext = window.electronAPI.path.extname(filePath).toLowerCase().slice(1);
 
     let content;
     if (ext === 'csv') {
@@ -724,7 +724,13 @@ async function exportEvents() {
   }
 }
 
-// Escape CSV field properly
+/**
+ * Escapes a value for CSV output according to RFC 4180:
+ * - All fields are always wrapped in double quotes, so fields containing commas, quotes, or newlines are handled correctly.
+ * - Any double quotes inside the field are escaped by doubling them.
+ * - Newlines are replaced with spaces to avoid multiline CSV rows (design choice).
+ * This ensures the output is valid CSV and easy to parse.
+ */
 function escapeCSVField(field) {
   // Convert to string, replace newlines with space, escape double quotes, wrap in double quotes
   const str = String(field).replace(/\r?\n/g, ' ').replace(/"/g, '""');
