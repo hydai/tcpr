@@ -1,12 +1,12 @@
 import express from 'express';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { TWITCH_URLS, DEFAULT_OAUTH_SCOPES, DEFAULTS } from './config/constants.js';
+import { TWITCH_URLS, DEFAULT_OAUTH_SCOPES } from './config/constants.js';
 import { Config } from './config/env.js';
 import { Logger } from './lib/logger.js';
+import { StateTokenManager } from './lib/StateTokenManager.js';
 
 // Load environment variables
 dotenv.config();
@@ -32,8 +32,8 @@ const CLIENT_SECRET = config.clientSecret;
 const REDIRECT_URI = config.redirectUri;
 const SCOPES = DEFAULT_OAUTH_SCOPES;
 
-// Store state tokens temporarily (in production, use Redis or a database)
-const stateTokens = new Map();
+// Initialize state token manager
+const stateTokenManager = new StateTokenManager();
 
 // Serve static files from public directory
 app.use(express.static(join(__dirname, 'public')));
@@ -51,17 +51,8 @@ app.get('/auth', (req, res) => {
     );
   }
 
-  // Generate a random state token for CSRF protection
-  const state = crypto.randomBytes(16).toString('hex');
-
-  // Store state token with expiration (5 minutes)
-  stateTokens.set(state, {
-    timestamp: Date.now(),
-    expiresAt: Date.now() + DEFAULTS.STATE_TOKEN_EXPIRY
-  });
-
-  // Clean up expired state tokens
-  cleanupExpiredStates();
+  // Generate a state token for CSRF protection
+  const state = stateTokenManager.create();
 
   // Build authorization URL
   const authParams = new URLSearchParams({
@@ -100,14 +91,11 @@ app.get('/callback', async (req, res) => {
     return res.redirect('/?error=invalid_request&error_description=Missing+code+or+state+parameter');
   }
 
-  // Verify state token (CSRF protection)
-  if (!stateTokens.has(state)) {
+  // Verify and consume state token (CSRF protection)
+  if (!stateTokenManager.consume(state)) {
     Logger.error('Invalid state token');
     return res.redirect('/?error=invalid_state&error_description=State+token+is+invalid+or+expired');
   }
-
-  // Remove used state token
-  stateTokens.delete(state);
 
   try {
     Logger.info('Exchanging authorization code for access token...');
@@ -179,6 +167,8 @@ app.get('/callback', async (req, res) => {
  * Health check endpoint
  */
 app.get('/health', (req, res) => {
+  const stats = stateTokenManager.getStats();
+
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -186,26 +176,14 @@ app.get('/health', (req, res) => {
       clientId: CLIENT_ID ? '✓ Set' : '✗ Missing',
       clientSecret: CLIENT_SECRET ? '✓ Set' : '✗ Missing',
       redirectUri: REDIRECT_URI
+    },
+    stateTokens: {
+      total: stats.total,
+      active: stats.active,
+      expired: stats.expired
     }
   });
 });
-
-/**
- * Cleanup expired state tokens
- */
-function cleanupExpiredStates() {
-  const now = Date.now();
-  let cleaned = 0;
-  for (const [state, data] of stateTokens.entries()) {
-    if (data.expiresAt < now) {
-      stateTokens.delete(state);
-      cleaned++;
-    }
-  }
-  if (cleaned > 0) {
-    Logger.debug(`Cleaned up ${cleaned} expired state tokens`);
-  }
-}
 
 // Start the server
 app.listen(PORT, () => {
@@ -240,12 +218,11 @@ app.listen(PORT, () => {
 });
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
+function shutdown() {
   Logger.log('\n\nShutting down OAuth server...');
+  stateTokenManager.destroy();
   process.exit(0);
-});
+}
 
-process.on('SIGTERM', () => {
-  Logger.log('\n\nShutting down OAuth server...');
-  process.exit(0);
-});
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
