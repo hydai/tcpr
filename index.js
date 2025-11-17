@@ -1,11 +1,13 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { TWITCH_URLS, EVENT_TYPES, MESSAGE_TYPES } from './config/constants.js';
+import { Config } from './config/env.js';
+import { TokenValidator } from './lib/tokenValidator.js';
+import { Logger } from './lib/logger.js';
+import { SubscriptionError } from './lib/errors.js';
 
 dotenv.config();
-
-const TWITCH_EVENTSUB_WS_URL = 'wss://eventsub.wss.twitch.tv/ws';
-const TWITCH_API_URL = 'https://api.twitch.tv/helix';
 
 class TwitchEventSubClient {
   constructor(clientId, accessToken, broadcasterId) {
@@ -18,13 +20,13 @@ class TwitchEventSubClient {
   }
 
   connect() {
-    const url = this.reconnectUrl || TWITCH_EVENTSUB_WS_URL;
-    console.log(`Connecting to ${url}...`);
+    const url = this.reconnectUrl || TWITCH_URLS.EVENTSUB_WS;
+    Logger.info(`Connecting to ${url}...`);
 
     this.ws = new WebSocket(url);
 
     this.ws.on('open', () => {
-      console.log('WebSocket connection established');
+      Logger.info('WebSocket connection established');
     });
 
     this.ws.on('message', (data) => {
@@ -32,17 +34,17 @@ class TwitchEventSubClient {
     });
 
     this.ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+      Logger.error('WebSocket error:', error);
     });
 
     this.ws.on('close', () => {
-      console.log('WebSocket connection closed');
+      Logger.info('WebSocket connection closed');
       // Attempt to reconnect if we have a reconnect URL
       if (this.reconnectUrl) {
-        console.log('Reconnecting to new session...');
+        Logger.info('Reconnecting to new session...');
         this.connect();
       } else {
-        console.log('Connection closed. Exiting...');
+        Logger.info('Connection closed. Exiting...');
       }
     });
   }
@@ -50,45 +52,45 @@ class TwitchEventSubClient {
   handleMessage(message) {
     const { metadata, payload } = message;
 
-    console.log(`\n[${new Date().toISOString()}] Message Type: ${metadata.message_type}`);
+    Logger.eventSubMessage(metadata.message_type);
 
     switch (metadata.message_type) {
-      case 'session_welcome':
+      case MESSAGE_TYPES.SESSION_WELCOME:
         this.handleWelcome(payload);
         break;
 
-      case 'session_keepalive':
-        console.log('Keepalive received');
+      case MESSAGE_TYPES.SESSION_KEEPALIVE:
+        Logger.info('Keepalive received');
         break;
 
-      case 'notification':
+      case MESSAGE_TYPES.NOTIFICATION:
         this.handleNotification(payload);
         break;
 
-      case 'session_reconnect':
+      case MESSAGE_TYPES.SESSION_RECONNECT:
         this.handleReconnect(payload);
         break;
 
-      case 'revocation':
+      case MESSAGE_TYPES.REVOCATION:
         this.handleRevocation(payload);
         break;
 
       default:
-        console.log('Unknown message type:', metadata.message_type);
-        console.log('Payload:', JSON.stringify(payload, null, 2));
+        Logger.warn('Unknown message type:', metadata.message_type);
+        Logger.log('Payload: ' + JSON.stringify(payload, null, 2));
     }
   }
 
   async handleWelcome(payload) {
     this.sessionId = payload.session.id;
-    console.log(`Session ID: ${this.sessionId}`);
-    console.log(`Keepalive timeout: ${payload.session.keepalive_timeout_seconds}s`);
+    Logger.info(`Session ID: ${this.sessionId}`);
+    Logger.info(`Keepalive timeout: ${payload.session.keepalive_timeout_seconds}s`);
 
     // Validate token before subscribing
     const isValid = await this.validateToken();
     if (!isValid) {
-      console.error('\n❌ Token validation failed. Exiting...');
-      console.error('💡 Run "npm run validate" for detailed diagnostics\n');
+      Logger.error('Token validation failed. Exiting...');
+      Logger.log('💡 Run "npm run validate" for detailed diagnostics\n');
       process.exit(1);
     }
 
@@ -98,46 +100,19 @@ class TwitchEventSubClient {
 
   async validateToken() {
     try {
-      // Validate the token
-      const validateResponse = await axios.get('https://id.twitch.tv/oauth2/validate', {
-        headers: {
-          'Authorization': `OAuth ${this.accessToken}`
-        }
-      });
-
-      const tokenData = validateResponse.data;
-
-      // Check if token belongs to the broadcaster
-      if (tokenData.user_id !== this.broadcasterId) {
-        console.error('\n❌ Token mismatch!');
-        console.error(`   Token belongs to user ID: ${tokenData.user_id}`);
-        console.error(`   But broadcaster ID is: ${this.broadcasterId}`);
-        return false;
-      }
-
-      // Check for required scopes
-      const requiredScopes = ['channel:read:redemptions', 'channel:manage:redemptions'];
-      const hasRequiredScope = requiredScopes.some(scope => tokenData.scopes.includes(scope));
-
-      if (!hasRequiredScope) {
-        console.error('\n❌ Missing required scope!');
-        console.error(`   Current scopes: ${tokenData.scopes.join(', ')}`);
-        console.error(`   Required: channel:read:redemptions OR channel:manage:redemptions`);
-        return false;
-      }
-
+      await TokenValidator.validate(this.accessToken, this.broadcasterId);
       return true;
     } catch (error) {
-      console.error('\n❌ Token validation error:', error.message);
+      Logger.error('Token validation failed:', error);
       return false;
     }
   }
 
   async subscribeToEvent() {
-    console.log('\nSubscribing to channel.channel_points_custom_reward.add...');
+    Logger.info('\nSubscribing to channel.channel_points_custom_reward.add...');
 
     const subscriptionData = {
-      type: 'channel.channel_points_custom_reward.add',
+      type: EVENT_TYPES.REWARD_ADD,
       version: '1',
       condition: {
         broadcaster_user_id: this.broadcasterId
@@ -150,7 +125,7 @@ class TwitchEventSubClient {
 
     try {
       const response = await axios.post(
-        `${TWITCH_API_URL}/eventsub/subscriptions`,
+        `${TWITCH_URLS.API}/eventsub/subscriptions`,
         subscriptionData,
         {
           headers: {
@@ -161,74 +136,80 @@ class TwitchEventSubClient {
         }
       );
 
-      console.log('Subscription successful!');
-      console.log('Subscription ID:', response.data.data[0].id);
-      console.log('Status:', response.data.data[0].status);
-      console.log('\nWaiting for custom reward creation events...\n');
+      Logger.success('Subscription successful!');
+      Logger.log('Subscription ID: ' + response.data.data[0].id);
+      Logger.log('Status: ' + response.data.data[0].status);
+      Logger.log('\nWaiting for custom reward creation events...\n');
     } catch (error) {
-      console.error('Failed to subscribe to event:');
+      Logger.error('Failed to subscribe to event:');
       if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Error:', JSON.stringify(error.response.data, null, 2));
+        Logger.log('Status: ' + error.response.status);
+        Logger.log('Error: ' + JSON.stringify(error.response.data, null, 2));
       } else {
-        console.error(error.message);
+        Logger.error(error.message);
       }
-      process.exit(1);
+
+      throw new SubscriptionError(
+        'Failed to create EventSub subscription',
+        EVENT_TYPES.REWARD_ADD,
+        error.response?.status,
+        error.response?.data
+      );
     }
   }
 
   handleNotification(payload) {
-    console.log('\n🎁 CUSTOM REWARD CREATED EVENT RECEIVED!');
-    console.log('━'.repeat(60));
-
     const event = payload.event;
 
-    console.log(`Reward Title: ${event.title}`);
-    console.log(`Cost: ${event.cost} points`);
-    console.log(`Reward ID: ${event.id}`);
-    console.log(`Broadcaster: ${event.broadcaster_user_name} (${event.broadcaster_user_login})`);
-    console.log(`Enabled: ${event.is_enabled}`);
-    console.log(`User Input Required: ${event.is_user_input_required}`);
+    const details = {
+      'Reward Title': event.title,
+      'Cost': `${event.cost} points`,
+      'Reward ID': event.id,
+      'Broadcaster': `${event.broadcaster_user_name} (${event.broadcaster_user_login})`,
+      'Enabled': event.is_enabled,
+      'User Input Required': event.is_user_input_required
+    };
 
     if (event.prompt) {
-      console.log(`Prompt: ${event.prompt}`);
+      details['Prompt'] = event.prompt;
     }
 
     if (event.background_color) {
-      console.log(`Background Color: ${event.background_color}`);
+      details['Background Color'] = event.background_color;
     }
 
     if (event.global_cooldown_setting && event.global_cooldown_setting.is_enabled) {
-      console.log(`Global Cooldown: ${event.global_cooldown_setting.global_cooldown_seconds}s`);
+      details['Global Cooldown'] = `${event.global_cooldown_setting.global_cooldown_seconds}s`;
     }
 
     if (event.max_per_stream_setting && event.max_per_stream_setting.is_enabled) {
-      console.log(`Max Per Stream: ${event.max_per_stream_setting.max_per_stream}`);
+      details['Max Per Stream'] = event.max_per_stream_setting.max_per_stream;
     }
 
     if (event.max_per_user_per_stream_setting && event.max_per_user_per_stream_setting.is_enabled) {
-      console.log(`Max Per User Per Stream: ${event.max_per_user_per_stream_setting.max_per_user_per_stream}`);
+      details['Max Per User Per Stream'] = event.max_per_user_per_stream_setting.max_per_user_per_stream;
     }
 
-    console.log('━'.repeat(60));
-    console.log('\nFull event data:');
-    console.log(JSON.stringify(event, null, 2));
-    console.log('\n');
+    Logger.eventNotification('🎁 CUSTOM REWARD CREATED EVENT RECEIVED!', details);
+
+    Logger.log('\nFull event data:');
+    Logger.log(JSON.stringify(event, null, 2));
+    Logger.log('\n');
   }
 
   handleReconnect(payload) {
-    console.log('Reconnect requested');
+    Logger.info('Reconnect requested');
     this.reconnectUrl = payload.session.reconnect_url;
-    console.log(`New reconnect URL: ${this.reconnectUrl}`);
+    Logger.info(`New reconnect URL: ${this.reconnectUrl}`);
 
     // Close current connection and reconnect
     this.ws.close();
   }
 
   handleRevocation(payload) {
-    console.log('Subscription revoked:');
-    console.log('Subscription type:', payload.subscription.type);
-    console.log('Reason:', payload.subscription.status);
+    Logger.info('Subscription revoked:');
+    Logger.log('Subscription type: ' + payload.subscription.type);
+    Logger.log('Reason: ' + payload.subscription.status);
   }
 
   disconnect() {
@@ -240,36 +221,34 @@ class TwitchEventSubClient {
 
 // Main execution
 async function main() {
-  const clientId = process.env.TWITCH_CLIENT_ID;
-  const accessToken = process.env.TWITCH_ACCESS_TOKEN;
-  const broadcasterId = process.env.TWITCH_BROADCASTER_ID;
+  try {
+    // Load and validate configuration
+    const config = Config.loadForClient();
 
-  // Validate environment variables
-  if (!clientId || !accessToken || !broadcasterId) {
-    console.error('Error: Missing required environment variables');
-    console.error('Please ensure the following are set in your .env file:');
-    console.error('  - TWITCH_CLIENT_ID');
-    console.error('  - TWITCH_ACCESS_TOKEN');
-    console.error('  - TWITCH_BROADCASTER_ID');
+    Logger.log('Starting Twitch EventSub WebSocket Client...');
+    Logger.log(`Broadcaster ID: ${config.broadcasterId}`);
+    Logger.divider('─', 60);
+
+    const client = new TwitchEventSubClient(
+      config.clientId,
+      config.accessToken,
+      config.broadcasterId
+    );
+    client.connect();
+
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      Logger.log('\nShutting down...');
+      client.disconnect();
+      process.exit(0);
+    });
+  } catch (error) {
+    Logger.error('Configuration error:', error);
     process.exit(1);
   }
-
-  console.log('Starting Twitch EventSub WebSocket Client...');
-  console.log(`Broadcaster ID: ${broadcasterId}`);
-  console.log('─'.repeat(60));
-
-  const client = new TwitchEventSubClient(clientId, accessToken, broadcasterId);
-  client.connect();
-
-  // Handle graceful shutdown
-  process.on('SIGINT', () => {
-    console.log('\nShutting down...');
-    client.disconnect();
-    process.exit(0);
-  });
 }
 
 main().catch(error => {
-  console.error('Fatal error:', error);
+  Logger.error('Fatal error:', error);
   process.exit(1);
 });
