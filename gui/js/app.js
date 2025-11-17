@@ -682,9 +682,10 @@ async function exportEvents() {
 
   try {
     // Show save dialog
+    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const result = await window.electronAPI.showSaveDialog({
       title: 'Export Events',
-      defaultPath: `twitch-events-${new Date().toISOString().split('T')[0]}.json`,
+      defaultPath: `twitch-events-${dateStr}.json`,
       filters: [
         { name: 'JSON Files', extensions: ['json'] },
         { name: 'CSV Files', extensions: ['csv'] },
@@ -696,9 +697,12 @@ async function exportEvents() {
       return;
     }
 
-    // Determine format based on file extension
+    // Determine format based on file extension (extract from basename only)
     const filePath = result.filePath;
-    const ext = filePath.split('.').pop().toLowerCase();
+    const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+    const basename = filePath.substring(lastSlash + 1);
+    const lastDot = basename.lastIndexOf('.');
+    const ext = lastDot >= 0 ? basename.substring(lastDot + 1).toLowerCase() : '';
 
     let content;
     if (ext === 'csv') {
@@ -723,16 +727,23 @@ async function exportEvents() {
   }
 }
 
+// Escape CSV field properly
+function escapeCSVField(field) {
+  // Convert to string, replace newlines with space, escape double quotes, wrap in double quotes
+  const str = String(field).replace(/\r?\n/g, ' ').replace(/"/g, '""');
+  return `"${str}"`;
+}
+
 // Convert events to CSV format
 function convertToCSV(events) {
   const headers = ['Timestamp', 'Type', 'Message'];
-  const rows = [headers.join(',')];
+  const rows = [headers.map(escapeCSVField).join(',')];
 
   events.forEach(event => {
     const timestamp = event.timestamp;
     const type = event.type;
-    const message = event.message.replace(/\r?\n/g, ' ').replace(/"/g, '""'); // Replace newlines, then escape quotes
-    rows.push(`"${timestamp}","${type}","${message}"`);
+    const message = event.message;
+    rows.push([timestamp, type, message].map(escapeCSVField).join(','));
   });
 
   return rows.join('\n');
