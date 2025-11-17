@@ -450,7 +450,7 @@ ipcMain.handle('app:getPath', async (event, name) => {
 // Save event log
 ipcMain.handle('eventlog:save', async (event, filePath, content) => {
   try {
-    fs.writeFileSync(filePath, content, 'utf-8');
+    await fs.promises.writeFile(filePath, content, 'utf-8');
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

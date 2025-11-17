@@ -731,7 +731,7 @@ function convertToCSV(events) {
   events.forEach(event => {
     const timestamp = event.timestamp;
     const type = event.type;
-    const message = event.message.replace(/"/g, '""'); // Escape quotes
+    const message = event.message.replace(/\r?\n/g, ' ').replace(/"/g, '""'); // Replace newlines, then escape quotes
     rows.push(`"${timestamp}","${type}","${message}"`);
   });
 
