@@ -4,6 +4,9 @@
 # Secret configuration file (contains sensitive credentials)
 .secret
 
+# Auto-generated builtin config (may contain embedded credentials)
+config/builtin.js
+
 # Output
 dist/
 

@@ -77,10 +77,32 @@ The application loads configuration in the following priority order:
 
 ### Security Considerations
 
+**Gitignore Protection:**
 - ✅ `.secret` file is added to `.gitignore` and won't be committed
-- ✅ The built `config/builtin.js` will be included in the application
-- ⚠️ Keep your `.secret` file secure
-- ⚠️ Do not commit `config/builtin.js` with credentials to public repositories
+- ✅ `config/builtin.js` is added to `.gitignore` to prevent accidental commits with embedded credentials
+
+**Understanding the Security Model:**
+- ⚠️ Credentials are intentionally embedded in the built application for distribution
+- ⚠️ The built application (in `dist/`) will contain the embedded Client ID and Secret
+- ⚠️ Anyone with access to the built application can extract these credentials using decompilation tools
+- ⚠️ This approach is suitable when you want to distribute a pre-configured app to end users
+
+**When to Use This Feature:**
+- ✅ Distributing the app to end users who shouldn't see or manage credentials
+- ✅ Creating branded versions of the app for specific Twitch applications
+- ✅ Simplifying the setup process for non-technical users
+
+**When NOT to Use This Feature:**
+- ❌ Open source projects where the repository is public
+- ❌ Distributing to untrusted parties who might abuse the credentials
+- ❌ When you need to keep the Client Secret truly confidential
+
+**Best Practices:**
+- Keep your `.secret` file secure and never commit it
+- Consider the credentials "public" once embedded in a distributed application
+- Use Twitch's redirect URI whitelist to limit where OAuth can redirect
+- Monitor your Twitch application for unusual activity
+- Rotate credentials if they are compromised
 
 ## Building Without .secret File
 
