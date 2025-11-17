@@ -186,7 +186,7 @@ async function loadConfig() {
         if (line && !line.startsWith('#')) {
           const [key, ...valueParts] = line.split('=');
           const value = valueParts.join('=').trim();
-          if (value) {  // Only override if value is not an empty string
+          if (value) {  // Only override if value is not empty (preserves built-in credentials when .env has empty values)
             config[key.trim()] = value;
           }
         }

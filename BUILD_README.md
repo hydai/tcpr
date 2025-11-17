@@ -166,4 +166,9 @@ npm run build:win  # or build:mac
 
 ## Development Mode
 
-In development mode (`npm run gui:dev`), the application still uses the `.env` file for configuration and does not use the builtin config. This allows developers to test different credentials without rebuilding.
+In development mode (`npm run gui:dev`), the application loads the built-in config first (if available), then applies any overrides from the `.env` file. This allows developers to test different credentials without rebuilding, while still using the built-in config as a base.
+
+The configuration loading order is the same in both development and production:
+1. Built-in credentials (from `config/builtin.js`) are loaded first
+2. User's `.env` file values override the built-in values
+3. Empty values in `.env` do not override existing built-in values
