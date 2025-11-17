@@ -84,8 +84,53 @@ class TwitchEventSubClient {
     console.log(`Session ID: ${this.sessionId}`);
     console.log(`Keepalive timeout: ${payload.session.keepalive_timeout_seconds}s`);
 
+    // Validate token before subscribing
+    const isValid = await this.validateToken();
+    if (!isValid) {
+      console.error('\n❌ Token validation failed. Exiting...');
+      console.error('💡 Run "npm run validate" for detailed diagnostics\n');
+      process.exit(1);
+    }
+
     // Subscribe to channel points redemption update event
     await this.subscribeToEvent();
+  }
+
+  async validateToken() {
+    try {
+      // Validate the token
+      const validateResponse = await axios.get('https://id.twitch.tv/oauth2/validate', {
+        headers: {
+          'Authorization': `OAuth ${this.accessToken}`
+        }
+      });
+
+      const tokenData = validateResponse.data;
+
+      // Check if token belongs to the broadcaster
+      if (tokenData.user_id !== this.broadcasterId) {
+        console.error('\n❌ Token mismatch!');
+        console.error(`   Token belongs to user ID: ${tokenData.user_id}`);
+        console.error(`   But broadcaster ID is: ${this.broadcasterId}`);
+        return false;
+      }
+
+      // Check for required scopes
+      const requiredScopes = ['channel:read:redemptions', 'channel:manage:redemptions'];
+      const hasRequiredScope = requiredScopes.some(scope => tokenData.scopes.includes(scope));
+
+      if (!hasRequiredScope) {
+        console.error('\n❌ Missing required scope!');
+        console.error(`   Current scopes: ${tokenData.scopes.join(', ')}`);
+        console.error(`   Required: channel:read:redemptions OR channel:manage:redemptions`);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('\n❌ Token validation error:', error.message);
+      return false;
+    }
   }
 
   async subscribeToEvent() {
