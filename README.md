@@ -31,7 +31,7 @@ A simple Node.js WebSocket client that subscribes to Twitch EventSub custom rewa
 
 ### 2. Generate an Access Token
 
-You need a **User Access Token** with the `channel:read:redemptions` and `channel:manage:redemptions` scopes.
+You need a **User Access Token** with the `channel:read:redemptions` scope.
 
 **Option A: Using OAuth Web Server (Recommended)**
 
@@ -62,13 +62,13 @@ The OAuth server will also display your broadcaster user ID, which you'll need f
 # Install Twitch CLI
 # Visit: https://dev.twitch.tv/docs/cli
 
-# Generate token with required scopes
-twitch token -u -s "channel:read:redemptions channel:manage:redemptions"
+# Generate token with required scope
+twitch token -u -s "channel:read:redemptions"
 ```
 
 **Option C: Manual Token Generation**
 1. Go to [Twitch Token Generator](https://twitchtokengenerator.com/)
-2. Select `channel:read:redemptions` and `channel:manage:redemptions` scopes
+2. Select `channel:read:redemptions` scope
 3. Generate and copy the token
 
 ### 3. Get Your Broadcaster User ID
@@ -138,7 +138,7 @@ npm run validate
 
 This will check:
 - Token validity and expiration
-- Required scopes (`channel:read:redemptions` or `channel:manage:redemptions`)
+- Required scope (`channel:read:redemptions`)
 - Token ownership (must match the broadcaster ID)
 
 ### Run the Application
@@ -213,7 +213,7 @@ Your access token is invalid or expired. Generate a new token with the `channel:
 This is the most common error. Run `npm run validate` to diagnose the issue. Common causes:
 
 1. **Token doesn't have required scope**
-   - The token MUST have `channel:read:redemptions` OR `channel:manage:redemptions` scope
+   - The token MUST have `channel:read:redemptions` scope
    - Generate a new token with: `twitch token -u -s channel:read:redemptions`
 
 2. **Token belongs to wrong account**
