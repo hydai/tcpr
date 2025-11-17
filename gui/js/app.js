@@ -1,3 +1,6 @@
+// Constants
+const OAUTH_TIMEOUT_MS = 300000; // 5 minutes
+
 // Application State
 const state = {
   currentStep: 0,
@@ -301,10 +304,10 @@ function pollForOAuthCompletion() {
     }
   }, 2000);
 
-  // Timeout after 5 minutes
+  // Timeout after configured time
   setTimeout(() => {
     clearInterval(interval);
-  }, 300000);
+  }, OAUTH_TIMEOUT_MS);
 }
 
 // Handle OAuth Message
@@ -314,18 +317,21 @@ function handleOAuthMessage(data) {
 }
 
 // Copy Token
-function copyToken() {
+async function copyToken(event) {
   const tokenInput = document.getElementById('accessToken');
-  tokenInput.select();
-  document.execCommand('copy');
-
-  // Show feedback
-  const btn = event.target;
-  const originalText = btn.textContent;
-  btn.textContent = 'Copied!';
-  setTimeout(() => {
-    btn.textContent = originalText;
-  }, 2000);
+  try {
+    await navigator.clipboard.writeText(tokenInput.value);
+    // Show feedback
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => {
+      btn.textContent = originalText;
+    }, 2000);
+  } catch (err) {
+    console.error('Failed to copy token:', err);
+    alert('Failed to copy token: ' + err.message);
+  }
 }
 
 // Save and Continue (Step 3 -> 4)

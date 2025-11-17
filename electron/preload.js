@@ -19,15 +19,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // OAuth
   startOAuth: (port) => ipcRenderer.invoke('oauth:start', port),
   stopOAuth: () => ipcRenderer.invoke('oauth:stop'),
-  onOAuthMessage: (callback) => ipcRenderer.on('oauth:message', (event, data) => callback(data)),
-  onOAuthStopped: (callback) => ipcRenderer.on('oauth:stopped', (event, code) => callback(code)),
+  onOAuthMessage: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('oauth:message', handler);
+    return () => ipcRenderer.removeListener('oauth:message', handler);
+  },
+  onOAuthStopped: (callback) => {
+    const handler = (event, code) => callback(code);
+    ipcRenderer.on('oauth:stopped', handler);
+    return () => ipcRenderer.removeListener('oauth:stopped', handler);
+  },
 
   // EventSub
   startEventSub: () => ipcRenderer.invoke('eventsub:start'),
   stopEventSub: () => ipcRenderer.invoke('eventsub:stop'),
   getEventSubStatus: () => ipcRenderer.invoke('eventsub:status'),
-  onEventSubLog: (callback) => ipcRenderer.on('eventsub:log', (event, data) => callback(data)),
-  onEventSubStopped: (callback) => ipcRenderer.on('eventsub:stopped', (event, code) => callback(code)),
+  onEventSubLog: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('eventsub:log', handler);
+    return () => ipcRenderer.removeListener('eventsub:log', handler);
+  },
+  onEventSubStopped: (callback) => {
+    const handler = (event, code) => callback(code);
+    ipcRenderer.on('eventsub:stopped', handler);
+    return () => ipcRenderer.removeListener('eventsub:stopped', handler);
+  },
 
   // Shell
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

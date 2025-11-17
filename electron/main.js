@@ -230,6 +230,17 @@ ipcMain.handle('eventsub:start', async () => {
       }
     );
 
+    eventSubProcess.on('error', (error) => {
+      if (mainWindow) {
+        mainWindow.webContents.send('eventsub:log', {
+          type: 'error',
+          message: `Failed to start EventSub process: ${error.message}`
+        });
+        mainWindow.webContents.send('eventsub:stopped', null);
+      }
+      eventSubProcess = null;
+    });
+
     eventSubProcess.stdout.on('data', (data) => {
       if (mainWindow) {
         mainWindow.webContents.send('eventsub:log', {
