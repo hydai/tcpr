@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitch Channel Points Monitor</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Navigation/Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="logo">
+          <svg class="twitch-icon" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+          </svg>
+          <span>Channel Points Monitor</span>
+        </div>
+        <div class="header-actions">
+          <button id="settingsBtn" class="icon-btn" title="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Tutorial/Setup Wizard -->
+      <div id="setupWizard" class="wizard-container">
+        <!-- Step 0: Welcome -->
+        <div class="wizard-step active" data-step="0">
+          <div class="wizard-content">
+            <div class="welcome-header">
+              <svg class="twitch-logo" width="120" height="120" viewBox="0 0 24 24" fill="#9147ff">
+                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+              </svg>
+              <h1>Welcome to Twitch Channel Points Monitor!</h1>
+              <p class="subtitle">Let's get you set up to monitor your channel points events in real-time.</p>
+            </div>
+
+            <div class="feature-list">
+              <div class="feature-item">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-text">
+                  <h3>Real-Time Monitoring</h3>
+                  <p>Track channel points custom reward events as they happen</p>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">🔐</div>
+                <div class="feature-text">
+                  <h3>Secure OAuth</h3>
+                  <p>Easy authentication with Twitch using OAuth 2.0</p>
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">💻</div>
+                <div class="feature-text">
+                  <h3>Desktop Experience</h3>
+                  <p>Native Windows application with a clean interface</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <button class="btn btn-primary btn-large" onclick="wizardNext()">Get Started</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: Twitch App Setup -->
+        <div class="wizard-step" data-step="1">
+          <div class="wizard-content">
+            <h2>Step 1: Create a Twitch Application</h2>
+            <p class="step-description">To use this monitor, you need to create a Twitch application to get your Client ID and Client Secret.</p>
+
+            <div class="instruction-box">
+              <h3>📋 Instructions:</h3>
+              <ol class="instruction-list">
+                <li>Visit the <a href="#" onclick="openExternal('https://dev.twitch.tv/console/apps'); return false;">Twitch Developer Console</a></li>
+                <li>Click "Register Your Application"</li>
+                <li>Fill in the application details:
+                  <ul>
+                    <li><strong>Name:</strong> Choose any name (e.g., "My Channel Points Monitor")</li>
+                    <li><strong>OAuth Redirect URLs:</strong> <code>http://localhost:3000/callback</code></li>
+                    <li><strong>Category:</strong> Application Integration</li>
+                  </ul>
+                </li>
+                <li>Click "Create"</li>
+                <li>Click "Manage" on your new application</li>
+                <li>Copy your <strong>Client ID</strong></li>
+                <li>Click "New Secret" to generate a <strong>Client Secret</strong> and copy it</li>
+              </ol>
+            </div>
+
+            <div class="form-group">
+              <label for="clientId">Twitch Client ID</label>
+              <input type="text" id="clientId" placeholder="Enter your Client ID" class="form-control">
+              <span class="form-hint">This is a public identifier for your application</span>
+            </div>
+
+            <div class="form-group">
+              <label for="clientSecret">Twitch Client Secret</label>
+              <input type="password" id="clientSecret" placeholder="Enter your Client Secret" class="form-control">
+              <span class="form-hint">Keep this secret! It's like a password for your application</span>
+              <div class="checkbox-group">
+                <input type="checkbox" id="showSecret" onchange="toggleSecretVisibility()">
+                <label for="showSecret">Show secret</label>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <button class="btn btn-secondary" onclick="wizardPrev()">Back</button>
+              <button class="btn btn-primary" onclick="wizardNext()">Continue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: OAuth Authentication -->
+        <div class="wizard-step" data-step="2">
+          <div class="wizard-content">
+            <h2>Step 2: Authenticate with Twitch</h2>
+            <p class="step-description">Now we'll authenticate with Twitch to get your access token.</p>
+
+            <div class="oauth-status" id="oauthStatus">
+              <div class="status-message">
+                <svg class="status-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <p>Click the button below to start the OAuth flow. Your browser will open, and you'll be asked to authorize the application.</p>
+              </div>
+            </div>
+
+            <div class="oauth-actions">
+              <button class="btn btn-primary btn-large" id="startOAuthBtn" onclick="startOAuthFlow()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 8px;">
+                  <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+                </svg>
+                Authenticate with Twitch
+              </button>
+            </div>
+
+            <div class="form-group" id="tokenInputGroup" style="display: none;">
+              <label for="accessToken">Access Token</label>
+              <textarea id="accessToken" rows="3" placeholder="Your access token will appear here automatically" class="form-control" readonly></textarea>
+              <button class="btn btn-sm btn-secondary" onclick="copyToken()" style="margin-top: 8px;">Copy Token</button>
+            </div>
+
+            <div class="form-group" id="broadcasterIdGroup" style="display: none;">
+              <label for="broadcasterId">Broadcaster ID</label>
+              <input type="text" id="broadcasterId" placeholder="Auto-detected from your token" class="form-control" readonly>
+              <span class="form-hint">This is your Twitch user ID</span>
+            </div>
+
+            <div class="wizard-actions">
+              <button class="btn btn-secondary" onclick="wizardPrev()">Back</button>
+              <button class="btn btn-primary" id="continueFromOAuth" onclick="wizardNext()" disabled>Continue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Review Configuration -->
+        <div class="wizard-step" data-step="3">
+          <div class="wizard-content">
+            <h2>Step 3: Review Your Configuration</h2>
+            <p class="step-description">Let's verify all your settings before we continue.</p>
+
+            <div class="config-review">
+              <div class="config-item">
+                <span class="config-label">Client ID:</span>
+                <span class="config-value" id="reviewClientId">-</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">Client Secret:</span>
+                <span class="config-value">••••••••••••</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">Access Token:</span>
+                <span class="config-value" id="reviewToken">-</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">Broadcaster ID:</span>
+                <span class="config-value" id="reviewBroadcasterId">-</span>
+              </div>
+              <div class="config-item">
+                <span class="config-label">Redirect URI:</span>
+                <span class="config-value">http://localhost:3000/callback</span>
+              </div>
+            </div>
+
+            <div class="alert alert-info">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span>Your configuration will be saved securely on your computer.</span>
+            </div>
+
+            <div class="wizard-actions">
+              <button class="btn btn-secondary" onclick="wizardPrev()">Back</button>
+              <button class="btn btn-primary" onclick="saveAndContinue()">Save & Continue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Validation -->
+        <div class="wizard-step" data-step="4">
+          <div class="wizard-content">
+            <h2>Step 4: Validate Configuration</h2>
+            <p class="step-description">Let's make sure everything is set up correctly.</p>
+
+            <div id="validationResults" class="validation-container">
+              <div class="validation-item pending">
+                <div class="validation-icon">⏳</div>
+                <div class="validation-text">
+                  <strong>Validating access token...</strong>
+                  <p>Checking token validity and permissions</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <button class="btn btn-secondary" onclick="wizardPrev()">Back</button>
+              <button class="btn btn-primary" id="continueFromValidation" onclick="wizardNext()" disabled>Continue</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5: Complete -->
+        <div class="wizard-step" data-step="5">
+          <div class="wizard-content">
+            <div class="completion-header">
+              <div class="success-icon">✓</div>
+              <h1>Setup Complete!</h1>
+              <p class="subtitle">You're ready to start monitoring channel points events.</p>
+            </div>
+
+            <div class="next-steps">
+              <h3>What's Next?</h3>
+              <div class="next-step-item">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <h4>Start Monitoring</h4>
+                  <p>Click the button below to start monitoring your channel's events in real-time.</p>
+                </div>
+              </div>
+              <div class="next-step-item">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <h4>View Events</h4>
+                  <p>Watch the dashboard for incoming channel points custom reward events.</p>
+                </div>
+              </div>
+              <div class="next-step-item">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <h4>Manage Settings</h4>
+                  <p>Access settings anytime from the gear icon in the top right.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <button class="btn btn-primary btn-large" onclick="completeSetup()">Go to Dashboard</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Dashboard (hidden initially) -->
+      <div id="mainDashboard" class="dashboard-container" style="display: none;">
+        <div class="dashboard-header">
+          <h2>Event Monitor</h2>
+          <div class="dashboard-controls">
+            <button id="startMonitorBtn" class="btn btn-success" onclick="startMonitoring()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Start Monitoring
+            </button>
+            <button id="stopMonitorBtn" class="btn btn-danger" onclick="stopMonitoring()" style="display: none;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;">
+                <rect x="6" y="6" width="12" height="12"/>
+              </svg>
+              Stop Monitoring
+            </button>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <div class="status-item">
+            <span class="status-label">Status:</span>
+            <span id="monitorStatus" class="status-badge status-inactive">Inactive</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Events Received:</span>
+            <span id="eventCount" class="status-value">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Uptime:</span>
+            <span id="uptime" class="status-value">-</span>
+          </div>
+        </div>
+
+        <div class="events-container">
+          <div class="events-header">
+            <h3>Event Log</h3>
+            <button class="btn btn-sm btn-secondary" onclick="clearEvents()">Clear</button>
+          </div>
+          <div id="eventsList" class="events-list">
+            <div class="empty-state">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" opacity="0.3">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <p>No events yet. Start monitoring to see events appear here.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Panel (hidden initially) -->
+      <div id="settingsPanel" class="settings-panel" style="display: none;">
+        <div class="settings-header">
+          <h2>Settings</h2>
+          <button class="btn btn-secondary" onclick="closeSettings()">Close</button>
+        </div>
+
+        <div class="settings-content">
+          <div class="settings-section">
+            <h3>Twitch Configuration</h3>
+
+            <div class="form-group">
+              <label for="settingsClientId">Client ID</label>
+              <input type="text" id="settingsClientId" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="settingsClientSecret">Client Secret</label>
+              <input type="password" id="settingsClientSecret" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="settingsAccessToken">Access Token</label>
+              <textarea id="settingsAccessToken" rows="3" class="form-control"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="settingsBroadcasterId">Broadcaster ID</label>
+              <input type="text" id="settingsBroadcasterId" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="settingsRedirectUri">Redirect URI</label>
+              <input type="text" id="settingsRedirectUri" class="form-control" value="http://localhost:3000/callback">
+            </div>
+
+            <div class="form-group">
+              <label for="settingsPort">OAuth Server Port</label>
+              <input type="number" id="settingsPort" class="form-control" value="3000">
+            </div>
+
+            <div class="settings-actions">
+              <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+              <button class="btn btn-secondary" onclick="refreshOAuth()">Refresh OAuth</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>About</h3>
+            <div class="about-info">
+              <p><strong>Version:</strong> <span id="appVersion">1.0.0</span></p>
+              <p><strong>Config Path:</strong> <span id="configPath" class="code">-</span></p>
+              <p><strong>Repository:</strong> <a href="#" onclick="openExternal('https://github.com/hydai/tcpr'); return false;">hydai/tcpr</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
