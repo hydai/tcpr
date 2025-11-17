@@ -1,14 +1,14 @@
-# Twitch Channel Points Redemption WebSocket Client
+# Twitch Channel Points Custom Reward WebSocket Client
 
-A simple Node.js WebSocket client that subscribes to Twitch EventSub channel points redemption events in real-time.
+A simple Node.js WebSocket client that subscribes to Twitch EventSub custom reward creation events in real-time.
 
 ## Features
 
 - Connects to Twitch EventSub WebSocket
-- Subscribes to `channel.channel_points_custom_reward_redemption.update` events
+- Subscribes to `channel.channel_points_custom_reward.add` events
 - Handles all EventSub message types (welcome, keepalive, notification, reconnect, revocation)
 - Automatic reconnection support
-- Real-time monitoring of channel points redemptions
+- Real-time monitoring of custom reward creation
 
 ## Prerequisites
 
@@ -123,36 +123,36 @@ WebSocket connection established
 Session ID: AQoQILE...
 Keepalive timeout: 10s
 
-Subscribing to channel.channel_points_custom_reward_redemption.update...
+Subscribing to channel.channel_points_custom_reward.add...
 Subscription successful!
 Subscription ID: 01234567-89ab-cdef-0123-456789abcdef
 Status: enabled
 
-Waiting for channel points redemption events...
+Waiting for custom reward creation events...
 ```
 
-When a channel points redemption status is updated:
+When a custom reward is created:
 
 ```
-🎉 CHANNEL POINTS REDEMPTION EVENT RECEIVED!
+🎁 CUSTOM REWARD CREATED EVENT RECEIVED!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Reward: Highlight My Message
+Reward Title: Highlight My Message
 Cost: 300 points
-Redeemed by: viewer_username (viewer_login)
-Status: fulfilled
-Redemption ID: 01234567-89ab-cdef-0123-456789abcdef
-Timestamp: 2025-11-17T12:05:00.000Z
-User Input: Hello, this is my highlighted message!
+Reward ID: 01234567-89ab-cdef-0123-456789abcdef
+Broadcaster: broadcaster_name (broadcaster_login)
+Enabled: true
+User Input Required: true
+Prompt: Enter your message to be highlighted
+Background Color: #9147FF
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ## Event Triggers
 
-The `channel.channel_points_custom_reward_redemption.update` event is triggered when:
+The `channel.channel_points_custom_reward.add` event is triggered when:
 
-- A redemption status changes from `unfulfilled` to `fulfilled`
-- A redemption status changes from `unfulfilled` to `canceled`
-- A broadcaster or moderator updates the redemption status
+- A new custom channel points reward is created in the channel
+- This happens when the broadcaster creates a reward through the Twitch dashboard or API
 
 ## Stopping the Client
 
@@ -216,7 +216,7 @@ npm run validate
 ## References
 
 - [Twitch EventSub WebSocket Documentation](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/)
-- [Channel Points Redemption Update Subscription](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types#channelchannel_points_custom_reward_redemptionupdate)
+- [Channel Points Custom Reward Add Subscription](https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types#channelchannel_points_custom_rewardadd)
 - [EventSub Reference](https://dev.twitch.tv/docs/eventsub/eventsub-reference/)
 
 ## License
