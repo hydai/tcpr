@@ -2,18 +2,70 @@
   "name": "twitch-channel-points-redemption",
   "version": "1.0.0",
   "description": "Simple WebSocket client to subscribe to Twitch channel points redemption events",
-  "main": "index.js",
+  "main": "electron/main.js",
   "type": "module",
   "scripts": {
     "start": "node index.js",
     "validate": "node validateToken.js",
-    "oauth": "node oauth-server.js"
+    "oauth": "node oauth-server.js",
+    "gui": "electron .",
+    "gui:dev": "cross-env NODE_ENV=development electron .",
+    "build": "electron-builder --win",
+    "build:dir": "electron-builder --win --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.twitch.channelpoints.monitor",
+    "productName": "Twitch Channel Points Monitor",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "gui/**/*",
+      "client/**/*",
+      "config/**/*",
+      "lib/**/*",
+      "public/**/*",
+      "index.js",
+      "oauth-server.js",
+      "validateToken.js",
+      "package.json",
+      "!node_modules/**/*",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "keywords": [
     "twitch",
     "eventsub",
     "websocket",
-    "channel-points"
+    "channel-points",
+    "gui",
+    "desktop"
   ],
   "author": "",
   "license": "MIT",
@@ -22,5 +74,10 @@
     "dotenv": "^16.3.1",
     "express": "^5.1.0",
     "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "cross-env": "^7.0.3"
   }
 }

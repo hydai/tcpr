@@ -1,8 +1,32 @@
 # Twitch Channel Points Custom Reward WebSocket Client
 
-A simple Node.js WebSocket client that subscribes to Twitch EventSub custom reward creation events in real-time.
+A Node.js WebSocket client that subscribes to Twitch EventSub custom reward creation events in real-time.
 
-## Features
+## 🖥️ Desktop GUI Available!
+
+**New!** We now offer a beautiful, user-friendly Windows desktop application with:
+- 🧙‍♂️ **Step-by-step setup wizard** - no technical knowledge required
+- 🔐 **Automated OAuth flow** - secure authentication made easy
+- 📊 **Real-time dashboard** - monitor events with a clean interface
+- ⚙️ **Settings management** - easily update your configuration
+
+**[📖 Read the GUI Documentation](GUI_README.md)** | **[⬇️ Download GUI Release](#)**
+
+### Quick Start with GUI
+
+```bash
+# Install dependencies
+npm install
+
+# Launch the desktop application
+npm run gui
+```
+
+The GUI will guide you through the entire setup process automatically!
+
+---
+
+## Features (CLI Mode)
 
 - Connects to Twitch EventSub WebSocket
 - Subscribes to `channel.channel_points_custom_reward.add` events
