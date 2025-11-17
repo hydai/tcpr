@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const path = require('path');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -53,5 +54,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
 
   // Event log export
-  saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content)
+  saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content),
+
+  // Path utilities
+  path: {
+    extname: (filePath) => path.extname(filePath),
+    basename: (filePath) => path.basename(filePath)
+  }
 });

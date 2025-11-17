@@ -697,12 +697,9 @@ async function exportEvents() {
       return;
     }
 
-    // Determine format based on file extension (extract from basename only)
+    // Determine format based on file extension
     const filePath = result.filePath;
-    const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-    const basename = filePath.substring(lastSlash + 1);
-    const lastDot = basename.lastIndexOf('.');
-    const ext = lastDot >= 0 ? basename.substring(lastDot + 1).toLowerCase() : '';
+    const ext = window.electronAPI.path.extname(filePath).toLowerCase().replace('.', '');
 
     let content;
     if (ext === 'csv') {
@@ -740,10 +737,7 @@ function convertToCSV(events) {
   const rows = [headers.map(escapeCSVField).join(',')];
 
   events.forEach(event => {
-    const timestamp = event.timestamp;
-    const type = event.type;
-    const message = event.message;
-    rows.push([timestamp, type, message].map(escapeCSVField).join(','));
+    rows.push([event.timestamp, event.type, event.message].map(escapeCSVField).join(','));
   });
 
   return rows.join('\n');
