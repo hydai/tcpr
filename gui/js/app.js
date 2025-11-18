@@ -915,16 +915,6 @@ async function openFolder(folderType) {
   }
 }
 
-// Open Event Logs Folder
-async function openEventLogsFolder() {
-  return openFolder('event logs');
-}
-
-// Open Config Folder
-async function openConfigFolder() {
-  return openFolder('config');
-}
-
 // Utility: Escape HTML
 function escapeHtml(unsafe) {
   return unsafe
