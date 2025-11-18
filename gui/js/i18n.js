@@ -23,7 +23,7 @@ async function initI18n() {
       ja: { translation: jaTranslation }
     },
     interpolation: {
-      escapeValue: false // Not needed for non-HTML usage
+      escapeValue: true // Enable XSS protection
     }
   });
 
