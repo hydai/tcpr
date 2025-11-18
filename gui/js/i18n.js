@@ -67,12 +67,6 @@ function updatePageTranslations() {
     element.textContent = t(key);
   });
 
-  // Update all elements with data-i18n-html attribute (for HTML content)
-  document.querySelectorAll('[data-i18n-html]').forEach(element => {
-    const key = element.getAttribute('data-i18n-html');
-    element.innerHTML = t(key);
-  });
-
   // Update all placeholders
   document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
     const key = element.getAttribute('data-i18n-placeholder');
