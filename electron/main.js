@@ -20,7 +20,10 @@ const envPath = path.join(app.getPath('userData'), '.env');
 let sessionId = null;
 let sessionLogPath = null;
 let sessionLogQueue = [];
+let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
 let sessionLogWriting = false;
+let sessionLogRetryCount = 0;
+const MAX_RETRY_ATTEMPTS = 5;
 
 // Create main window
 function createWindow() {
@@ -198,12 +201,12 @@ async function processSessionLogQueue() {
   sessionLogWriting = true;
 
   try {
-    while (sessionLogQueue.length > 0) {
-      const logEntry = sessionLogQueue[0]; // Peek, don't remove yet
+    while (sessionLogQueueIndex < sessionLogQueue.length) {
+      const logEntry = sessionLogQueue[sessionLogQueueIndex]; // Peek using index
 
       // Skip internal error logs to prevent infinite loops
       if (logEntry.internal) {
-        sessionLogQueue.shift();
+        sessionLogQueueIndex++;
         continue;
       }
 
@@ -215,25 +218,61 @@ async function processSessionLogQueue() {
           'utf-8'
         );
 
-        // Only remove from queue if successful
-        sessionLogQueue.shift();
+        // Successfully written - move to next entry and reset retry count
+        sessionLogQueueIndex++;
+        sessionLogRetryCount = 0;
       } catch (error) {
-        console.error('Failed to append to session log:', error);
-        console.error('Will retry log entry:', logEntry);
+        sessionLogRetryCount++;
 
-        // Notify main window about the error (marked as internal to prevent saving)
-        if (mainWindow) {
-          mainWindow.webContents.send('eventsub:log', {
-            type: 'error',
-            message: `Warning: Failed to save log to session file: ${error.message}`,
-            timestamp: new Date().toISOString(),
-            internal: true
-          });
+        console.error(`Failed to append to session log (attempt ${sessionLogRetryCount}/${MAX_RETRY_ATTEMPTS}):`, error);
+
+        // Check if we've exceeded retry limit
+        if (sessionLogRetryCount >= MAX_RETRY_ATTEMPTS) {
+          console.error('Max retry attempts reached. Discarding log entry:', logEntry);
+
+          // Notify user about permanent failure
+          if (mainWindow) {
+            mainWindow.webContents.send('eventsub:log', {
+              type: 'error',
+              message: `Critical: Session log write failed after ${MAX_RETRY_ATTEMPTS} attempts. Some logs may be lost.`,
+              timestamp: new Date().toISOString(),
+              internal: true
+            });
+          }
+
+          // Skip this entry to prevent blocking the queue forever
+          sessionLogQueueIndex++;
+          sessionLogRetryCount = 0;
+        } else {
+          // Notify about retry
+          if (mainWindow) {
+            mainWindow.webContents.send('eventsub:log', {
+              type: 'error',
+              message: `Warning: Failed to save log to session file (will retry): ${error.message}`,
+              timestamp: new Date().toISOString(),
+              internal: true
+            });
+          }
+
+          // Exit loop to retry later with exponential backoff
+          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount - 1), 10000);
+          setTimeout(() => {
+            if (!sessionLogWriting) {
+              processSessionLogQueue().catch(err => {
+                console.error('Critical error in session log retry:', err);
+              });
+            }
+          }, backoffDelay);
+
+          break;
         }
-
-        // Exit loop to retry later, keeping the failed log entry in the queue
-        break;
       }
+    }
+
+    // Clean up processed entries periodically to prevent unbounded memory growth
+    if (sessionLogQueueIndex > 100) {
+      sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
+      sessionLogQueueIndex = 0;
     }
   } finally {
     sessionLogWriting = false;

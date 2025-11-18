@@ -597,16 +597,15 @@ function handleEventSubLog(data) {
     emptyState.remove();
   }
 
+  // Require timestamp from main process; reject events without it
+  if (!data.timestamp) {
+    console.error('EventSub log missing timestamp from main process - rejecting event:', data);
+    return;
+  }
+
   // Create event item
   const eventItem = document.createElement('div');
   eventItem.className = 'event-item';
-
-  // Require timestamp from main process; do not generate in renderer
-  if (!data.timestamp) {
-    console.error('EventSub log missing timestamp from main process:', data);
-    // Still display the event but log the error
-    data.timestamp = new Date().toISOString();
-  }
 
   const timestamp = data.timestamp;
   const displayTime = new Date(timestamp).toLocaleTimeString();
@@ -708,8 +707,8 @@ function clearEvents() {
 // Validate logs against session file (delegated to main process to prevent UI blocking)
 async function validateLogsWithSessionFile() {
   try {
-    // Filter out internal error logs before validation
-    const logsToValidate = state.allEvents.filter(log => !log.internal);
+    // Use all stored logs for validation (internal logs are already filtered at storage time)
+    const logsToValidate = state.allEvents;
 
     // Delegate to main process to prevent UI blocking with large log files
     const result = await window.electronAPI.validateSessionLogs(logsToValidate);
