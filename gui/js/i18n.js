@@ -23,7 +23,7 @@ async function initI18n() {
       ja: { translation: jaTranslation }
     },
     interpolation: {
-      escapeValue: true // Enable XSS protection
+      escapeValue: true // Explicitly enable XSS protection (default)
     }
   });
 
