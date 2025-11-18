@@ -1,0 +1,224 @@
+{
+  "header": {
+    "title": "Channel Points Monitor",
+    "settingsButton": "Settings"
+  },
+  "wizard": {
+    "step0": {
+      "title": "Welcome to Twitch Channel Points Monitor!",
+      "subtitle": "Let's get you set up to monitor your channel points events in real-time.",
+      "features": {
+        "realtime": {
+          "title": "Real-Time Monitoring",
+          "description": "Track channel points custom reward events as they happen"
+        },
+        "oauth": {
+          "title": "Secure OAuth",
+          "description": "Easy authentication with Twitch using OAuth 2.0"
+        },
+        "desktop": {
+          "title": "Desktop Experience",
+          "description": "Native desktop application for Windows and macOS with a clean interface"
+        }
+      },
+      "getStarted": "Get Started"
+    },
+    "step1": {
+      "title": "Step 1: Create a Twitch Application",
+      "description": "To use this monitor, you need to create a Twitch application to get your Client ID and Client Secret.",
+      "instructionsTitle": "Instructions:",
+      "instructions": {
+        "step1": "Visit the",
+        "step1Link": "Twitch Developer Console",
+        "step2": "Click \"Register Your Application\"",
+        "step3": "Fill in the application details:",
+        "step3Details": {
+          "name": "Name:",
+          "nameValue": "Choose any name (e.g., \"My Channel Points Monitor\")",
+          "oauth": "OAuth Redirect URLs:",
+          "oauthValue": "http://localhost:3000/callback",
+          "category": "Category:",
+          "categoryValue": "Application Integration"
+        },
+        "step4": "Click \"Create\"",
+        "step5": "Click \"Manage\" on your new application",
+        "step6": "Copy your",
+        "step6Bold": "Client ID",
+        "step7": "Click \"New Secret\" to generate a",
+        "step7Bold": "Client Secret",
+        "step7End": "and copy it"
+      },
+      "clientId": {
+        "label": "Twitch Client ID",
+        "placeholder": "Enter your Client ID",
+        "hint": "This is a public identifier for your application"
+      },
+      "clientSecret": {
+        "label": "Twitch Client Secret",
+        "placeholder": "Enter your Client Secret",
+        "hint": "Keep this secret! It's like a password for your application",
+        "showSecret": "Show secret"
+      },
+      "back": "Back",
+      "continue": "Continue"
+    },
+    "step2": {
+      "title": "Step 2: Authenticate with Twitch",
+      "description": "Now we'll authenticate with Twitch to get your access token.",
+      "statusMessage": "Click the button below to start the OAuth flow. Your browser will open, and you'll be asked to authorize the application.",
+      "authenticateButton": "Authenticate with Twitch",
+      "accessToken": {
+        "label": "Access Token",
+        "placeholder": "Your access token will appear here automatically",
+        "copyButton": "Copy Token",
+        "copied": "Copied!"
+      },
+      "broadcasterId": {
+        "label": "Broadcaster ID",
+        "placeholder": "Auto-detected from your token",
+        "hint": "This is your Twitch user ID"
+      },
+      "back": "Back",
+      "continue": "Continue"
+    },
+    "step3": {
+      "title": "Step 3: Review Your Configuration",
+      "description": "Let's verify all your settings before we continue.",
+      "clientId": "Client ID:",
+      "clientSecret": "Client Secret:",
+      "accessToken": "Access Token:",
+      "broadcasterId": "Broadcaster ID:",
+      "redirectUri": "Redirect URI:",
+      "securityNote": "Your configuration will be saved securely on your computer.",
+      "back": "Back",
+      "saveAndContinue": "Save & Continue"
+    },
+    "step4": {
+      "title": "Step 4: Validate Configuration",
+      "description": "Let's make sure everything is set up correctly.",
+      "validating": "Validating access token...",
+      "checkingToken": "Checking token validity and permissions",
+      "tokenValid": "Token is valid!",
+      "tokenInvalid": "Validation failed!",
+      "validationError": "Validation error!",
+      "back": "Back",
+      "continue": "Continue"
+    },
+    "step5": {
+      "title": "Setup Complete!",
+      "subtitle": "You're ready to start monitoring channel points events.",
+      "nextStepsTitle": "What's Next?",
+      "nextSteps": {
+        "step1": {
+          "title": "Start Monitoring",
+          "description": "Click the button below to start monitoring your channel's events in real-time."
+        },
+        "step2": {
+          "title": "View Events",
+          "description": "Watch the dashboard for incoming channel points custom reward events."
+        },
+        "step3": {
+          "title": "Manage Settings",
+          "description": "Access settings anytime from the gear icon in the top right."
+        }
+      },
+      "goToDashboard": "Go to Dashboard"
+    }
+  },
+  "dashboard": {
+    "title": "Event Monitor",
+    "startMonitoring": "Start Monitoring",
+    "stopMonitoring": "Stop Monitoring",
+    "status": {
+      "label": "Status:",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "eventsReceived": "Events Received:",
+    "uptime": "Uptime:",
+    "eventLog": "Event Log",
+    "export": "Export",
+    "clear": "Clear",
+    "emptyState": "No events yet. Start monitoring to see events appear here.",
+    "eventTypes": {
+      "error": "Error",
+      "event": "Event"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "close": "Close",
+    "twitchConfig": "Twitch Configuration",
+    "clientId": "Client ID",
+    "clientSecret": "Client Secret",
+    "accessToken": "Access Token",
+    "broadcasterId": "Broadcaster ID",
+    "redirectUri": "Redirect URI",
+    "port": "OAuth Server Port",
+    "saveSettings": "Save Settings",
+    "refreshOAuth": "Refresh OAuth",
+    "about": "About",
+    "version": "Version:",
+    "sessionId": "Session ID:",
+    "configPath": "Config Path:",
+    "repository": "Repository:",
+    "openEventLogsFolder": "Open Event Logs Folder",
+    "openConfigFolder": "Open Config Folder",
+    "language": "Language",
+    "languageOptions": {
+      "en": "English",
+      "ja": "日本語"
+    }
+  },
+  "modal": {
+    "tokenError": {
+      "title": "Token Validation Failed",
+      "message": "Your access token is invalid or has expired. Please refresh your OAuth authentication to continue.",
+      "refreshButton": "Refresh OAuth",
+      "close": "Close"
+    }
+  },
+  "messages": {
+    "validation": {
+      "clientIdRequired": "Please enter both Client ID and Client Secret.",
+      "oauthRequired": "Please complete the OAuth flow to continue.",
+      "noEvents": "No events to export. Start monitoring to capture events."
+    },
+    "oauth": {
+      "startingServer": "Starting OAuth Server...",
+      "serverRunning": "OAuth server is running!",
+      "openingBrowser": "Opening your browser to authenticate with Twitch...",
+      "waitingAuth": "Waiting for authentication...",
+      "authComplete": "Authentication Complete",
+      "authSuccess": "Authentication successful!",
+      "confirmRefresh": "This will start a new OAuth flow. Continue?",
+      "serverStarted": "OAuth server started. Complete the authentication in your browser.",
+      "modalSuccess": "OAuth server started. Please complete the authentication in your browser, then save the new token in Settings."
+    },
+    "settings": {
+      "saveSuccess": "Settings saved successfully!",
+      "saveFailed": "Failed to save settings: {{error}}",
+      "oauthFailed": "Failed to start OAuth: {{error}}"
+    },
+    "monitoring": {
+      "startFailed": "Failed to start monitoring: {{error}}",
+      "stopFailed": "Failed to stop monitoring: {{error}}",
+      "stoppedUnexpectedly": "Monitoring stopped unexpectedly. Check the event log for details."
+    },
+    "export": {
+      "validationWarning": "Warning: Log validation failed!\n\n{{message}}\n\nSession log events: {{sessionCount}}\nIn-memory events: {{memoryCount}}\n\nDo you want to continue with the export anyway?",
+      "success": "Successfully exported {{count}} events to {{path}}",
+      "failed": "Failed to export events: {{error}}"
+    },
+    "folder": {
+      "openFailed": "Failed to open {{type}} folder: {{error}}",
+      "openError": "Error opening {{type}} folder: {{error}}"
+    },
+    "token": {
+      "copyFailed": "Failed to copy token: {{error}}"
+    },
+    "config": {
+      "saveFailed": "Failed to save configuration: {{error}}"
+    }
+  }
+}
