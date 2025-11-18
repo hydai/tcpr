@@ -28,6 +28,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Initialize Application
 async function initializeApp() {
+  // Initialize i18n first
+  await initI18n();
+
   // Check if first run
   const firstRunResult = await window.electronAPI.isFirstRun();
   state.isFirstRun = firstRunResult;
@@ -152,14 +155,14 @@ function validateStep(step) {
       const clientSecret = document.getElementById('clientSecret').value.trim();
 
       if (!clientId || !clientSecret) {
-        alert('Please enter both Client ID and Client Secret.');
+        alert(t('messages.validation.clientIdRequired'));
         return false;
       }
       return true;
 
     case 2: // OAuth
       if (!state.config.TWITCH_ACCESS_TOKEN) {
-        alert('Please complete the OAuth flow to continue.');
+        alert(t('messages.validation.oauthRequired'));
         return false;
       }
       return true;
@@ -220,7 +223,7 @@ async function startOAuthFlow() {
 
   // Disable button
   btn.disabled = true;
-  btn.textContent = 'Starting OAuth Server...';
+  btn.textContent = t('messages.oauth.startingServer');
 
   try {
     // Save current config temporarily
@@ -239,8 +242,8 @@ async function startOAuthFlow() {
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <div>
-            <p><strong>OAuth server is running!</strong></p>
-            <p>Opening your browser to authenticate with Twitch...</p>
+            <p><strong>${t('messages.oauth.serverRunning')}</strong></p>
+            <p>${t('messages.oauth.openingBrowser')}</p>
           </div>
         </div>
       `;
@@ -249,7 +252,7 @@ async function startOAuthFlow() {
       const oauthUrl = `http://localhost:${port}`;
       await window.electronAPI.openExternal(oauthUrl);
 
-      btn.textContent = 'Waiting for authentication...';
+      btn.textContent = t('messages.oauth.waitingAuth');
 
       // Poll for token (we'll get it via OAuth callback)
       pollForOAuthCompletion();
@@ -291,7 +294,7 @@ function pollForOAuthCompletion() {
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
-          <span>Authentication successful!</span>
+          <span>${t('messages.oauth.authSuccess')}</span>
         </div>
       `;
 
@@ -306,7 +309,7 @@ function pollForOAuthCompletion() {
 
       // Update button
       const btn = document.getElementById('startOAuthBtn');
-      btn.textContent = 'Authentication Complete';
+      btn.textContent = t('messages.oauth.authComplete');
       btn.disabled = true;
       btn.classList.remove('btn-primary');
       btn.classList.add('btn-success');
@@ -336,13 +339,13 @@ async function copyToken(event) {
     // Show feedback
     const btn = event.target;
     const originalText = btn.textContent;
-    btn.textContent = 'Copied!';
+    btn.textContent = t('wizard.step2.accessToken.copied');
     setTimeout(() => {
       btn.textContent = originalText;
     }, 2000);
   } catch (err) {
     console.error('Failed to copy token:', err);
-    alert('Failed to copy token: ' + err.message);
+    alert(t('messages.token.copyFailed', { error: err.message }));
   }
 }
 
@@ -355,11 +358,11 @@ async function saveAndContinue() {
     if (result.success) {
       wizardNext();
     } else {
-      alert('Failed to save configuration: ' + result.error);
+      alert(t('messages.config.saveFailed', { error: result.error }));
     }
   } catch (error) {
     console.error('Save error:', error);
-    alert('Failed to save configuration: ' + error.message);
+    alert(t('messages.config.saveFailed', { error: error.message }));
   }
 }
 
@@ -386,7 +389,7 @@ async function validateConfiguration() {
         <div class="validation-item success">
           <div class="validation-icon">✓</div>
           <div class="validation-text">
-            <strong>Token is valid!</strong>
+            <strong>${t('wizard.step4.tokenValid')}</strong>
             <p>User: ${result.data.login} (ID: ${result.data.user_id})</p>
             <p>Scopes: ${result.data.scopes.join(', ')}</p>
           </div>
@@ -405,7 +408,7 @@ async function validateConfiguration() {
         <div class="validation-item error">
           <div class="validation-icon">✗</div>
           <div class="validation-text">
-            <strong>Validation failed!</strong>
+            <strong>${t('wizard.step4.tokenInvalid')}</strong>
             <p>${result.error}</p>
           </div>
         </div>
@@ -417,7 +420,7 @@ async function validateConfiguration() {
       <div class="validation-item error">
         <div class="validation-icon">✗</div>
         <div class="validation-text">
-          <strong>Validation error!</strong>
+          <strong>${t('wizard.step4.validationError')}</strong>
           <p>${error.message}</p>
         </div>
       </div>
@@ -460,6 +463,10 @@ function openSettings() {
   document.getElementById('settingsBroadcasterId').value = state.config.TWITCH_BROADCASTER_ID || '';
   document.getElementById('settingsRedirectUri').value = state.config.REDIRECT_URI || 'http://localhost:3000/callback';
   document.getElementById('settingsPort').value = state.config.PORT || '3000';
+
+  // Set language selector
+  const currentLang = getCurrentLanguage();
+  document.getElementById('settingsLanguage').value = currentLang;
 }
 
 // Close Settings
@@ -481,28 +488,28 @@ async function saveSettings() {
     const result = await window.electronAPI.saveConfig(state.config);
 
     if (result.success) {
-      alert('Settings saved successfully!');
+      alert(t('messages.settings.saveSuccess'));
       closeSettings();
     } else {
-      alert('Failed to save settings: ' + result.error);
+      alert(t('messages.settings.saveFailed', { error: result.error }));
     }
   } catch (error) {
     console.error('Save error:', error);
-    alert('Failed to save settings: ' + error.message);
+    alert(t('messages.settings.saveFailed', { error: error.message }));
   }
 }
 
 // Refresh OAuth
 async function refreshOAuth() {
-  if (confirm('This will start a new OAuth flow. Continue?')) {
+  if (confirm(t('messages.oauth.confirmRefresh'))) {
     try {
       const port = parseInt(state.config.PORT) || 3000;
       await window.electronAPI.startOAuth(port);
       const oauthUrl = `http://localhost:${port}`;
       await window.electronAPI.openExternal(oauthUrl);
-      alert('OAuth server started. Complete the authentication in your browser.');
+      alert(t('messages.oauth.serverStarted'));
     } catch (error) {
-      alert('Failed to start OAuth: ' + error.message);
+      alert(t('messages.settings.oauthFailed', { error: error.message }));
     }
   }
 }
@@ -519,18 +526,18 @@ async function startMonitoring() {
       // Update UI
       document.getElementById('startMonitorBtn').style.display = 'none';
       document.getElementById('stopMonitorBtn').style.display = 'inline-flex';
-      document.getElementById('monitorStatus').textContent = 'Active';
+      document.getElementById('monitorStatus').textContent = t('dashboard.status.active');
       document.getElementById('monitorStatus').className = 'status-badge status-active';
 
       // Start uptime counter
       updateUptime();
       state.uptimeInterval = setInterval(updateUptime, 1000);
     } else {
-      alert('Failed to start monitoring: ' + result.error);
+      alert(t('messages.monitoring.startFailed', { error: result.error }));
     }
   } catch (error) {
     console.error('Start monitoring error:', error);
-    alert('Failed to start monitoring: ' + error.message);
+    alert(t('messages.monitoring.startFailed', { error: error.message }));
   }
 }
 
@@ -541,7 +548,7 @@ async function stopMonitoring() {
     handleMonitoringStopped();
   } catch (error) {
     console.error('Stop monitoring error:', error);
-    alert('Failed to stop monitoring: ' + error.message);
+    alert(t('messages.monitoring.stopFailed', { error: error.message }));
   }
 }
 
@@ -553,7 +560,7 @@ function handleMonitoringStopped() {
   // Update UI
   document.getElementById('startMonitorBtn').style.display = 'inline-flex';
   document.getElementById('stopMonitorBtn').style.display = 'none';
-  document.getElementById('monitorStatus').textContent = 'Inactive';
+  document.getElementById('monitorStatus').textContent = t('dashboard.status.inactive');
   document.getElementById('monitorStatus').className = 'status-badge status-inactive';
   document.getElementById('uptime').textContent = '-';
 
@@ -574,7 +581,7 @@ async function checkMonitoringStatus() {
 
       document.getElementById('startMonitorBtn').style.display = 'none';
       document.getElementById('stopMonitorBtn').style.display = 'inline-flex';
-      document.getElementById('monitorStatus').textContent = 'Active';
+      document.getElementById('monitorStatus').textContent = t('dashboard.status.active');
       document.getElementById('monitorStatus').className = 'status-badge status-active';
 
       updateUptime();
@@ -603,7 +610,7 @@ function displayErrorNotification(message) {
   eventItem.innerHTML = `
     <div class="event-header">
       <span class="event-type" style="color: var(--error)">
-        ❌ Error
+        ❌ ${t('dashboard.eventTypes.error')}
       </span>
       <span class="event-time">${displayTime}</span>
     </div>
@@ -654,7 +661,7 @@ function handleEventSubLog(data) {
   eventItem.innerHTML = `
     <div class="event-header">
       <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}">
-        ${isError ? '❌ Error' : '📢 Event'}
+        ${isError ? `❌ ${t('dashboard.eventTypes.error')}` : `📢 ${t('dashboard.eventTypes.event')}`}
       </span>
       <span class="event-time">${displayTime}</span>
     </div>
@@ -704,9 +711,9 @@ function handleEventSubStopped(code) {
     );
 
     if (hasTokenError) {
-      showTokenErrorModal('Your access token is invalid or has expired. Please refresh your OAuth authentication to continue monitoring.');
+      showTokenErrorModal(t('modal.tokenError.message'));
     } else {
-      alert('Monitoring stopped unexpectedly. Check the event log for details.');
+      alert(t('messages.monitoring.stoppedUnexpectedly'));
     }
   }
 }
@@ -739,7 +746,7 @@ function clearEvents() {
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" opacity="0.3">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
-      <p>No events yet. Start monitoring to see events appear here.</p>
+      <p>${t('dashboard.emptyState')}</p>
     </div>
   `;
 
@@ -782,7 +789,7 @@ async function validateLogsWithSessionFile() {
 // Export Events
 async function exportEvents() {
   if (state.allEvents.length === 0) {
-    alert('No events to export. Start monitoring to capture events.');
+    alert(t('messages.validation.noEvents'));
     return;
   }
 
@@ -791,11 +798,11 @@ async function exportEvents() {
     const validationResult = await validateLogsWithSessionFile();
     if (!validationResult.valid) {
       const proceed = confirm(
-        `Warning: Log validation failed!\n\n` +
-        `${validationResult.message}\n\n` +
-        `Session log events: ${validationResult.sessionLogCount}\n` +
-        `In-memory events: ${state.allEvents.length}\n\n` +
-        `Do you want to continue with the export anyway?`
+        t('messages.export.validationWarning', {
+          message: validationResult.message,
+          sessionCount: validationResult.sessionLogCount,
+          memoryCount: state.allEvents.length
+        })
       );
       if (!proceed) {
         return;
@@ -860,13 +867,13 @@ async function exportEvents() {
     const saveResult = await window.electronAPI.saveEventLog(filePath, content);
 
     if (saveResult.success) {
-      alert(`Successfully exported ${state.allEvents.length} events to ${filePath}`);
+      alert(t('messages.export.success', { count: state.allEvents.length, path: filePath }));
     } else {
-      alert(`Failed to export events: ${saveResult.error}`);
+      alert(t('messages.export.failed', { error: saveResult.error }));
     }
   } catch (error) {
     console.error('Export error:', error);
-    alert(`Failed to export events: ${error.message}`);
+    alert(t('messages.export.failed', { error: error.message }));
   }
 }
 
@@ -908,11 +915,11 @@ async function openFolder(folderType) {
     if (!result.success) {
       const errorMsg = result.error || 'Unknown error occurred';
       console.error(`Failed to open ${folderType} folder:`, errorMsg);
-      alert(`Failed to open ${folderType} folder: ${errorMsg}`);
+      alert(t('messages.folder.openFailed', { type: folderType, error: errorMsg }));
     }
   } catch (error) {
     console.error(`Error opening ${folderType} folder:`, error);
-    alert(`Error opening ${folderType} folder: ${error.message || 'Unknown error occurred'}`);
+    alert(t('messages.folder.openError', { type: folderType, error: error.message || 'Unknown error occurred' }));
   }
 }
 
@@ -962,7 +969,7 @@ async function refreshOAuthFromModal() {
       await window.electronAPI.openExternal(oauthUrl);
 
       // Show success message
-      alert('OAuth server started. Please complete the authentication in your browser, then save the new token in Settings.');
+      alert(t('messages.oauth.modalSuccess'));
 
       // Open settings panel so user can see when token is updated
       openSettings();
@@ -971,7 +978,7 @@ async function refreshOAuthFromModal() {
     }
   } catch (error) {
     console.error('OAuth error:', error);
-    alert('Failed to start OAuth: ' + error.message);
+    alert(t('messages.settings.oauthFailed', { error: error.message }));
   }
 }
 
