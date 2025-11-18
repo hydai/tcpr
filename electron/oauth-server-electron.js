@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import dotenv from 'dotenv';
+import { loadConfig } from '../config/loader.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
@@ -8,8 +8,8 @@ import { TWITCH_URLS, DEFAULT_OAUTH_SCOPES } from '../config/constants.js';
 import { Logger } from '../lib/logger.js';
 import { StateTokenManager } from '../lib/StateTokenManager.js';
 
-// Load environment variables
-dotenv.config();
+// Load configuration from config.json or .env
+loadConfig();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

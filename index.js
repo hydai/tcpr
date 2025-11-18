@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import { loadConfig } from './config/loader.js';
 import { EVENT_TYPES, MESSAGE_TYPES } from './config/constants.js';
 import { Config } from './config/env.js';
 import { TokenValidator } from './lib/tokenValidator.js';
@@ -8,7 +8,8 @@ import { EventSubSubscriber } from './client/EventSubSubscriber.js';
 import { EventFormatter } from './client/EventFormatter.js';
 import { PacketFilter } from './client/PacketFilter.js';
 
-dotenv.config();
+// Load configuration from config.json or .env
+loadConfig();
 
 /**
  * Main EventSub client class

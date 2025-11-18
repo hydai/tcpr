@@ -1,10 +1,11 @@
-import dotenv from 'dotenv';
+import { loadConfig } from './config/loader.js';
 import { Config } from './config/env.js';
 import { TokenValidator } from './lib/tokenValidator.js';
 import { Logger } from './lib/logger.js';
 import { TokenValidationError } from './lib/errors.js';
 
-dotenv.config();
+// Load configuration from config.json or .env
+loadConfig();
 
 /**
  * Validates the Twitch access token and checks for required scopes
@@ -15,7 +16,7 @@ async function validateToken() {
 
   if (!result.valid) {
     Logger.error('Missing required environment variables');
-    Logger.log('Please ensure the following are set in your .env file:');
+    Logger.log('Please ensure the following are set in your config.json or .env file:');
     result.missing.forEach(field => {
       Logger.log(`  - ${Config.getEnvName(field)}`);
     });

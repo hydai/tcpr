@@ -53,7 +53,7 @@ export class Config {
     if (missing.length > 0) {
       const errorMsg = [
         'Error: Missing required environment variables',
-        'Please ensure the following are set in your .env file:',
+        'Please ensure the following are set in your config.json or .env file:',
         ...missing.map(key => {
           const envName = Config.getEnvName(key);
           return `  - ${envName}`;
@@ -82,7 +82,7 @@ export class Config {
         'Server configuration error:',
         ...missing.map(key => {
           const envName = Config.getEnvName(key);
-          return `Missing ${envName} in .env file`;
+          return `Missing ${envName} in config.json or .env file`;
         })
       ].join(' ');
 
