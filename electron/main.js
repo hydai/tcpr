@@ -24,7 +24,9 @@ let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
 let sessionLogWriting = false;
 let sessionLogRetryCount = 0;
 const MAX_RETRY_ATTEMPTS = 5;
+const MAX_BACKOFF_DELAY_MS = 10000; // Maximum delay between retries (10 seconds)
 const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
+const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
 
 // Create main window
 function createWindow() {
@@ -256,7 +258,7 @@ async function processSessionLogQueue() {
           }
 
           // Exit loop to retry later with exponential backoff
-          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), 10000);
+          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
           setTimeout(() => {
             if (!sessionLogWriting) {
               processSessionLogQueue().catch(err => {
@@ -673,8 +675,49 @@ ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
       };
     }
 
-    // Check if all events match (compare timestamps and messages)
-    for (let i = 0; i < sessionLogs.length; i++) {
+    // Optimize validation for large datasets using sampling
+    const totalLogs = sessionLogs.length;
+    let indicesToCheck = [];
+
+    if (totalLogs <= VALIDATION_SAMPLE_SIZE * 2) {
+      // Small dataset: validate all entries
+      indicesToCheck = Array.from({ length: totalLogs }, (_, i) => i);
+    } else {
+      // Large dataset: use sampling strategy
+      // - First VALIDATION_SAMPLE_SIZE/2 entries
+      // - Last VALIDATION_SAMPLE_SIZE/2 entries
+      // - Random sample from middle
+      const halfSample = Math.floor(VALIDATION_SAMPLE_SIZE / 2);
+
+      // First entries
+      for (let i = 0; i < halfSample; i++) {
+        indicesToCheck.push(i);
+      }
+
+      // Last entries
+      for (let i = totalLogs - halfSample; i < totalLogs; i++) {
+        indicesToCheck.push(i);
+      }
+
+      // Random middle samples
+      const middleStart = halfSample;
+      const middleEnd = totalLogs - halfSample;
+      const middleRange = middleEnd - middleStart;
+      const numMiddleSamples = Math.min(VALIDATION_SAMPLE_SIZE, middleRange);
+
+      for (let i = 0; i < numMiddleSamples; i++) {
+        const randomIndex = middleStart + Math.floor(Math.random() * middleRange);
+        if (!indicesToCheck.includes(randomIndex)) {
+          indicesToCheck.push(randomIndex);
+        }
+      }
+
+      // Sort indices for efficient access
+      indicesToCheck.sort((a, b) => a - b);
+    }
+
+    // Validate sampled entries
+    for (const i of indicesToCheck) {
       const sessionLog = sessionLogs[i];
       const memoryLog = inMemoryLogs[i];
 
@@ -684,7 +727,7 @@ ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
         return {
           success: true,
           valid: false,
-          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.`,
+          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.${totalLogs > VALIDATION_SAMPLE_SIZE * 2 ? ' (Sampled validation)' : ''}`,
           sessionLogCount: sessionLogs.length
         };
       }
@@ -694,7 +737,7 @@ ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
     return {
       success: true,
       valid: true,
-      message: 'Logs validated successfully.',
+      message: `Logs validated successfully.${totalLogs > VALIDATION_SAMPLE_SIZE * 2 ? ` (Sampled ${indicesToCheck.length} of ${totalLogs} entries)` : ''}`,
       sessionLogCount: sessionLogs.length
     };
   } catch (error) {

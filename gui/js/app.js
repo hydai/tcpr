@@ -585,6 +585,45 @@ async function checkMonitoringStatus() {
   }
 }
 
+// Helper function to display error notifications directly (avoids recursion)
+function displayErrorNotification(message) {
+  const eventsList = document.getElementById('eventsList');
+
+  // Remove empty state if present
+  const emptyState = eventsList.querySelector('.empty-state');
+  if (emptyState) {
+    emptyState.remove();
+  }
+
+  const eventItem = document.createElement('div');
+  eventItem.className = 'event-item';
+
+  const displayTime = new Date().toLocaleTimeString();
+
+  eventItem.innerHTML = `
+    <div class="event-header">
+      <span class="event-type" style="color: var(--error)">
+        ❌ Error
+      </span>
+      <span class="event-time">${displayTime}</span>
+    </div>
+    <div class="event-details">
+      <pre>${escapeHtml(message)}</pre>
+    </div>
+  `;
+
+  eventsList.insertBefore(eventItem, eventsList.firstChild);
+
+  // Increment event count (but don't store - this is internal)
+  state.eventCount++;
+  document.getElementById('eventCount').textContent = state.eventCount;
+
+  // Limit to 100 events in UI
+  while (eventsList.children.length > 100) {
+    eventsList.removeChild(eventsList.lastChild);
+  }
+}
+
 // Handle EventSub Log
 function handleEventSubLog(data) {
   console.log('EventSub log:', data);
@@ -601,13 +640,10 @@ function handleEventSubLog(data) {
   if (!data.timestamp) {
     console.error('EventSub log missing timestamp from main process - rejecting event:', data);
 
-    // Show visible notification to user about rejected event
-    handleEventSubLog({
-      timestamp: new Date().toISOString(),
-      type: 'error',
-      message: `Critical: Event rejected due to missing timestamp. Event type: ${data.type || 'unknown'}, Message preview: ${(data.message || '').substring(0, 100)}`,
-      internal: true
-    });
+    // Show visible notification to user about rejected event (non-recursive)
+    displayErrorNotification(
+      `Critical: Event rejected due to missing timestamp. Event type: ${data.type || 'unknown'}, Message preview: ${(data.message || '').substring(0, 100)}`
+    );
 
     return;
   }
