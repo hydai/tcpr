@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
+import { randomUUID } from 'crypto';
 import { BUILTIN_CONFIG } from '../config/builtin.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,10 @@ let oauthServerProcess = null;
 
 // Path to .env file
 const envPath = path.join(app.getPath('userData'), '.env');
+
+// Session management
+let sessionId = null;
+let sessionLogPath = null;
 
 // Create main window
 function createWindow() {
@@ -145,8 +150,54 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Initialize session with unique ID and log file
+function initializeSession() {
+  // Generate unique session ID
+  sessionId = randomUUID();
+
+  // Create session log file path
+  const userDataDir = app.getPath('userData');
+  if (!fs.existsSync(userDataDir)) {
+    fs.mkdirSync(userDataDir, { recursive: true });
+  }
+
+  sessionLogPath = path.join(userDataDir, `session-${sessionId}.json`);
+
+  // Initialize log file with empty array
+  try {
+    fs.writeFileSync(sessionLogPath, '[]', 'utf-8');
+    console.log(`Session initialized: ${sessionId}`);
+    console.log(`Session log file: ${sessionLogPath}`);
+  } catch (error) {
+    console.error('Failed to initialize session log file:', error);
+  }
+}
+
+// Append log entry to session file
+async function appendToSessionLog(logEntry) {
+  if (!sessionLogPath) {
+    console.error('Session log path not initialized');
+    return;
+  }
+
+  try {
+    // Read existing logs
+    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+    const logs = JSON.parse(content);
+
+    // Append new log
+    logs.push(logEntry);
+
+    // Write back to file
+    await fs.promises.writeFile(sessionLogPath, JSON.stringify(logs, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to append to session log:', error);
+  }
+}
+
 // App ready
 app.whenReady().then(() => {
+  initializeSession();
   createMenu();
   createWindow();
 
@@ -359,32 +410,57 @@ ipcMain.handle('eventsub:start', async () => {
     );
 
     eventSubProcess.on('error', (error) => {
+      const logEntry = {
+        type: 'error',
+        message: `Failed to start EventSub process: ${error.message}`
+      };
+
       if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'error',
-          message: `Failed to start EventSub process: ${error.message}`
-        });
+        mainWindow.webContents.send('eventsub:log', logEntry);
         mainWindow.webContents.send('eventsub:stopped', null);
       }
+
+      // Auto-save to session log (don't await to avoid blocking)
+      appendToSessionLog({
+        timestamp: new Date().toISOString(),
+        ...logEntry
+      });
+
       eventSubProcess = null;
     });
 
     eventSubProcess.stdout.on('data', (data) => {
+      const logEntry = {
+        type: 'info',
+        message: data.toString()
+      };
+
       if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'info',
-          message: data.toString()
-        });
+        mainWindow.webContents.send('eventsub:log', logEntry);
       }
+
+      // Auto-save to session log (don't await to avoid blocking)
+      appendToSessionLog({
+        timestamp: new Date().toISOString(),
+        ...logEntry
+      });
     });
 
     eventSubProcess.stderr.on('data', (data) => {
+      const logEntry = {
+        type: 'error',
+        message: data.toString()
+      };
+
       if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'error',
-          message: data.toString()
-        });
+        mainWindow.webContents.send('eventsub:log', logEntry);
       }
+
+      // Auto-save to session log (don't await to avoid blocking)
+      appendToSessionLog({
+        timestamp: new Date().toISOString(),
+        ...logEntry
+      });
     });
 
     eventSubProcess.on('exit', (code) => {
@@ -452,6 +528,31 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
   try {
     await fs.promises.writeFile(filePath, content, 'utf-8');
     return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Get session ID
+ipcMain.handle('session:getId', async () => {
+  return { success: true, sessionId };
+});
+
+// Get session log file path
+ipcMain.handle('session:getLogPath', async () => {
+  return { success: true, path: sessionLogPath };
+});
+
+// Read session log for validation
+ipcMain.handle('session:readLog', async () => {
+  try {
+    if (!sessionLogPath || !fs.existsSync(sessionLogPath)) {
+      return { success: false, error: 'Session log file not found' };
+    }
+
+    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+    const logs = JSON.parse(content);
+    return { success: true, logs };
   } catch (error) {
     return { success: false, error: error.message };
   }

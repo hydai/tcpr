@@ -17,7 +17,8 @@ const state = {
   eventCount: 0,
   startTime: null,
   uptimeInterval: null,
-  allEvents: [] // Store all events for export
+  allEvents: [], // Store all events for export
+  sessionId: null // Session ID for auto-save
 };
 
 // Initialize app on load
@@ -42,6 +43,16 @@ async function initializeApp() {
   const versionElement = document.getElementById('appVersion');
   if (versionElement) {
     versionElement.textContent = version;
+  }
+
+  // Get session ID
+  const sessionResult = await window.electronAPI.getSessionId();
+  if (sessionResult.success && sessionResult.sessionId) {
+    state.sessionId = sessionResult.sessionId;
+    const sessionIdElement = document.getElementById('sessionId');
+    if (sessionIdElement) {
+      sessionIdElement.textContent = sessionResult.sessionId;
+    }
   }
 
   // Get config path
@@ -685,6 +696,62 @@ function clearEvents() {
   document.getElementById('eventCount').textContent = '0';
 }
 
+// Validate logs against session file
+async function validateLogsWithSessionFile() {
+  try {
+    const sessionLogResult = await window.electronAPI.readSessionLog();
+
+    if (!sessionLogResult.success) {
+      return {
+        valid: false,
+        message: 'Could not read session log file.',
+        sessionLogCount: 0
+      };
+    }
+
+    const sessionLogs = sessionLogResult.logs || [];
+    const inMemoryLogs = state.allEvents;
+
+    // Check if counts match
+    if (sessionLogs.length !== inMemoryLogs.length) {
+      return {
+        valid: false,
+        message: 'Event count mismatch between session file and in-memory logs.',
+        sessionLogCount: sessionLogs.length
+      };
+    }
+
+    // Check if all events match (compare timestamps and messages)
+    for (let i = 0; i < sessionLogs.length; i++) {
+      const sessionLog = sessionLogs[i];
+      const memoryLog = inMemoryLogs[i];
+
+      if (sessionLog.timestamp !== memoryLog.timestamp ||
+          sessionLog.message !== memoryLog.message ||
+          sessionLog.type !== memoryLog.type) {
+        return {
+          valid: false,
+          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.`,
+          sessionLogCount: sessionLogs.length
+        };
+      }
+    }
+
+    // All checks passed
+    return {
+      valid: true,
+      message: 'Logs validated successfully.',
+      sessionLogCount: sessionLogs.length
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      message: `Validation error: ${error.message}`,
+      sessionLogCount: 0
+    };
+  }
+}
+
 // Export Events
 async function exportEvents() {
   if (state.allEvents.length === 0) {
@@ -693,6 +760,21 @@ async function exportEvents() {
   }
 
   try {
+    // Validate logs against session file
+    const validationResult = await validateLogsWithSessionFile();
+    if (!validationResult.valid) {
+      const proceed = confirm(
+        `Warning: Log validation failed!\n\n` +
+        `${validationResult.message}\n\n` +
+        `Session log events: ${validationResult.sessionLogCount}\n` +
+        `In-memory events: ${state.allEvents.length}\n\n` +
+        `Do you want to continue with the export anyway?`
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+
     // Show save dialog with filesystem-friendly date format
     const now = new Date();
     const dateStr = now.getFullYear().toString() +

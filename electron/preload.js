@@ -53,5 +53,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
 
   // Event log export
-  saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content)
+  saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content),
+
+  // Session management
+  getSessionId: () => ipcRenderer.invoke('session:getId'),
+  getSessionLogPath: () => ipcRenderer.invoke('session:getLogPath'),
+  readSessionLog: () => ipcRenderer.invoke('session:readLog')
 });
