@@ -681,8 +681,11 @@ async function exportEvents() {
   }
 
   try {
-    // Show save dialog
-    const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    // Show save dialog with filesystem-friendly date format
+    const now = new Date();
+    const dateStr = now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0'); // YYYYMMDD format
     const result = await window.electronAPI.showSaveDialog({
       title: 'Export Events',
       defaultPath: `twitch-events-${dateStr}.json`,
