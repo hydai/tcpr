@@ -24,6 +24,7 @@ let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
 let sessionLogWriting = false;
 let sessionLogRetryCount = 0;
 const MAX_RETRY_ATTEMPTS = 5;
+const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
 
 // Create main window
 function createWindow() {
@@ -255,7 +256,7 @@ async function processSessionLogQueue() {
           }
 
           // Exit loop to retry later with exponential backoff
-          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount - 1), 10000);
+          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), 10000);
           setTimeout(() => {
             if (!sessionLogWriting) {
               processSessionLogQueue().catch(err => {
@@ -270,7 +271,7 @@ async function processSessionLogQueue() {
     }
 
     // Clean up processed entries periodically to prevent unbounded memory growth
-    if (sessionLogQueueIndex > 100) {
+    if (sessionLogQueueIndex > QUEUE_CLEANUP_THRESHOLD) {
       sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
       sessionLogQueueIndex = 0;
     }

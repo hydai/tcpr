@@ -600,6 +600,15 @@ function handleEventSubLog(data) {
   // Require timestamp from main process; reject events without it
   if (!data.timestamp) {
     console.error('EventSub log missing timestamp from main process - rejecting event:', data);
+
+    // Show visible notification to user about rejected event
+    handleEventSubLog({
+      timestamp: new Date().toISOString(),
+      type: 'error',
+      message: `Critical: Event rejected due to missing timestamp. Event type: ${data.type || 'unknown'}, Message preview: ${(data.message || '').substring(0, 100)}`,
+      internal: true
+    });
+
     return;
   }
 
