@@ -601,8 +601,14 @@ function handleEventSubLog(data) {
   const eventItem = document.createElement('div');
   eventItem.className = 'event-item';
 
-  // Use timestamp from data if available, otherwise generate one
-  const timestamp = data.timestamp || new Date().toISOString();
+  // Require timestamp from main process; do not generate in renderer
+  if (!data.timestamp) {
+    console.error('EventSub log missing timestamp from main process:', data);
+    // Still display the event but log the error
+    data.timestamp = new Date().toISOString();
+  }
+
+  const timestamp = data.timestamp;
   const displayTime = new Date(timestamp).toLocaleTimeString();
   const isError = data.type === 'error';
 
@@ -621,12 +627,14 @@ function handleEventSubLog(data) {
   // Add to top of list
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
-  // Store event in persistent array for export
-  state.allEvents.push({
-    timestamp: timestamp,
-    type: data.type || 'info',
-    message: data.message
-  });
+  // Store event in persistent array for export (excluding internal error logs)
+  if (!data.internal) {
+    state.allEvents.push({
+      timestamp: timestamp,
+      type: data.type || 'info',
+      message: data.message
+    });
+  }
 
   // Increment event count
   state.eventCount++;
@@ -697,52 +705,27 @@ function clearEvents() {
   document.getElementById('eventCount').textContent = '0';
 }
 
-// Validate logs against session file
+// Validate logs against session file (delegated to main process to prevent UI blocking)
 async function validateLogsWithSessionFile() {
   try {
-    const sessionLogResult = await window.electronAPI.readSessionLog();
+    // Filter out internal error logs before validation
+    const logsToValidate = state.allEvents.filter(log => !log.internal);
 
-    if (!sessionLogResult.success) {
+    // Delegate to main process to prevent UI blocking with large log files
+    const result = await window.electronAPI.validateSessionLogs(logsToValidate);
+
+    if (!result.success) {
       return {
         valid: false,
-        message: 'Could not read session log file.',
+        message: `Validation error: ${result.error}`,
         sessionLogCount: 0
       };
     }
 
-    const sessionLogs = sessionLogResult.logs || [];
-    const inMemoryLogs = state.allEvents;
-
-    // Check if counts match
-    if (sessionLogs.length !== inMemoryLogs.length) {
-      return {
-        valid: false,
-        message: 'Event count mismatch between session file and in-memory logs.',
-        sessionLogCount: sessionLogs.length
-      };
-    }
-
-    // Check if all events match (compare timestamps and messages)
-    for (let i = 0; i < sessionLogs.length; i++) {
-      const sessionLog = sessionLogs[i];
-      const memoryLog = inMemoryLogs[i];
-
-      if (sessionLog.timestamp !== memoryLog.timestamp ||
-          sessionLog.message !== memoryLog.message ||
-          sessionLog.type !== memoryLog.type) {
-        return {
-          valid: false,
-          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.`,
-          sessionLogCount: sessionLogs.length
-        };
-      }
-    }
-
-    // All checks passed
     return {
-      valid: true,
-      message: 'Logs validated successfully.',
-      sessionLogCount: sessionLogs.length
+      valid: result.valid,
+      message: result.message,
+      sessionLogCount: result.sessionLogCount
     };
   } catch (error) {
     return {

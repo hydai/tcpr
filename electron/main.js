@@ -163,11 +163,11 @@ function initializeSession() {
     fs.mkdirSync(userDataDir, { recursive: true });
   }
 
-  sessionLogPath = path.join(userDataDir, `session-${sessionId}.json`);
+  sessionLogPath = path.join(userDataDir, `session-${sessionId}.jsonl`);
 
-  // Initialize log file with empty array
+  // Initialize log file as empty (NDJSON format)
   try {
-    fs.writeFileSync(sessionLogPath, '[]', 'utf-8');
+    fs.writeFileSync(sessionLogPath, '', 'utf-8');
     console.log(`Session initialized: ${sessionId}`);
     console.log(`Session log file: ${sessionLogPath}`);
   } catch (error) {
@@ -197,35 +197,47 @@ async function processSessionLogQueue() {
   if (sessionLogWriting) return;
   sessionLogWriting = true;
 
-  while (sessionLogQueue.length > 0) {
-    const logEntry = sessionLogQueue.shift();
+  try {
+    while (sessionLogQueue.length > 0) {
+      const logEntry = sessionLogQueue[0]; // Peek, don't remove yet
 
-    try {
-      // Read existing logs
-      const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
-      const logs = JSON.parse(content);
+      // Skip internal error logs to prevent infinite loops
+      if (logEntry.internal) {
+        sessionLogQueue.shift();
+        continue;
+      }
 
-      // Append new log
-      logs.push(logEntry);
+      try {
+        // Append as NDJSON (newline-delimited JSON) - much more efficient
+        await fs.promises.appendFile(
+          sessionLogPath,
+          JSON.stringify(logEntry) + '\n',
+          'utf-8'
+        );
 
-      // Write back to file
-      await fs.promises.writeFile(sessionLogPath, JSON.stringify(logs, null, 2), 'utf-8');
-    } catch (error) {
-      console.error('Failed to append to session log:', error);
-      console.error('Lost log entry:', logEntry);
+        // Only remove from queue if successful
+        sessionLogQueue.shift();
+      } catch (error) {
+        console.error('Failed to append to session log:', error);
+        console.error('Will retry log entry:', logEntry);
 
-      // Notify main window about the error
-      if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'error',
-          message: `Warning: Failed to save log to session file: ${error.message}`,
-          timestamp: new Date().toISOString()
-        });
+        // Notify main window about the error (marked as internal to prevent saving)
+        if (mainWindow) {
+          mainWindow.webContents.send('eventsub:log', {
+            type: 'error',
+            message: `Warning: Failed to save log to session file: ${error.message}`,
+            timestamp: new Date().toISOString(),
+            internal: true
+          });
+        }
+
+        // Exit loop to retry later, keeping the failed log entry in the queue
+        break;
       }
     }
+  } finally {
+    sessionLogWriting = false;
   }
-
-  sessionLogWriting = false;
 }
 
 // App ready
@@ -578,9 +590,77 @@ ipcMain.handle('session:readLog', async () => {
     }
 
     const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
-    const logs = JSON.parse(content);
+
+    // Parse NDJSON format (newline-delimited JSON)
+    const logs = content
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+
     return { success: true, logs };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+// Validate logs in main process to prevent UI blocking
+ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
+  try {
+    if (!sessionLogPath || !fs.existsSync(sessionLogPath)) {
+      return {
+        success: true,
+        valid: false,
+        message: 'Session log file not found.',
+        sessionLogCount: 0
+      };
+    }
+
+    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+
+    // Parse NDJSON format
+    const sessionLogs = content
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+
+    // Check if counts match
+    if (sessionLogs.length !== inMemoryLogs.length) {
+      return {
+        success: true,
+        valid: false,
+        message: 'Event count mismatch between session file and in-memory logs.',
+        sessionLogCount: sessionLogs.length
+      };
+    }
+
+    // Check if all events match (compare timestamps and messages)
+    for (let i = 0; i < sessionLogs.length; i++) {
+      const sessionLog = sessionLogs[i];
+      const memoryLog = inMemoryLogs[i];
+
+      if (sessionLog.timestamp !== memoryLog.timestamp ||
+          sessionLog.message !== memoryLog.message ||
+          sessionLog.type !== memoryLog.type) {
+        return {
+          success: true,
+          valid: false,
+          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.`,
+          sessionLogCount: sessionLogs.length
+        };
+      }
+    }
+
+    // All checks passed
+    return {
+      success: true,
+      valid: true,
+      message: 'Logs validated successfully.',
+      sessionLogCount: sessionLogs.length
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
   }
 });

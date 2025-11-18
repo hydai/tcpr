@@ -58,5 +58,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Session management
   getSessionId: () => ipcRenderer.invoke('session:getId'),
   getSessionLogPath: () => ipcRenderer.invoke('session:getLogPath'),
-  readSessionLog: () => ipcRenderer.invoke('session:readLog')
+  readSessionLog: () => ipcRenderer.invoke('session:readLog'),
+  validateSessionLogs: (inMemoryLogs) => ipcRenderer.invoke('session:validateLogs', inMemoryLogs)
 });
