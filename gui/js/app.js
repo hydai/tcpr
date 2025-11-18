@@ -632,7 +632,19 @@ function handleEventSubStopped(code) {
   handleMonitoringStopped();
 
   if (code !== 0) {
-    alert('Monitoring stopped unexpectedly. Check the event log for details.');
+    // Check if the last event was a token validation error
+    const lastEvents = state.allEvents.slice(-5);
+    const hasTokenError = lastEvents.some(event =>
+      event.type === 'error' &&
+      (event.message.includes('Token validation failed') ||
+       event.message.includes('Invalid or expired access token'))
+    );
+
+    if (hasTokenError) {
+      showTokenErrorModal('Your access token is invalid or has expired. Please refresh your OAuth authentication to continue monitoring.');
+    } else {
+      alert('Monitoring stopped unexpectedly. Check the event log for details.');
+    }
   }
 }
 
@@ -789,6 +801,55 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
+// Show Token Error Modal
+function showTokenErrorModal(message) {
+  const modal = document.getElementById('tokenErrorModal');
+  const messageElement = document.getElementById('tokenErrorMessage');
+
+  if (message) {
+    messageElement.textContent = message;
+  }
+
+  modal.style.display = 'flex';
+}
+
+// Close Token Error Modal
+function closeTokenErrorModal() {
+  const modal = document.getElementById('tokenErrorModal');
+  modal.style.display = 'none';
+}
+
+// Refresh OAuth from Modal
+async function refreshOAuthFromModal() {
+  closeTokenErrorModal();
+
+  try {
+    // Save current config
+    await window.electronAPI.saveConfig(state.config);
+
+    // Start OAuth server
+    const port = parseInt(state.config.PORT) || 3000;
+    const result = await window.electronAPI.startOAuth(port);
+
+    if (result.success) {
+      // Open OAuth URL in browser
+      const oauthUrl = `http://localhost:${port}`;
+      await window.electronAPI.openExternal(oauthUrl);
+
+      // Show success message
+      alert('OAuth server started. Please complete the authentication in your browser, then save the new token in Settings.');
+
+      // Open settings panel so user can see when token is updated
+      openSettings();
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('OAuth error:', error);
+    alert('Failed to start OAuth: ' + error.message);
+  }
+}
+
 // Export functions to global scope
 window.wizardNext = wizardNext;
 window.wizardPrev = wizardPrev;
@@ -806,3 +867,6 @@ window.stopMonitoring = stopMonitoring;
 window.clearEvents = clearEvents;
 window.exportEvents = exportEvents;
 window.openExternal = openExternal;
+window.showTokenErrorModal = showTokenErrorModal;
+window.closeTokenErrorModal = closeTokenErrorModal;
+window.refreshOAuthFromModal = refreshOAuthFromModal;
