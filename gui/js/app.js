@@ -906,12 +906,13 @@ async function openFolder(folderType) {
     const userDataPath = await window.electronAPI.getAppPath('userData');
     const result = await window.electronAPI.openPath(userDataPath);
     if (!result.success) {
-      console.error(`Failed to open ${folderType} folder:`, result.error);
-      alert(`Failed to open ${folderType} folder: ${result.error}`);
+      const errorMsg = result.error || 'Unknown error occurred';
+      console.error(`Failed to open ${folderType} folder:`, errorMsg);
+      alert(`Failed to open ${folderType} folder: ${errorMsg}`);
     }
   } catch (error) {
     console.error(`Error opening ${folderType} folder:`, error);
-    alert(`Error opening ${folderType} folder: ${error.message}`);
+    alert(`Error opening ${folderType} folder: ${error.message || 'Unknown error occurred'}`);
   }
 }
 
