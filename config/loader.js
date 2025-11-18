@@ -20,7 +20,7 @@ const CONFIG_MAPPING = [
   { key: 'TWITCH_ACCESS_TOKEN', env: 'TWITCH_ACCESS_TOKEN' },
   { key: 'TWITCH_BROADCASTER_ID', env: 'TWITCH_BROADCASTER_ID' },
   { key: 'REDIRECT_URI', env: 'REDIRECT_URI' },
-  { key: 'PORT', env: 'PORT', transform: v => String(v) }
+  { key: 'PORT', env: 'PORT' }
 ];
 
 /**
@@ -35,9 +35,10 @@ export function loadConfig() {
       const config = JSON.parse(configData);
 
       // Set environment variables from config.json using mapping
-      for (const { key, env, transform } of CONFIG_MAPPING) {
+      for (const { key, env } of CONFIG_MAPPING) {
         if (config[key] !== undefined) {
-          process.env[env] = transform ? transform(config[key]) : config[key];
+          // process.env values are automatically coerced to strings
+          process.env[env] = config[key];
         }
       }
 

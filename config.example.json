@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$comment": "Twitch Application Configuration - Copy this to config.json and fill in your values",
   "TWITCH_CLIENT_ID": "your_client_id_here",
   "TWITCH_CLIENT_SECRET": "your_client_secret_here",
