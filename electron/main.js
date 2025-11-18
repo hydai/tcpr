@@ -19,6 +19,8 @@ const envPath = path.join(app.getPath('userData'), '.env');
 // Session management
 let sessionId = null;
 let sessionLogPath = null;
+let sessionLogQueue = [];
+let sessionLogWriting = false;
 
 // Create main window
 function createWindow() {
@@ -173,26 +175,57 @@ function initializeSession() {
   }
 }
 
-// Append log entry to session file
-async function appendToSessionLog(logEntry) {
+// Append log entry to session file (queued to prevent race conditions)
+function appendToSessionLog(logEntry) {
   if (!sessionLogPath) {
     console.error('Session log path not initialized');
     return;
   }
 
-  try {
-    // Read existing logs
-    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
-    const logs = JSON.parse(content);
+  sessionLogQueue.push(logEntry);
 
-    // Append new log
-    logs.push(logEntry);
-
-    // Write back to file
-    await fs.promises.writeFile(sessionLogPath, JSON.stringify(logs, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to append to session log:', error);
+  // Start processing if not already running
+  if (!sessionLogWriting) {
+    processSessionLogQueue().catch(error => {
+      console.error('Critical error in session log processing:', error);
+    });
   }
+}
+
+// Process session log queue sequentially to prevent race conditions
+async function processSessionLogQueue() {
+  if (sessionLogWriting) return;
+  sessionLogWriting = true;
+
+  while (sessionLogQueue.length > 0) {
+    const logEntry = sessionLogQueue.shift();
+
+    try {
+      // Read existing logs
+      const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+      const logs = JSON.parse(content);
+
+      // Append new log
+      logs.push(logEntry);
+
+      // Write back to file
+      await fs.promises.writeFile(sessionLogPath, JSON.stringify(logs, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('Failed to append to session log:', error);
+      console.error('Lost log entry:', logEntry);
+
+      // Notify main window about the error
+      if (mainWindow) {
+        mainWindow.webContents.send('eventsub:log', {
+          type: 'error',
+          message: `Warning: Failed to save log to session file: ${error.message}`,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+  }
+
+  sessionLogWriting = false;
 }
 
 // App ready
@@ -411,6 +444,7 @@ ipcMain.handle('eventsub:start', async () => {
 
     eventSubProcess.on('error', (error) => {
       const logEntry = {
+        timestamp: new Date().toISOString(),
         type: 'error',
         message: `Failed to start EventSub process: ${error.message}`
       };
@@ -420,17 +454,15 @@ ipcMain.handle('eventsub:start', async () => {
         mainWindow.webContents.send('eventsub:stopped', null);
       }
 
-      // Auto-save to session log (don't await to avoid blocking)
-      appendToSessionLog({
-        timestamp: new Date().toISOString(),
-        ...logEntry
-      });
+      // Auto-save to session log
+      appendToSessionLog(logEntry);
 
       eventSubProcess = null;
     });
 
     eventSubProcess.stdout.on('data', (data) => {
       const logEntry = {
+        timestamp: new Date().toISOString(),
         type: 'info',
         message: data.toString()
       };
@@ -439,15 +471,13 @@ ipcMain.handle('eventsub:start', async () => {
         mainWindow.webContents.send('eventsub:log', logEntry);
       }
 
-      // Auto-save to session log (don't await to avoid blocking)
-      appendToSessionLog({
-        timestamp: new Date().toISOString(),
-        ...logEntry
-      });
+      // Auto-save to session log
+      appendToSessionLog(logEntry);
     });
 
     eventSubProcess.stderr.on('data', (data) => {
       const logEntry = {
+        timestamp: new Date().toISOString(),
         type: 'error',
         message: data.toString()
       };
@@ -456,11 +486,8 @@ ipcMain.handle('eventsub:start', async () => {
         mainWindow.webContents.send('eventsub:log', logEntry);
       }
 
-      // Auto-save to session log (don't await to avoid blocking)
-      appendToSessionLog({
-        timestamp: new Date().toISOString(),
-        ...logEntry
-      });
+      // Auto-save to session log
+      appendToSessionLog(logEntry);
     });
 
     eventSubProcess.on('exit', (code) => {

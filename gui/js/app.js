@@ -601,8 +601,9 @@ function handleEventSubLog(data) {
   const eventItem = document.createElement('div');
   eventItem.className = 'event-item';
 
-  const timestamp = new Date().toISOString();
-  const displayTime = new Date().toLocaleTimeString();
+  // Use timestamp from data if available, otherwise generate one
+  const timestamp = data.timestamp || new Date().toISOString();
+  const displayTime = new Date(timestamp).toLocaleTimeString();
   const isError = data.type === 'error';
 
   eventItem.innerHTML = `
