@@ -900,6 +900,36 @@ async function openExternal(url) {
   await window.electronAPI.openExternal(url);
 }
 
+// Open Event Logs Folder
+async function openEventLogsFolder() {
+  try {
+    const userDataPath = await window.electronAPI.getAppPath('userData');
+    const result = await window.electronAPI.openPath(userDataPath);
+    if (!result.success) {
+      console.error('Failed to open event logs folder:', result.error);
+      alert('Failed to open event logs folder: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error opening event logs folder:', error);
+    alert('Error opening event logs folder: ' + error.message);
+  }
+}
+
+// Open Config Folder
+async function openConfigFolder() {
+  try {
+    const userDataPath = await window.electronAPI.getAppPath('userData');
+    const result = await window.electronAPI.openPath(userDataPath);
+    if (!result.success) {
+      console.error('Failed to open config folder:', result.error);
+      alert('Failed to open config folder: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Error opening config folder:', error);
+    alert('Error opening config folder: ' + error.message);
+  }
+}
+
 // Utility: Escape HTML
 function escapeHtml(unsafe) {
   return unsafe

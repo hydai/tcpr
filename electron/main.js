@@ -584,6 +584,16 @@ ipcMain.handle('shell:openExternal', async (event, url) => {
   return { success: true };
 });
 
+// Open folder in system file explorer
+ipcMain.handle('shell:openPath', async (event, folderPath) => {
+  const { shell } = await import('electron');
+  const result = await shell.openPath(folderPath);
+  if (result) {
+    return { success: false, error: result };
+  }
+  return { success: true };
+});
+
 // Show open dialog
 ipcMain.handle('dialog:showOpen', async (event, options) => {
   const result = await dialog.showOpenDialog(mainWindow, options);
