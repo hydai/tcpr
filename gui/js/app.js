@@ -16,7 +16,8 @@ const state = {
   monitoringActive: false,
   eventCount: 0,
   startTime: null,
-  uptimeInterval: null
+  uptimeInterval: null,
+  allEvents: [] // Store all events for export
 };
 
 // Initialize app on load
@@ -589,7 +590,8 @@ function handleEventSubLog(data) {
   const eventItem = document.createElement('div');
   eventItem.className = 'event-item';
 
-  const timestamp = new Date().toLocaleTimeString();
+  const timestamp = new Date().toISOString();
+  const displayTime = new Date().toLocaleTimeString();
   const isError = data.type === 'error';
 
   eventItem.innerHTML = `
@@ -597,7 +599,7 @@ function handleEventSubLog(data) {
       <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}">
         ${isError ? '❌ Error' : '📢 Event'}
       </span>
-      <span class="event-time">${timestamp}</span>
+      <span class="event-time">${displayTime}</span>
     </div>
     <div class="event-details">
       <pre>${escapeHtml(data.message)}</pre>
@@ -607,11 +609,18 @@ function handleEventSubLog(data) {
   // Add to top of list
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
+  // Store event in persistent array for export
+  state.allEvents.push({
+    timestamp: timestamp,
+    type: data.type || 'info',
+    message: data.message
+  });
+
   // Increment event count
   state.eventCount++;
   document.getElementById('eventCount').textContent = state.eventCount;
 
-  // Limit to 100 events
+  // Limit to 100 events in UI (but keep all in allEvents)
   while (eventsList.children.length > 100) {
     eventsList.removeChild(eventsList.lastChild);
   }
@@ -660,7 +669,109 @@ function clearEvents() {
   `;
 
   state.eventCount = 0;
+  state.allEvents = []; // Clear all stored events
   document.getElementById('eventCount').textContent = '0';
+}
+
+// Export Events
+async function exportEvents() {
+  if (state.allEvents.length === 0) {
+    alert('No events to export. Start monitoring to capture events.');
+    return;
+  }
+
+  try {
+    // Show save dialog with filesystem-friendly date format
+    const now = new Date();
+    const dateStr = now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0'); // YYYYMMDD format
+    const result = await window.electronAPI.showSaveDialog({
+      title: 'Export Events',
+      defaultPath: `twitch-events-${dateStr}`,
+      filters: [
+        { name: 'JSON Files', extensions: ['json'] },
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return;
+    }
+
+    // Determine format based on the selected filter in the dialog
+    let filePath = result.filePath;
+    // filterIndex: 0 = JSON, 1 = CSV, 2 = All Files
+    let format;
+    if (result.filterIndex === 1) {
+      format = 'csv';
+    } else if (result.filterIndex === 0) {
+      format = 'json';
+    } else {
+      // All Files: try to infer from extension, default to JSON
+      if (filePath.toLowerCase().endsWith('.csv')) {
+        format = 'csv';
+      } else if (filePath.toLowerCase().endsWith('.json')) {
+        format = 'json';
+      } else {
+        format = 'json';
+      }
+    }
+
+    // Enforce correct extension
+    if (format === 'csv' && !filePath.toLowerCase().endsWith('.csv')) {
+      filePath += '.csv';
+    } else if (format === 'json' && !filePath.toLowerCase().endsWith('.json')) {
+      filePath += '.json';
+    }
+
+    let content;
+    if (format === 'csv') {
+      // Export as CSV
+      content = convertToCSV(state.allEvents);
+    } else {
+      // Export as JSON (default)
+      content = JSON.stringify(state.allEvents, null, 2);
+    }
+
+    // Save the file
+    const saveResult = await window.electronAPI.saveEventLog(filePath, content);
+
+    if (saveResult.success) {
+      alert(`Successfully exported ${state.allEvents.length} events to ${filePath}`);
+    } else {
+      alert(`Failed to export events: ${saveResult.error}`);
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    alert(`Failed to export events: ${error.message}`);
+  }
+}
+
+/**
+ * Escapes a value for CSV output according to RFC 4180:
+ * - All fields are always wrapped in double quotes, so fields containing commas, quotes, or newlines are handled correctly.
+ * - Any double quotes inside the field are escaped by doubling them.
+ * - Newlines are preserved, as allowed by RFC 4180.
+ * This ensures the output is valid CSV and easy to parse.
+ */
+function escapeCSVField(field) {
+  // Convert to string, escape double quotes, wrap in double quotes (preserve newlines)
+  const str = String(field).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+// Convert events to CSV format
+function convertToCSV(events) {
+  const headers = ['Timestamp', 'Type', 'Message'];
+  const rows = [headers.map(escapeCSVField).join(',')];
+
+  events.forEach(event => {
+    rows.push([event.timestamp, event.type, event.message].map(escapeCSVField).join(','));
+  });
+
+  return rows.join('\r\n');
 }
 
 // Open External URL
@@ -693,4 +804,5 @@ window.refreshOAuth = refreshOAuth;
 window.startMonitoring = startMonitoring;
 window.stopMonitoring = stopMonitoring;
 window.clearEvents = clearEvents;
+window.exportEvents = exportEvents;
 window.openExternal = openExternal;
