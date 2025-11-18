@@ -7,6 +7,15 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <!-- SVG Icon Definitions -->
+  <svg style="display: none;" aria-hidden="true">
+    <defs>
+      <symbol id="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </symbol>
+    </defs>
+  </svg>
+
   <div id="app">
     <!-- Navigation/Header -->
     <header class="app-header">
@@ -383,6 +392,21 @@
               <p><strong>Session ID:</strong> <span id="sessionId" class="code" style="font-size: 0.85em;">-</span></p>
               <p><strong>Config Path:</strong> <span id="configPath" class="code">-</span></p>
               <p><strong>Repository:</strong> <a href="#" onclick="openExternal('https://github.com/hydai/tcpr'); return false;">hydai/tcpr</a></p>
+            </div>
+
+            <div class="settings-actions" style="margin-top: 20px;">
+              <button class="btn btn-secondary" onclick="openFolder('event logs')">
+                <svg width="16" height="16" style="margin-right: 6px; vertical-align: middle;">
+                  <use href="#folder-icon"/>
+                </svg>
+                Open Event Logs Folder
+              </button>
+              <button class="btn btn-secondary" onclick="openFolder('config')">
+                <svg width="16" height="16" style="margin-right: 6px; vertical-align: middle;">
+                  <use href="#folder-icon"/>
+                </svg>
+                Open Config Folder
+              </button>
             </div>
           </div>
         </div>

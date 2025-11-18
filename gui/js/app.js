@@ -900,6 +900,22 @@ async function openExternal(url) {
   await window.electronAPI.openExternal(url);
 }
 
+// Open Folder (generic)
+async function openFolder(folderType) {
+  try {
+    const userDataPath = await window.electronAPI.getAppPath('userData');
+    const result = await window.electronAPI.openPath(userDataPath);
+    if (!result.success) {
+      const errorMsg = result.error || 'Unknown error occurred';
+      console.error(`Failed to open ${folderType} folder:`, errorMsg);
+      alert(`Failed to open ${folderType} folder: ${errorMsg}`);
+    }
+  } catch (error) {
+    console.error(`Error opening ${folderType} folder:`, error);
+    alert(`Error opening ${folderType} folder: ${error.message || 'Unknown error occurred'}`);
+  }
+}
+
 // Utility: Escape HTML
 function escapeHtml(unsafe) {
   return unsafe

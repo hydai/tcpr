@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -579,8 +579,16 @@ ipcMain.handle('eventsub:status', async () => {
 
 // Open external URL
 ipcMain.handle('shell:openExternal', async (event, url) => {
-  const { shell } = await import('electron');
   await shell.openExternal(url);
+  return { success: true };
+});
+
+// Open folder in system file explorer
+ipcMain.handle('shell:openPath', async (event, folderPath) => {
+  const result = await shell.openPath(folderPath);
+  if (result) {
+    return { success: false, error: result };
+  }
   return { success: true };
 });
 
