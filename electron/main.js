@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
+import { randomUUID } from 'crypto';
 import { BUILTIN_CONFIG } from '../config/builtin.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,18 @@ let oauthServerProcess = null;
 
 // Path to .env file
 const envPath = path.join(app.getPath('userData'), '.env');
+
+// Session management
+let sessionId = null;
+let sessionLogPath = null;
+let sessionLogQueue = [];
+let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
+let sessionLogWriting = false;
+let sessionLogRetryCount = 0;
+const MAX_RETRY_ATTEMPTS = 5;
+const MAX_BACKOFF_DELAY_MS = 10000; // Maximum delay between retries (10 seconds)
+const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
+const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
 
 // Create main window
 function createWindow() {
@@ -145,8 +158,135 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// Initialize session with unique ID and log file
+function initializeSession() {
+  // Generate unique session ID
+  sessionId = randomUUID();
+
+  // Create session log file path
+  const userDataDir = app.getPath('userData');
+  if (!fs.existsSync(userDataDir)) {
+    fs.mkdirSync(userDataDir, { recursive: true });
+  }
+
+  sessionLogPath = path.join(userDataDir, `session-${sessionId}.jsonl`);
+
+  // Initialize log file as empty (NDJSON format)
+  try {
+    fs.writeFileSync(sessionLogPath, '', 'utf-8');
+    console.log(`Session initialized: ${sessionId}`);
+    console.log(`Session log file: ${sessionLogPath}`);
+  } catch (error) {
+    console.error('Failed to initialize session log file:', error);
+  }
+}
+
+// Append log entry to session file (queued to prevent race conditions)
+function appendToSessionLog(logEntry) {
+  if (!sessionLogPath) {
+    console.error('Session log path not initialized');
+    return;
+  }
+
+  sessionLogQueue.push(logEntry);
+
+  // Start processing if not already running
+  if (!sessionLogWriting) {
+    processSessionLogQueue().catch(error => {
+      console.error('Critical error in session log processing:', error);
+    });
+  }
+}
+
+// Process session log queue sequentially to prevent race conditions
+async function processSessionLogQueue() {
+  if (sessionLogWriting) return;
+  sessionLogWriting = true;
+
+  try {
+    while (sessionLogQueueIndex < sessionLogQueue.length) {
+      const logEntry = sessionLogQueue[sessionLogQueueIndex]; // Peek using index
+
+      // Skip internal error logs to prevent infinite loops
+      if (logEntry.internal) {
+        sessionLogQueueIndex++;
+        continue;
+      }
+
+      try {
+        // Append as NDJSON (newline-delimited JSON) - much more efficient
+        await fs.promises.appendFile(
+          sessionLogPath,
+          JSON.stringify(logEntry) + '\n',
+          'utf-8'
+        );
+
+        // Successfully written - move to next entry and reset retry count
+        sessionLogQueueIndex++;
+        sessionLogRetryCount = 0;
+      } catch (error) {
+        sessionLogRetryCount++;
+
+        console.error(`Failed to append to session log (attempt ${sessionLogRetryCount}/${MAX_RETRY_ATTEMPTS}):`, error);
+
+        // Check if we've exceeded retry limit
+        if (sessionLogRetryCount >= MAX_RETRY_ATTEMPTS) {
+          console.error('Max retry attempts reached. Discarding log entry:', logEntry);
+
+          // Notify user about permanent failure
+          if (mainWindow) {
+            mainWindow.webContents.send('eventsub:log', {
+              type: 'error',
+              message: `Critical: Session log write failed after ${MAX_RETRY_ATTEMPTS} attempts. Some logs may be lost.`,
+              timestamp: new Date().toISOString(),
+              internal: true
+            });
+          }
+
+          // Skip this entry to prevent blocking the queue forever
+          sessionLogQueueIndex++;
+          sessionLogRetryCount = 0;
+        } else {
+          // Notify about retry
+          if (mainWindow) {
+            mainWindow.webContents.send('eventsub:log', {
+              type: 'error',
+              message: `Warning: Failed to save log to session file (will retry): ${error.message}`,
+              timestamp: new Date().toISOString(),
+              internal: true
+            });
+          }
+
+          // Exit loop to retry later with exponential backoff
+          // Keep sessionLogWriting = true to prevent concurrent retries
+          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
+          setTimeout(() => {
+            sessionLogWriting = false; // Reset before retry
+            processSessionLogQueue().catch(err => {
+              console.error('Critical error in session log retry:', err);
+            });
+          }, backoffDelay);
+
+          return; // Exit without setting sessionLogWriting = false
+        }
+      }
+    }
+
+    // Clean up processed entries periodically to prevent unbounded memory growth
+    if (sessionLogQueueIndex > QUEUE_CLEANUP_THRESHOLD) {
+      sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
+      sessionLogQueueIndex = 0;
+    }
+  } finally {
+    // Only reset if we're not scheduling a retry
+    // (return statement above will skip this)
+    sessionLogWriting = false;
+  }
+}
+
 // App ready
 app.whenReady().then(() => {
+  initializeSession();
   createMenu();
   createWindow();
 
@@ -359,32 +499,51 @@ ipcMain.handle('eventsub:start', async () => {
     );
 
     eventSubProcess.on('error', (error) => {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        message: `Failed to start EventSub process: ${error.message}`
+      };
+
       if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'error',
-          message: `Failed to start EventSub process: ${error.message}`
-        });
+        mainWindow.webContents.send('eventsub:log', logEntry);
         mainWindow.webContents.send('eventsub:stopped', null);
       }
+
+      // Auto-save to session log
+      appendToSessionLog(logEntry);
+
       eventSubProcess = null;
     });
 
     eventSubProcess.stdout.on('data', (data) => {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        type: 'info',
+        message: data.toString()
+      };
+
       if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'info',
-          message: data.toString()
-        });
+        mainWindow.webContents.send('eventsub:log', logEntry);
       }
+
+      // Auto-save to session log
+      appendToSessionLog(logEntry);
     });
 
     eventSubProcess.stderr.on('data', (data) => {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        type: 'error',
+        message: data.toString()
+      };
+
       if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', {
-          type: 'error',
-          message: data.toString()
-        });
+        mainWindow.webContents.send('eventsub:log', logEntry);
       }
+
+      // Auto-save to session log
+      appendToSessionLog(logEntry);
     });
 
     eventSubProcess.on('exit', (code) => {
@@ -454,5 +613,143 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+// Get session ID
+ipcMain.handle('session:getId', async () => {
+  return { success: true, sessionId };
+});
+
+// Get session log file path
+ipcMain.handle('session:getLogPath', async () => {
+  return { success: true, path: sessionLogPath };
+});
+
+// Read session log for validation
+ipcMain.handle('session:readLog', async () => {
+  try {
+    if (!sessionLogPath || !fs.existsSync(sessionLogPath)) {
+      return { success: false, error: 'Session log file not found' };
+    }
+
+    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+
+    // Parse NDJSON format (newline-delimited JSON)
+    const logs = content
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+
+    return { success: true, logs };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Validate logs in main process to prevent UI blocking
+ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
+  try {
+    if (!sessionLogPath || !fs.existsSync(sessionLogPath)) {
+      return {
+        success: true,
+        valid: false,
+        message: 'Session log file not found.',
+        sessionLogCount: 0
+      };
+    }
+
+    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+
+    // Parse NDJSON format
+    const sessionLogs = content
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
+
+    // Check if counts match
+    if (sessionLogs.length !== inMemoryLogs.length) {
+      return {
+        success: true,
+        valid: false,
+        message: 'Event count mismatch between session file and in-memory logs.',
+        sessionLogCount: sessionLogs.length
+      };
+    }
+
+    // Optimize validation for large datasets using sampling
+    const totalLogs = sessionLogs.length;
+    let indicesToCheck = [];
+
+    if (totalLogs <= VALIDATION_SAMPLE_SIZE * 2) {
+      // Small dataset: validate all entries
+      indicesToCheck = Array.from({ length: totalLogs }, (_, i) => i);
+    } else {
+      // Large dataset: use sampling strategy
+      // - First VALIDATION_SAMPLE_SIZE/2 entries
+      // - Last VALIDATION_SAMPLE_SIZE/2 entries
+      // - Random sample from middle
+      const halfSample = Math.floor(VALIDATION_SAMPLE_SIZE / 2);
+
+      // First entries
+      for (let i = 0; i < halfSample; i++) {
+        indicesToCheck.push(i);
+      }
+
+      // Last entries
+      for (let i = totalLogs - halfSample; i < totalLogs; i++) {
+        indicesToCheck.push(i);
+      }
+
+      // Random middle samples using Set for O(n) complexity instead of O(n²)
+      const middleStart = halfSample;
+      const middleEnd = totalLogs - halfSample;
+      const middleRange = middleEnd - middleStart;
+      const numMiddleSamples = Math.min(VALIDATION_SAMPLE_SIZE, middleRange);
+
+      const indicesSet = new Set(indicesToCheck);
+      let added = 0;
+      while (added < numMiddleSamples) {
+        const randomIndex = middleStart + Math.floor(Math.random() * middleRange);
+        if (!indicesSet.has(randomIndex)) {
+          indicesToCheck.push(randomIndex);
+          indicesSet.add(randomIndex);
+          added++;
+        }
+      }
+
+      // Sort indices for efficient access
+      indicesToCheck.sort((a, b) => a - b);
+    }
+
+    // Validate sampled entries
+    for (const i of indicesToCheck) {
+      const sessionLog = sessionLogs[i];
+      const memoryLog = inMemoryLogs[i];
+
+      if (sessionLog.timestamp !== memoryLog.timestamp ||
+          sessionLog.message !== memoryLog.message ||
+          sessionLog.type !== memoryLog.type) {
+        return {
+          success: true,
+          valid: false,
+          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.${totalLogs > VALIDATION_SAMPLE_SIZE * 2 ? ' (Sampled validation)' : ''}`,
+          sessionLogCount: sessionLogs.length
+        };
+      }
+    }
+
+    // All checks passed
+    return {
+      success: true,
+      valid: true,
+      message: `Logs validated successfully.${totalLogs > VALIDATION_SAMPLE_SIZE * 2 ? ` (Sampled ${indicesToCheck.length} of ${totalLogs} entries)` : ''}`,
+      sessionLogCount: sessionLogs.length
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
   }
 });

@@ -17,7 +17,8 @@ const state = {
   eventCount: 0,
   startTime: null,
   uptimeInterval: null,
-  allEvents: [] // Store all events for export
+  allEvents: [], // Store all events for export
+  sessionId: null // Session ID for auto-save
 };
 
 // Initialize app on load
@@ -42,6 +43,16 @@ async function initializeApp() {
   const versionElement = document.getElementById('appVersion');
   if (versionElement) {
     versionElement.textContent = version;
+  }
+
+  // Get session ID
+  const sessionResult = await window.electronAPI.getSessionId();
+  if (sessionResult.success && sessionResult.sessionId) {
+    state.sessionId = sessionResult.sessionId;
+    const sessionIdElement = document.getElementById('sessionId');
+    if (sessionIdElement) {
+      sessionIdElement.textContent = sessionResult.sessionId;
+    }
   }
 
   // Get config path
@@ -574,6 +585,45 @@ async function checkMonitoringStatus() {
   }
 }
 
+// Helper function to display error notifications directly (avoids recursion)
+function displayErrorNotification(message) {
+  const eventsList = document.getElementById('eventsList');
+
+  // Remove empty state if present
+  const emptyState = eventsList.querySelector('.empty-state');
+  if (emptyState) {
+    emptyState.remove();
+  }
+
+  const eventItem = document.createElement('div');
+  eventItem.className = 'event-item';
+
+  const displayTime = new Date().toLocaleTimeString();
+
+  eventItem.innerHTML = `
+    <div class="event-header">
+      <span class="event-type" style="color: var(--error)">
+        ❌ Error
+      </span>
+      <span class="event-time">${displayTime}</span>
+    </div>
+    <div class="event-details">
+      <pre>${escapeHtml(message)}</pre>
+    </div>
+  `;
+
+  eventsList.insertBefore(eventItem, eventsList.firstChild);
+
+  // Increment event count (but don't store - this is internal)
+  state.eventCount++;
+  document.getElementById('eventCount').textContent = state.eventCount;
+
+  // Limit to 100 events in UI
+  while (eventsList.children.length > 100) {
+    eventsList.removeChild(eventsList.lastChild);
+  }
+}
+
 // Handle EventSub Log
 function handleEventSubLog(data) {
   console.log('EventSub log:', data);
@@ -586,12 +636,19 @@ function handleEventSubLog(data) {
     emptyState.remove();
   }
 
+  // Internal consistency check: all events from main process should have timestamps
+  // This is a programming error if it occurs, not a user-facing issue
+  if (!data.timestamp) {
+    console.warn('EventSub log missing timestamp from main process - ignoring event:', data);
+    return;
+  }
+
   // Create event item
   const eventItem = document.createElement('div');
   eventItem.className = 'event-item';
 
-  const timestamp = new Date().toISOString();
-  const displayTime = new Date().toLocaleTimeString();
+  const timestamp = data.timestamp;
+  const displayTime = new Date(timestamp).toLocaleTimeString();
   const isError = data.type === 'error';
 
   eventItem.innerHTML = `
@@ -609,12 +666,18 @@ function handleEventSubLog(data) {
   // Add to top of list
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
-  // Store event in persistent array for export
-  state.allEvents.push({
-    timestamp: timestamp,
-    type: data.type || 'info',
-    message: data.message
-  });
+  // Store event in persistent array for export (excluding internal error logs)
+  // The `internal` flag marks UI-only notifications (e.g., session write errors)
+  // that should not be persisted to the session log file or exported.
+  // Internal events are displayed to the user but not saved to avoid infinite loops
+  // and validation mismatches.
+  if (!data.internal) {
+    state.allEvents.push({
+      timestamp: timestamp,
+      type: data.type || 'info',
+      message: data.message
+    });
+  }
 
   // Increment event count
   state.eventCount++;
@@ -685,6 +748,37 @@ function clearEvents() {
   document.getElementById('eventCount').textContent = '0';
 }
 
+// Validate logs against session file (delegated to main process to prevent UI blocking)
+async function validateLogsWithSessionFile() {
+  try {
+    // Use all stored logs for validation (internal logs are already filtered at storage time)
+    const logsToValidate = state.allEvents;
+
+    // Delegate to main process to prevent UI blocking with large log files
+    const result = await window.electronAPI.validateSessionLogs(logsToValidate);
+
+    if (!result.success) {
+      return {
+        valid: false,
+        message: `Validation error: ${result.error}`,
+        sessionLogCount: 0
+      };
+    }
+
+    return {
+      valid: result.valid,
+      message: result.message,
+      sessionLogCount: result.sessionLogCount
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      message: `Validation error: ${error.message}`,
+      sessionLogCount: 0
+    };
+  }
+}
+
 // Export Events
 async function exportEvents() {
   if (state.allEvents.length === 0) {
@@ -693,6 +787,21 @@ async function exportEvents() {
   }
 
   try {
+    // Validate logs against session file
+    const validationResult = await validateLogsWithSessionFile();
+    if (!validationResult.valid) {
+      const proceed = confirm(
+        `Warning: Log validation failed!\n\n` +
+        `${validationResult.message}\n\n` +
+        `Session log events: ${validationResult.sessionLogCount}\n` +
+        `In-memory events: ${state.allEvents.length}\n\n` +
+        `Do you want to continue with the export anyway?`
+      );
+      if (!proceed) {
+        return;
+      }
+    }
+
     // Show save dialog with filesystem-friendly date format
     const now = new Date();
     const dateStr = now.getFullYear().toString() +
