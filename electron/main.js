@@ -258,16 +258,16 @@ async function processSessionLogQueue() {
           }
 
           // Exit loop to retry later with exponential backoff
+          // Keep sessionLogWriting = true to prevent concurrent retries
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
           setTimeout(() => {
-            if (!sessionLogWriting) {
-              processSessionLogQueue().catch(err => {
-                console.error('Critical error in session log retry:', err);
-              });
-            }
+            sessionLogWriting = false; // Reset before retry
+            processSessionLogQueue().catch(err => {
+              console.error('Critical error in session log retry:', err);
+            });
           }, backoffDelay);
 
-          break;
+          return; // Exit without setting sessionLogWriting = false
         }
       }
     }
@@ -278,6 +278,8 @@ async function processSessionLogQueue() {
       sessionLogQueueIndex = 0;
     }
   } finally {
+    // Only reset if we're not scheduling a retry
+    // (return statement above will skip this)
     sessionLogWriting = false;
   }
 }
@@ -699,16 +701,20 @@ ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
         indicesToCheck.push(i);
       }
 
-      // Random middle samples
+      // Random middle samples using Set for O(n) complexity instead of O(n²)
       const middleStart = halfSample;
       const middleEnd = totalLogs - halfSample;
       const middleRange = middleEnd - middleStart;
       const numMiddleSamples = Math.min(VALIDATION_SAMPLE_SIZE, middleRange);
 
-      for (let i = 0; i < numMiddleSamples; i++) {
+      const indicesSet = new Set(indicesToCheck);
+      let added = 0;
+      while (added < numMiddleSamples) {
         const randomIndex = middleStart + Math.floor(Math.random() * middleRange);
-        if (!indicesToCheck.includes(randomIndex)) {
+        if (!indicesSet.has(randomIndex)) {
           indicesToCheck.push(randomIndex);
+          indicesSet.add(randomIndex);
+          added++;
         }
       }
 

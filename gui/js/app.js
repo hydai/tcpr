@@ -636,15 +636,10 @@ function handleEventSubLog(data) {
     emptyState.remove();
   }
 
-  // Require timestamp from main process; reject events without it
+  // Internal consistency check: all events from main process should have timestamps
+  // This is a programming error if it occurs, not a user-facing issue
   if (!data.timestamp) {
-    console.error('EventSub log missing timestamp from main process - rejecting event:', data);
-
-    // Show visible notification to user about rejected event (non-recursive)
-    displayErrorNotification(
-      `Critical: Event rejected due to missing timestamp. Event type: ${data.type || 'unknown'}, Message preview: ${(data.message || '').substring(0, 100)}`
-    );
-
+    console.warn('EventSub log missing timestamp from main process - ignoring event:', data);
     return;
   }
 
@@ -672,6 +667,10 @@ function handleEventSubLog(data) {
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
   // Store event in persistent array for export (excluding internal error logs)
+  // The `internal` flag marks UI-only notifications (e.g., session write errors)
+  // that should not be persisted to the session log file or exported.
+  // Internal events are displayed to the user but not saved to avoid infinite loops
+  // and validation mismatches.
   if (!data.internal) {
     state.allEvents.push({
       timestamp: timestamp,
