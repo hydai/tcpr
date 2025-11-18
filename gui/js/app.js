@@ -900,34 +900,29 @@ async function openExternal(url) {
   await window.electronAPI.openExternal(url);
 }
 
-// Open Event Logs Folder
-async function openEventLogsFolder() {
+// Open Folder (generic)
+async function openFolder(folderType) {
   try {
     const userDataPath = await window.electronAPI.getAppPath('userData');
     const result = await window.electronAPI.openPath(userDataPath);
     if (!result.success) {
-      console.error('Failed to open event logs folder:', result.error);
-      alert('Failed to open event logs folder: ' + result.error);
+      console.error(`Failed to open ${folderType} folder:`, result.error);
+      alert(`Failed to open ${folderType} folder: ${result.error}`);
     }
   } catch (error) {
-    console.error('Error opening event logs folder:', error);
-    alert('Error opening event logs folder: ' + error.message);
+    console.error(`Error opening ${folderType} folder:`, error);
+    alert(`Error opening ${folderType} folder: ${error.message}`);
   }
+}
+
+// Open Event Logs Folder
+async function openEventLogsFolder() {
+  return openFolder('event logs');
 }
 
 // Open Config Folder
 async function openConfigFolder() {
-  try {
-    const userDataPath = await window.electronAPI.getAppPath('userData');
-    const result = await window.electronAPI.openPath(userDataPath);
-    if (!result.success) {
-      console.error('Failed to open config folder:', result.error);
-      alert('Failed to open config folder: ' + result.error);
-    }
-  } catch (error) {
-    console.error('Error opening config folder:', error);
-    alert('Error opening config folder: ' + error.message);
-  }
+  return openFolder('config');
 }
 
 // Utility: Escape HTML
