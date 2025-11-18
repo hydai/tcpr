@@ -12,6 +12,7 @@ import { Logger } from '../lib/logger.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
 const CONFIG_JSON_PATH = join(PROJECT_ROOT, 'config.json');
+const ENV_PATH = join(PROJECT_ROOT, '.env');
 
 // Configuration mapping for setting environment variables
 const CONFIG_MAPPING = [
@@ -22,6 +23,9 @@ const CONFIG_MAPPING = [
   { key: 'REDIRECT_URI', env: 'REDIRECT_URI' },
   { key: 'PORT', env: 'PORT' }
 ];
+
+// Store which config source was actually loaded
+let loadedSource = null;
 
 /**
  * Load configuration from available sources
@@ -34,14 +38,15 @@ export function loadConfig() {
       const configData = readFileSync(CONFIG_JSON_PATH, 'utf8');
       const config = JSON.parse(configData);
 
-      // Set environment variables from config.json using mapping
+      // Set environment variables from config.json
+      // All values must be explicitly converted to strings since process.env only stores strings
       for (const { key, env } of CONFIG_MAPPING) {
         if (config[key] !== undefined) {
-          // process.env values are automatically coerced to strings
-          process.env[env] = config[key];
+          process.env[env] = String(config[key]);
         }
       }
 
+      loadedSource = 'config.json';
       return {
         source: 'config.json',
         loaded: true
@@ -54,11 +59,20 @@ export function loadConfig() {
   }
 
   // Fall back to .env file (hidden file, backward compatibility)
-  dotenv.config();
+  if (existsSync(ENV_PATH)) {
+    dotenv.config();
+    loadedSource = '.env';
+    return {
+      source: '.env',
+      loaded: true
+    };
+  }
 
+  // No config file found
+  loadedSource = null;
   return {
-    source: '.env',
-    loaded: true
+    source: 'none',
+    loaded: false
   };
 }
 
@@ -67,12 +81,12 @@ export function loadConfig() {
  * @returns {string} Path to config file or description
  */
 export function getConfigSource() {
-  if (existsSync(CONFIG_JSON_PATH)) {
+  // Return the source that was actually loaded
+  if (loadedSource === 'config.json') {
     return 'config.json (visible config file)';
   }
 
-  const envPath = join(PROJECT_ROOT, '.env');
-  if (existsSync(envPath)) {
+  if (loadedSource === '.env') {
     return '.env (hidden config file)';
   }
 
