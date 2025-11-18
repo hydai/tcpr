@@ -688,7 +688,7 @@ async function exportEvents() {
       String(now.getDate()).padStart(2, '0'); // YYYYMMDD format
     const result = await window.electronAPI.showSaveDialog({
       title: 'Export Events',
-      defaultPath: `twitch-events-${dateStr}.json`,
+      defaultPath: `twitch-events-${dateStr}`,
       filters: [
         { name: 'JSON Files', extensions: ['json'] },
         { name: 'CSV Files', extensions: ['csv'] },
@@ -700,12 +700,34 @@ async function exportEvents() {
       return;
     }
 
-    // Determine format based on file extension (simple string matching to avoid path utilities)
-    const filePath = result.filePath;
-    const ext = filePath.toLowerCase().endsWith('.csv') ? 'csv' : 'json';
+    // Determine format based on the selected filter in the dialog
+    let filePath = result.filePath;
+    // filterIndex: 0 = JSON, 1 = CSV, 2 = All Files
+    let format;
+    if (result.filterIndex === 1) {
+      format = 'csv';
+    } else if (result.filterIndex === 0) {
+      format = 'json';
+    } else {
+      // All Files: try to infer from extension, default to JSON
+      if (filePath.toLowerCase().endsWith('.csv')) {
+        format = 'csv';
+      } else if (filePath.toLowerCase().endsWith('.json')) {
+        format = 'json';
+      } else {
+        format = 'json';
+      }
+    }
+
+    // Enforce correct extension
+    if (format === 'csv' && !filePath.toLowerCase().endsWith('.csv')) {
+      filePath += '.csv';
+    } else if (format === 'json' && !filePath.toLowerCase().endsWith('.json')) {
+      filePath += '.json';
+    }
 
     let content;
-    if (ext === 'csv') {
+    if (format === 'csv') {
       // Export as CSV
       content = convertToCSV(state.allEvents);
     } else {
@@ -749,7 +771,7 @@ function convertToCSV(events) {
     rows.push([event.timestamp, event.type, event.message].map(escapeCSVField).join(','));
   });
 
-  return rows.join('\n');
+  return rows.join('\r\n');
 }
 
 // Open External URL
