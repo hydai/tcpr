@@ -66,8 +66,9 @@ This repository includes a built-in OAuth server that makes it easy to generate 
 npm install
 
 # 2. Configure your application credentials
-cp .env.example .env
-# Edit .env and add your TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET
+cp config.example.json config.json
+# Edit config.json and add your TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET
+# (Alternatively, you can use .env file: cp .env.example .env)
 
 # 3. Start the OAuth server
 npm run oauth
@@ -76,7 +77,7 @@ npm run oauth
 # 5. Click "Connect with Twitch"
 # 6. Authorize the application
 # 7. Copy the access token displayed on the success page
-# 8. Add it to your .env file as TWITCH_ACCESS_TOKEN
+# 8. Add it to your config.json file as TWITCH_ACCESS_TOKEN
 ```
 
 The OAuth server will also display your broadcaster user ID, which you'll need for the next step.
@@ -106,6 +107,29 @@ twitch api get users -q login=YOUR_USERNAME
 Visit [StreamWeasels Username to User ID Converter](https://www.streamweasels.com/tools/convert-twitch-username-to-user-id/)
 
 ### 4. Configure Environment Variables
+
+You can use either a visible `config.json` file (recommended) or the traditional `.env` file:
+
+**Option A: config.json (Recommended - Visible file)**
+
+1. Copy the example configuration file:
+   ```bash
+   cp config.example.json config.json
+   ```
+
+2. Edit `config.json` and fill in your credentials:
+   ```json
+   {
+     "TWITCH_CLIENT_ID": "your_client_id_here",
+     "TWITCH_ACCESS_TOKEN": "your_access_token_here",
+     "TWITCH_BROADCASTER_ID": "your_broadcaster_id_here",
+     "TWITCH_CLIENT_SECRET": "your_client_secret_here",
+     "REDIRECT_URI": "http://localhost:3000/callback",
+     "PORT": 3000
+   }
+   ```
+
+**Option B: .env (Traditional - Hidden file)**
 
 1. Copy the example environment file:
    ```bash
@@ -148,7 +172,7 @@ This will:
 2. Provide a user-friendly interface to connect with Twitch
 3. Handle the complete OAuth authorization flow
 4. Display your access token and broadcaster ID
-5. Provide instructions for adding the token to your `.env` file
+5. Provide instructions for adding the token to your configuration file
 
 **Important:** Make sure to add `http://localhost:3000/callback` as an OAuth Redirect URL in your Twitch application settings.
 

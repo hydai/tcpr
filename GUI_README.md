@@ -210,12 +210,27 @@ See `build/ICONS_README.txt` for more details and platform-specific icon creatio
 
 ### Configuration Location
 
-- **Windows**: `%APPDATA%/twitch-channel-points-redemption/.env`
-- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/.env`
-- **Development**: `<project-root>/.env`
+The application supports both `config.json` (visible) and `.env` (hidden) configuration files:
+
+- **Windows**: `%APPDATA%/twitch-channel-points-redemption/` (config.json or .env)
+- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/` (config.json or .env)
+- **Development**: `<project-root>/` (config.json or .env)
 
 ### Configuration Format
 
+**Option 1: config.json (Recommended - Visible file)**
+```json
+{
+  "TWITCH_CLIENT_ID": "your_client_id_here",
+  "TWITCH_CLIENT_SECRET": "your_client_secret_here",
+  "TWITCH_ACCESS_TOKEN": "your_access_token_here",
+  "TWITCH_BROADCASTER_ID": "your_broadcaster_id_here",
+  "REDIRECT_URI": "http://localhost:3000/callback",
+  "PORT": 3000
+}
+```
+
+**Option 2: .env (Traditional - Hidden file)**
 ```env
 TWITCH_CLIENT_ID=your_client_id_here
 TWITCH_CLIENT_SECRET=your_client_secret_here
@@ -227,7 +242,7 @@ PORT=3000
 
 ### Security Notes
 
-- Never commit your `.env` file to version control
+- Never commit your `config.json` or `.env` files to version control
 - The GUI stores credentials in your user data directory
 - Credentials are only accessible to your user account
 - Use the built-in OAuth flow to generate tokens securely
@@ -252,7 +267,7 @@ PORT=3000
 - **Test connection**: Stop and restart monitoring
 
 ### Configuration issues
-- **Reset config**: Delete the `.env` file and run the wizard again
+- **Reset config**: Delete the `config.json` (or `.env`) file and run the wizard again
 - **Check permissions**: Ensure write access to config directory
 - **Validate manually**: Use `npm run validate` from the command line
 

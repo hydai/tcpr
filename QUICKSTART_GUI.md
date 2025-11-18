@@ -154,8 +154,8 @@ The application will stay open as long as the window is open. Minimize it to kee
 
 ### Configuration Location
 Your settings are saved in:
-- **Windows**: `%APPDATA%/twitch-channel-points-redemption/.env`
-- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/.env`
+- **Windows**: `%APPDATA%/twitch-channel-points-redemption/config.json` (or `.env`)
+- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/config.json` (or `.env`)
 
 ### Event History
 Events are kept in memory while the app is running. They'll be cleared when you restart the app or click "Clear".
