@@ -1,18 +1,15 @@
 /**
- * Configuration loader that supports multiple config sources
- * Priority: config.json > .env
+ * Configuration loader for config.json
  */
 
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
 import { Logger } from '../lib/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
 const CONFIG_JSON_PATH = join(PROJECT_ROOT, 'config.json');
-const ENV_PATH = join(PROJECT_ROOT, '.env');
 
 // Configuration mapping for setting environment variables
 const CONFIG_MAPPING = [
@@ -28,11 +25,11 @@ const CONFIG_MAPPING = [
 let loadedSource = null;
 
 /**
- * Load configuration from available sources
+ * Load configuration from config.json
  * @returns {Object} Configuration object with environment variables set
  */
 export function loadConfig() {
-  // Try loading from config.json first (visible file)
+  // Load from config.json
   if (existsSync(CONFIG_JSON_PATH)) {
     try {
       const configData = readFileSync(CONFIG_JSON_PATH, 'utf8');
@@ -53,19 +50,12 @@ export function loadConfig() {
       };
     } catch (error) {
       Logger.error('Error loading config.json:', error.message);
-      Logger.error('Falling back to .env file...\n');
-      // Fall through to dotenv loading
+      loadedSource = null;
+      return {
+        source: 'none',
+        loaded: false
+      };
     }
-  }
-
-  // Fall back to .env file (hidden file, backward compatibility)
-  if (existsSync(ENV_PATH)) {
-    dotenv.config();
-    loadedSource = '.env';
-    return {
-      source: '.env',
-      loaded: true
-    };
   }
 
   // No config file found
@@ -83,11 +73,7 @@ export function loadConfig() {
 export function getConfigSource() {
   // Return the source that was actually loaded
   if (loadedSource === 'config.json') {
-    return 'config.json (visible config file)';
-  }
-
-  if (loadedSource === '.env') {
-    return '.env (hidden config file)';
+    return 'config.json';
   }
 
   return 'No config file found';
