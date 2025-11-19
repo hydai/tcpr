@@ -76,6 +76,8 @@ function updatePageTranslations() {
       (element.readOnly || element.disabled)
     ) {
       // For readonly or disabled input elements, set value
+      // This is defensive code for static display inputs that show translated text
+      // Currently no inputs in the HTML use data-i18n (they use data-i18n-placeholder instead)
       element.value = translation;
     } else {
       // For all other elements, use textContent

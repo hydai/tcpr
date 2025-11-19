@@ -167,11 +167,7 @@
     "repository": "Repository:",
     "openEventLogsFolder": "Open Event Logs Folder",
     "openConfigFolder": "Open Config Folder",
-    "language": "Language",
-    "languageOptions": {
-      "en": "English",
-      "ja": "日本語"
-    }
+    "language": "Language"
   },
   "modal": {
     "tokenError": {

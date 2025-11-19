@@ -167,11 +167,7 @@
     "repository": "リポジトリ：",
     "openEventLogsFolder": "イベントログフォルダを開く",
     "openConfigFolder": "設定フォルダを開く",
-    "language": "言語",
-    "languageOptions": {
-      "en": "English",
-      "ja": "日本語"
-    }
+    "language": "言語"
   },
   "modal": {
     "tokenError": {
