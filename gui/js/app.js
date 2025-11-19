@@ -585,7 +585,7 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
         // Automatically copy new token to clipboard
         try {
           await navigator.clipboard.writeText(newToken);
-          alert(t('messages.oauth.refreshSuccess') + '\n\n' + t('messages.token.autoCopied'));
+          alert(t('messages.oauth.refreshSuccessWithCopy'));
         } catch (err) {
           console.error('Failed to auto-copy token:', err);
           alert(t('messages.oauth.refreshSuccess'));

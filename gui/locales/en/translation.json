@@ -196,6 +196,7 @@
       "retryAuthentication": "Retry Authentication",
       "error": "Error:",
       "refreshSuccess": "OAuth refresh completed successfully!",
+      "refreshSuccessWithCopy": "OAuth refresh completed successfully!\n\nNew token has been automatically copied to clipboard!",
       "refreshTimeout": "OAuth refresh timed out. The authentication was not completed within 5 minutes. Please try again."
     },
     "settings": {
