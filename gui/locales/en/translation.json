@@ -1,7 +1,8 @@
 {
   "header": {
     "title": "Channel Points Monitor",
-    "settingsButton": "Settings"
+    "settingsButton": "Settings",
+    "languageButton": "Switch Language"
   },
   "wizard": {
     "step0": {
