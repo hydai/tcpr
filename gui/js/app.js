@@ -242,11 +242,15 @@ async function startOAuthFlow() {
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <div>
-            <p><strong>${t('messages.oauth.serverRunning')}</strong></p>
-            <p>${t('messages.oauth.openingBrowser')}</p>
+            <p><strong></strong></p>
+            <p></p>
           </div>
         </div>
       `;
+      // Safely set translated text using textContent
+      const paragraphs = statusDiv.querySelectorAll('p');
+      paragraphs[0].querySelector('strong').textContent = t('messages.oauth.serverRunning');
+      paragraphs[1].textContent = t('messages.oauth.openingBrowser');
 
       // Open OAuth URL in browser
       const oauthUrl = `http://localhost:${port}`;
@@ -268,9 +272,12 @@ async function startOAuthFlow() {
           <line x1="15" y1="9" x2="9" y2="15"/>
           <line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
-        <span>${t('messages.oauth.error')} ${error.message}</span>
+        <span></span>
       </div>
     `;
+    // Safely set error message using textContent to prevent XSS
+    const errorSpan = statusDiv.querySelector('span');
+    errorSpan.textContent = t('messages.oauth.error') + ' ' + error.message;
     btn.disabled = false;
     btn.textContent = t('messages.oauth.retryAuthentication');
   }
@@ -294,9 +301,11 @@ function pollForOAuthCompletion() {
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
-          <span>${t('messages.oauth.authSuccess')}</span>
+          <span></span>
         </div>
       `;
+      // Safely set translated text using textContent
+      statusDiv.querySelector('span').textContent = t('messages.oauth.authSuccess');
 
       // Show token
       document.getElementById('accessToken').value = state.config.TWITCH_ACCESS_TOKEN;
@@ -389,12 +398,19 @@ async function validateConfiguration() {
         <div class="validation-item success">
           <div class="validation-icon">✓</div>
           <div class="validation-text">
-            <strong>${t('wizard.step4.tokenValid')}</strong>
-            <p>${t('wizard.step4.userLabel')} ${result.data.login} (${t('wizard.step4.idLabel')} ${result.data.user_id})</p>
-            <p>${t('wizard.step4.scopesLabel')} ${result.data.scopes.join(', ')}</p>
+            <strong></strong>
+            <p class="user-info"></p>
+            <p class="scopes-info"></p>
           </div>
         </div>
       `;
+      // Safely set dynamic content using textContent to prevent XSS
+      const validationText = resultsDiv.querySelector('.validation-text');
+      validationText.querySelector('strong').textContent = t('wizard.step4.tokenValid');
+      validationText.querySelector('.user-info').textContent =
+        t('wizard.step4.userLabel') + ' ' + result.data.login + ' (' + t('wizard.step4.idLabel') + ' ' + result.data.user_id + ')';
+      validationText.querySelector('.scopes-info').textContent =
+        t('wizard.step4.scopesLabel') + ' ' + result.data.scopes.join(', ');
 
       // Update broadcaster ID if needed
       if (!state.config.TWITCH_BROADCASTER_ID) {
@@ -408,11 +424,15 @@ async function validateConfiguration() {
         <div class="validation-item error">
           <div class="validation-icon">✗</div>
           <div class="validation-text">
-            <strong>${t('wizard.step4.tokenInvalid')}</strong>
-            <p>${result.error}</p>
+            <strong></strong>
+            <p class="error-message"></p>
           </div>
         </div>
       `;
+      // Safely set error content using textContent to prevent XSS
+      const validationText = resultsDiv.querySelector('.validation-text');
+      validationText.querySelector('strong').textContent = t('wizard.step4.tokenInvalid');
+      validationText.querySelector('.error-message').textContent = result.error;
     }
   } catch (error) {
     console.error('Validation error:', error);
@@ -420,11 +440,15 @@ async function validateConfiguration() {
       <div class="validation-item error">
         <div class="validation-icon">✗</div>
         <div class="validation-text">
-          <strong>${t('wizard.step4.validationError')}</strong>
-          <p>${error.message}</p>
+          <strong></strong>
+          <p class="error-message"></p>
         </div>
       </div>
     `;
+    // Safely set error content using textContent to prevent XSS
+    const validationText = resultsDiv.querySelector('.validation-text');
+    validationText.querySelector('strong').textContent = t('wizard.step4.validationError');
+    validationText.querySelector('.error-message').textContent = error.message;
   }
 }
 
@@ -609,15 +633,17 @@ function displayErrorNotification(message) {
 
   eventItem.innerHTML = `
     <div class="event-header">
-      <span class="event-type" style="color: var(--error)">
-        ❌ ${t('dashboard.eventTypes.error')}
-      </span>
-      <span class="event-time">${displayTime}</span>
+      <span class="event-type" style="color: var(--error)"></span>
+      <span class="event-time"></span>
     </div>
     <div class="event-details">
-      <pre>${escapeHtml(message)}</pre>
+      <pre></pre>
     </div>
   `;
+  // Safely set content using textContent to prevent XSS
+  eventItem.querySelector('.event-type').textContent = '❌ ' + t('dashboard.eventTypes.error');
+  eventItem.querySelector('.event-time').textContent = displayTime;
+  eventItem.querySelector('pre').textContent = message;
 
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
@@ -660,15 +686,19 @@ function handleEventSubLog(data) {
 
   eventItem.innerHTML = `
     <div class="event-header">
-      <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}">
-        ${isError ? `❌ ${t('dashboard.eventTypes.error')}` : `📢 ${t('dashboard.eventTypes.event')}`}
-      </span>
-      <span class="event-time">${displayTime}</span>
+      <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}"></span>
+      <span class="event-time"></span>
     </div>
     <div class="event-details">
-      <pre>${escapeHtml(data.message)}</pre>
+      <pre></pre>
     </div>
   `;
+  // Safely set content using textContent to prevent XSS
+  eventItem.querySelector('.event-type').textContent = isError
+    ? '❌ ' + t('dashboard.eventTypes.error')
+    : '📢 ' + t('dashboard.eventTypes.event');
+  eventItem.querySelector('.event-time').textContent = displayTime;
+  eventItem.querySelector('pre').textContent = data.message;
 
   // Add to top of list
   eventsList.insertBefore(eventItem, eventsList.firstChild);
@@ -746,9 +776,11 @@ function clearEvents() {
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" opacity="0.3">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
-      <p>${t('dashboard.emptyState')}</p>
+      <p></p>
     </div>
   `;
+  // Safely set translated text using textContent
+  eventsList.querySelector('.empty-state p').textContent = t('dashboard.emptyState');
 
   state.eventCount = 0;
   state.allEvents = []; // Clear all stored events
