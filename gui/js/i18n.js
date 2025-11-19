@@ -66,23 +66,8 @@ function updatePageTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(element => {
     const key = element.getAttribute('data-i18n');
     const translation = t(key);
-
     // Use textContent instead of innerHTML to prevent XSS
-    // Special handling for different element types
-    if (
-      element.tagName === 'INPUT' &&
-      element.type !== 'submit' &&
-      element.type !== 'button' &&
-      (element.readOnly || element.disabled)
-    ) {
-      // For readonly or disabled input elements, set value
-      // This is defensive code for static display inputs that show translated text
-      // Currently no inputs in the HTML use data-i18n (they use data-i18n-placeholder instead)
-      element.value = translation;
-    } else {
-      // For all other elements, use textContent
-      element.textContent = translation;
-    }
+    element.textContent = translation;
   });
 
   // Update all placeholders
