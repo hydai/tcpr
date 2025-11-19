@@ -17,8 +17,7 @@ const state = {
   eventCount: 0,
   startTime: null,
   uptimeInterval: null,
-  oauthRefreshInterval: null, // Interval for polling OAuth refresh completion
-  oauthRefreshTimeout: null, // Timeout for OAuth refresh polling
+  oauthRefreshInterval: null, // Timeout for polling OAuth refresh completion
   allEvents: [], // Store all events for export
   sessionId: null // Session ID for auto-save
 };
@@ -540,14 +539,10 @@ function isTokenUpdated(oldAccessToken, newToken) {
 
 // Poll for OAuth refresh completion with exponential backoff
 function pollForOAuthRefreshCompletion(oldAccessToken) {
-  // Clear any existing polling interval and timeout to prevent duplicates
+  // Clear any existing polling timeout to prevent duplicates
   if (state.oauthRefreshInterval) {
     clearTimeout(state.oauthRefreshInterval);
     state.oauthRefreshInterval = null;
-  }
-  if (state.oauthRefreshTimeout) {
-    clearTimeout(state.oauthRefreshTimeout);
-    state.oauthRefreshTimeout = null;
   }
 
   const startTime = Date.now();
