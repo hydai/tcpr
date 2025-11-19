@@ -194,7 +194,10 @@
       "serverStarted": "OAuth server started. Complete the authentication in your browser.",
       "modalSuccess": "OAuth server started. Please complete the authentication in your browser, then save the new token in Settings.",
       "retryAuthentication": "Retry Authentication",
-      "error": "Error:"
+      "error": "Error:",
+      "refreshSuccess": "OAuth refresh completed successfully!",
+      "refreshSuccessWithCopy": "OAuth refresh completed successfully!\n\nNew token has been automatically copied to clipboard!",
+      "refreshTimeout": "OAuth refresh timed out. The authentication was not completed within 5 minutes. Please try again."
     },
     "settings": {
       "saveSuccess": "Settings saved successfully!",
@@ -216,7 +219,8 @@
       "openError": "Error opening {{type}} folder: {{error}}"
     },
     "token": {
-      "copyFailed": "Failed to copy token: {{error}}"
+      "copyFailed": "Failed to copy token: {{error}}",
+      "autoCopied": "New token has been automatically copied to clipboard!"
     },
     "config": {
       "saveFailed": "Failed to save configuration: {{error}}"

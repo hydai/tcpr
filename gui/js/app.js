@@ -17,6 +17,7 @@ const state = {
   eventCount: 0,
   startTime: null,
   uptimeInterval: null,
+  oauthRefreshInterval: null, // Timeout ID for polling OAuth refresh completion
   allEvents: [], // Store all events for export
   sessionId: null // Session ID for auto-save
 };
@@ -520,15 +521,104 @@ async function saveSettings() {
   }
 }
 
+// Helper function to check if OAuth token has been updated
+function isTokenUpdated(oldAccessToken, newToken) {
+  // newToken must be a valid non-empty string
+  if (typeof newToken !== 'string' || newToken.trim() === '') {
+    return false;
+  }
+
+  // Allow initial token acquisition (oldAccessToken is empty/undefined)
+  // or token refresh (oldAccessToken exists but is different)
+  return (
+    typeof oldAccessToken !== 'string' ||
+    oldAccessToken.trim() === '' ||
+    newToken !== oldAccessToken
+  );
+}
+
+// Poll for OAuth refresh completion with exponential backoff
+function pollForOAuthRefreshCompletion(oldAccessToken) {
+  // Clear any existing polling timeout to prevent duplicates
+  if (state.oauthRefreshInterval) {
+    clearTimeout(state.oauthRefreshInterval);
+    state.oauthRefreshInterval = null;
+  }
+
+  const startTime = Date.now();
+  const initialInterval = 1000; // Start with 1 second
+  const maxInterval = 10000; // Cap at 10 seconds
+  let currentInterval = initialInterval;
+
+  const poll = async () => {
+    // Check if timeout has been reached
+    if (Date.now() - startTime >= OAUTH_TIMEOUT_MS) {
+      state.oauthRefreshInterval = null;
+      alert(t('messages.oauth.refreshTimeout'));
+      try {
+        await window.electronAPI.stopOAuth();
+      } catch (e) {
+        console.error('Failed to stop OAuth server after timeout:', e);
+      }
+      return;
+    }
+
+    const configResult = await window.electronAPI.loadConfig();
+    if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
+      const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
+
+      // Check if token has been updated (initial acquisition or refresh)
+      if (isTokenUpdated(oldAccessToken, newToken)) {
+        // Token successfully obtained - stop polling and update UI
+        state.oauthRefreshInterval = null;
+
+        // Update state
+        state.config = { ...state.config, ...configResult.config };
+
+        // Update settings form if open
+        const settingsPanel = document.getElementById('settingsPanel');
+        if (settingsPanel.style.display === 'block') {
+          document.getElementById('settingsAccessToken').value = state.config.TWITCH_ACCESS_TOKEN;
+          document.getElementById('settingsBroadcasterId').value = state.config.TWITCH_BROADCASTER_ID || '';
+        }
+
+        // Automatically copy new token to clipboard
+        try {
+          await navigator.clipboard.writeText(newToken);
+          alert(t('messages.oauth.refreshSuccessWithCopy'));
+        } catch (err) {
+          console.error('Failed to auto-copy token:', err);
+          alert(t('messages.oauth.refreshSuccess'));
+        }
+
+        // Stop OAuth server
+        await window.electronAPI.stopOAuth();
+        return;
+      }
+    }
+
+    // Schedule next poll with exponential backoff
+    currentInterval = Math.min(currentInterval * 2, maxInterval);
+    state.oauthRefreshInterval = setTimeout(poll, currentInterval);
+  };
+
+  // Start polling immediately
+  poll();
+}
+
 // Refresh OAuth
 async function refreshOAuth() {
   if (confirm(t('messages.oauth.confirmRefresh'))) {
     try {
+      const oldAccessToken = state.config.TWITCH_ACCESS_TOKEN;
       const port = parseInt(state.config.PORT) || 3000;
       await window.electronAPI.startOAuth(port);
       const oauthUrl = `http://localhost:${port}`;
       await window.electronAPI.openExternal(oauthUrl);
       alert(t('messages.oauth.serverStarted'));
+
+      // Start polling for completion
+      pollForOAuthRefreshCompletion(oldAccessToken);
     } catch (error) {
       alert(t('messages.settings.oauthFailed', { error: error.message }));
     }
@@ -987,6 +1077,9 @@ async function refreshOAuthFromModal() {
     // Save current config
     await window.electronAPI.saveConfig(state.config);
 
+    // Store old token for comparison
+    const oldAccessToken = state.config.TWITCH_ACCESS_TOKEN;
+
     // Start OAuth server
     const port = parseInt(state.config.PORT) || 3000;
     const result = await window.electronAPI.startOAuth(port);
@@ -1001,6 +1094,9 @@ async function refreshOAuthFromModal() {
 
       // Open settings panel so user can see when token is updated
       openSettings();
+
+      // Start polling for completion
+      pollForOAuthRefreshCompletion(oldAccessToken);
     } else {
       throw new Error(result.error);
     }
