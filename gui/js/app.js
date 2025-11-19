@@ -522,11 +522,11 @@ async function saveSettings() {
   }
 }
 
-// Poll for OAuth refresh completion
+// Poll for OAuth refresh completion with exponential backoff
 function pollForOAuthRefreshCompletion(oldAccessToken) {
   // Clear any existing polling interval and timeout to prevent duplicates
   if (state.oauthRefreshInterval) {
-    clearInterval(state.oauthRefreshInterval);
+    clearTimeout(state.oauthRefreshInterval);
     state.oauthRefreshInterval = null;
   }
   if (state.oauthRefreshTimeout) {
@@ -534,7 +534,24 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
     state.oauthRefreshTimeout = null;
   }
 
-  state.oauthRefreshInterval = setInterval(async () => {
+  const startTime = Date.now();
+  const initialInterval = 1000; // Start with 1 second
+  const maxInterval = 10000; // Cap at 10 seconds
+  let currentInterval = initialInterval;
+
+  const poll = async () => {
+    // Check if timeout has been reached
+    if (Date.now() - startTime >= OAUTH_TIMEOUT_MS) {
+      state.oauthRefreshInterval = null;
+      alert(t('messages.oauth.refreshTimeout'));
+      try {
+        await window.electronAPI.stopOAuth();
+      } catch (e) {
+        console.error('Failed to stop OAuth server after timeout:', e);
+      }
+      return;
+    }
+
     const configResult = await window.electronAPI.loadConfig();
     if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
       const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
@@ -544,12 +561,10 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
         typeof newToken === 'string' && newToken.trim() !== '' &&
         (typeof oldAccessToken !== 'string' || oldAccessToken.trim() === '' || newToken !== oldAccessToken)
       ) {
-        // Clear both interval and timeout
-        clearInterval(state.oauthRefreshInterval);
-        state.oauthRefreshInterval = null;
-        if (state.oauthRefreshTimeout) {
-          clearTimeout(state.oauthRefreshTimeout);
-          state.oauthRefreshTimeout = null;
+        // Clear polling timeout
+        if (state.oauthRefreshInterval) {
+          clearTimeout(state.oauthRefreshInterval);
+          state.oauthRefreshInterval = null;
         }
 
         // Update state
@@ -573,24 +588,17 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
 
         // Stop OAuth server
         await window.electronAPI.stopOAuth();
+        return;
       }
     }
-  }, 2000);
 
-  // Timeout after configured time
-  state.oauthRefreshTimeout = setTimeout(async () => {
-    if (state.oauthRefreshInterval) {
-      clearInterval(state.oauthRefreshInterval);
-      state.oauthRefreshInterval = null;
-      state.oauthRefreshTimeout = null;
-      alert(t('messages.oauth.refreshTimeout'));
-      try {
-        await window.electronAPI.stopOAuth();
-      } catch (e) {
-        console.error('Failed to stop OAuth server after timeout:', e);
-      }
-    }
-  }, OAUTH_TIMEOUT_MS);
+    // Schedule next poll with exponential backoff
+    currentInterval = Math.min(currentInterval * 2, maxInterval);
+    state.oauthRefreshInterval = setTimeout(poll, currentInterval);
+  };
+
+  // Start polling
+  state.oauthRefreshInterval = setTimeout(poll, currentInterval);
 }
 
 // Refresh OAuth
