@@ -17,7 +17,7 @@ const state = {
   eventCount: 0,
   startTime: null,
   uptimeInterval: null,
-  oauthRefreshInterval: null, // Timeout for polling OAuth refresh completion
+  oauthRefreshInterval: null, // Timeout ID for polling OAuth refresh completion
   allEvents: [], // Store all events for export
   sessionId: null // Session ID for auto-save
 };
