@@ -520,15 +520,61 @@ async function saveSettings() {
   }
 }
 
+// Poll for OAuth refresh completion
+function pollForOAuthRefreshCompletion(oldAccessToken) {
+  const interval = setInterval(async () => {
+    const configResult = await window.electronAPI.loadConfig();
+    if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
+      const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
+
+      // Check if token has changed
+      if (newToken !== oldAccessToken) {
+        clearInterval(interval);
+
+        // Update state
+        state.config = { ...state.config, ...configResult.config };
+
+        // Update settings form if open
+        const settingsPanel = document.getElementById('settingsPanel');
+        if (settingsPanel.style.display === 'block') {
+          document.getElementById('settingsAccessToken').value = state.config.TWITCH_ACCESS_TOKEN;
+          document.getElementById('settingsBroadcasterId').value = state.config.TWITCH_BROADCASTER_ID || '';
+        }
+
+        // Automatically copy new token to clipboard
+        try {
+          await navigator.clipboard.writeText(newToken);
+          alert(t('messages.oauth.refreshSuccess') + '\n\n' + t('messages.token.autoCopied'));
+        } catch (err) {
+          console.error('Failed to auto-copy token:', err);
+          alert(t('messages.oauth.refreshSuccess'));
+        }
+
+        // Stop OAuth server
+        await window.electronAPI.stopOAuth();
+      }
+    }
+  }, 2000);
+
+  // Timeout after configured time
+  setTimeout(() => {
+    clearInterval(interval);
+  }, OAUTH_TIMEOUT_MS);
+}
+
 // Refresh OAuth
 async function refreshOAuth() {
   if (confirm(t('messages.oauth.confirmRefresh'))) {
     try {
+      const oldAccessToken = state.config.TWITCH_ACCESS_TOKEN;
       const port = parseInt(state.config.PORT) || 3000;
       await window.electronAPI.startOAuth(port);
       const oauthUrl = `http://localhost:${port}`;
       await window.electronAPI.openExternal(oauthUrl);
       alert(t('messages.oauth.serverStarted'));
+
+      // Start polling for completion
+      pollForOAuthRefreshCompletion(oldAccessToken);
     } catch (error) {
       alert(t('messages.settings.oauthFailed', { error: error.message }));
     }
@@ -987,6 +1033,9 @@ async function refreshOAuthFromModal() {
     // Save current config
     await window.electronAPI.saveConfig(state.config);
 
+    // Store old token for comparison
+    const oldAccessToken = state.config.TWITCH_ACCESS_TOKEN;
+
     // Start OAuth server
     const port = parseInt(state.config.PORT) || 3000;
     const result = await window.electronAPI.startOAuth(port);
@@ -1001,6 +1050,9 @@ async function refreshOAuthFromModal() {
 
       // Open settings panel so user can see when token is updated
       openSettings();
+
+      // Start polling for completion
+      pollForOAuthRefreshCompletion(oldAccessToken);
     } else {
       throw new Error(result.error);
     }

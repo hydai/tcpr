@@ -194,7 +194,8 @@
       "serverStarted": "OAuthサーバーが起動しました。ブラウザで認証を完了してください。",
       "modalSuccess": "OAuthサーバーが起動しました。ブラウザで認証を完了してから、設定で新しいトークンを保存してください。",
       "retryAuthentication": "認証を再試行",
-      "error": "エラー："
+      "error": "エラー：",
+      "refreshSuccess": "OAuthの更新が正常に完了しました！"
     },
     "settings": {
       "saveSuccess": "設定を正常に保存しました！",
@@ -216,7 +217,8 @@
       "openError": "{{type}}フォルダを開く際にエラーが発生しました：{{error}}"
     },
     "token": {
-      "copyFailed": "トークンのコピーに失敗しました：{{error}}"
+      "copyFailed": "トークンのコピーに失敗しました：{{error}}",
+      "autoCopied": "新しいトークンが自動的にクリップボードにコピーされました！"
     },
     "config": {
       "saveFailed": "設定の保存に失敗しました：{{error}}"
