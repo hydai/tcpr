@@ -207,7 +207,7 @@ npm install
 
 ### Desktop GUI Setup Wizard
 
-When you launch the application for the first time, you'll be guided through a comprehensive 6-step setup wizard:
+When you launch the application for the first time, you'll be guided through a comprehensive 7-step setup wizard:
 
 #### Step 1: Welcome Screen
 - Overview of features and capabilities
@@ -320,7 +320,7 @@ twitch token -u -s "channel:read:redemptions"
 ### 3. Get Your Broadcaster User ID
 
 #### Option A: Using the OAuth Server
-If you used the OAuth web server (Option A above), your broadcaster ID will be displayed automatically.
+If you used the OAuth web server from the token generation step (Option A in step 2), your broadcaster ID will be displayed automatically.
 
 #### Option B: Using Twitch CLI
 ```bash
