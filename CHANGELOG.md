@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- OAuth token refresh polling now starts immediately instead of after 1-second delay for better responsiveness
+- Message formatting moved from JavaScript code to translation files for better internationalization
+
 ### Added
 
 #### Desktop GUI
@@ -133,14 +137,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## Future Releases
 
-### Planned Features
-- System tray integration
-- Event filtering and search
-- Custom event notifications
-- Multiple channel monitoring
-- Event statistics and analytics
-- Dark/Light theme toggle
-- Auto-update functionality
-- Linux support
+See the [Roadmap](README.md#roadmap) section in README.md for planned features and upcoming enhancements.
