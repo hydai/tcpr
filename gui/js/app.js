@@ -18,6 +18,7 @@ const state = {
   startTime: null,
   uptimeInterval: null,
   oauthRefreshInterval: null, // Interval for polling OAuth refresh completion
+  oauthRefreshTimeout: null, // Timeout for OAuth refresh polling
   allEvents: [], // Store all events for export
   sessionId: null // Session ID for auto-save
 };
@@ -523,10 +524,14 @@ async function saveSettings() {
 
 // Poll for OAuth refresh completion
 function pollForOAuthRefreshCompletion(oldAccessToken) {
-  // Clear any existing polling interval to prevent duplicates
+  // Clear any existing polling interval and timeout to prevent duplicates
   if (state.oauthRefreshInterval) {
     clearInterval(state.oauthRefreshInterval);
     state.oauthRefreshInterval = null;
+  }
+  if (state.oauthRefreshTimeout) {
+    clearTimeout(state.oauthRefreshTimeout);
+    state.oauthRefreshTimeout = null;
   }
 
   state.oauthRefreshInterval = setInterval(async () => {
@@ -534,10 +539,19 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
     if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
       const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
 
-      // Check if token has changed
-      if (newToken !== oldAccessToken) {
+      // Check if token has changed and both tokens are valid
+      if (
+        typeof oldAccessToken === 'string' && oldAccessToken.trim() !== '' &&
+        typeof newToken === 'string' && newToken.trim() !== '' &&
+        newToken !== oldAccessToken
+      ) {
+        // Clear both interval and timeout
         clearInterval(state.oauthRefreshInterval);
         state.oauthRefreshInterval = null;
+        if (state.oauthRefreshTimeout) {
+          clearTimeout(state.oauthRefreshTimeout);
+          state.oauthRefreshTimeout = null;
+        }
 
         // Update state
         state.config = { ...state.config, ...configResult.config };
@@ -565,10 +579,11 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
   }, 2000);
 
   // Timeout after configured time
-  setTimeout(async () => {
+  state.oauthRefreshTimeout = setTimeout(async () => {
     if (state.oauthRefreshInterval) {
       clearInterval(state.oauthRefreshInterval);
       state.oauthRefreshInterval = null;
+      state.oauthRefreshTimeout = null;
       alert(t('messages.oauth.refreshTimeout'));
       try {
         await window.electronAPI.stopOAuth();
