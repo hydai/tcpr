@@ -242,11 +242,14 @@ async function startOAuthFlow() {
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <div>
-            <p><strong>${t('messages.oauth.serverRunning')}</strong></p>
-            <p>${t('messages.oauth.openingBrowser')}</p>
+            <p><strong class="server-status"></strong></p>
+            <p class="browser-status"></p>
           </div>
         </div>
       `;
+      // Use textContent for all dynamic content including translations
+      statusDiv.querySelector('.server-status').textContent = t('messages.oauth.serverRunning');
+      statusDiv.querySelector('.browser-status').textContent = t('messages.oauth.openingBrowser');
 
       // Open OAuth URL in browser
       const oauthUrl = `http://localhost:${port}`;
@@ -297,9 +300,11 @@ function pollForOAuthCompletion() {
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
-          <span>${t('messages.oauth.authSuccess')}</span>
+          <span class="auth-status"></span>
         </div>
       `;
+      // Use textContent for all dynamic content including translations
+      statusDiv.querySelector('.auth-status').textContent = t('messages.oauth.authSuccess');
 
       // Show token
       document.getElementById('accessToken').value = state.config.TWITCH_ACCESS_TOKEN;
@@ -392,13 +397,14 @@ async function validateConfiguration() {
         <div class="validation-item success">
           <div class="validation-icon">✓</div>
           <div class="validation-text">
-            <strong>${t('wizard.step4.tokenValid')}</strong>
+            <strong class="validation-title"></strong>
             <p class="user-info"></p>
             <p class="scopes-info"></p>
           </div>
         </div>
       `;
-      // Safely set untrusted API response data using textContent to prevent XSS
+      // Use textContent for all dynamic content (translations and API data)
+      resultsDiv.querySelector('.validation-title').textContent = t('wizard.step4.tokenValid');
       const userInfo = resultsDiv.querySelector('.user-info');
       const scopesInfo = resultsDiv.querySelector('.scopes-info');
       userInfo.textContent = t('wizard.step4.userLabel') + ' ' + result.data.login +
@@ -417,12 +423,13 @@ async function validateConfiguration() {
         <div class="validation-item error">
           <div class="validation-icon">✗</div>
           <div class="validation-text">
-            <strong>${t('wizard.step4.tokenInvalid')}</strong>
+            <strong class="validation-title"></strong>
             <p class="error-message"></p>
           </div>
         </div>
       `;
-      // Safely set untrusted error content using textContent to prevent XSS
+      // Use textContent for all dynamic content (translations and errors)
+      resultsDiv.querySelector('.validation-title').textContent = t('wizard.step4.tokenInvalid');
       resultsDiv.querySelector('.error-message').textContent = result.error;
     }
   } catch (error) {
@@ -431,12 +438,13 @@ async function validateConfiguration() {
       <div class="validation-item error">
         <div class="validation-icon">✗</div>
         <div class="validation-text">
-          <strong>${t('wizard.step4.validationError')}</strong>
+          <strong class="validation-title"></strong>
           <p class="error-message"></p>
         </div>
       </div>
     `;
-    // Safely set untrusted error content using textContent to prevent XSS
+    // Use textContent for all dynamic content (translations and errors)
+    resultsDiv.querySelector('.validation-title').textContent = t('wizard.step4.validationError');
     resultsDiv.querySelector('.error-message').textContent = error.message;
   }
 }
@@ -622,14 +630,15 @@ function displayErrorNotification(message) {
 
   eventItem.innerHTML = `
     <div class="event-header">
-      <span class="event-type" style="color: var(--error)">${'❌ ' + t('dashboard.eventTypes.error')}</span>
+      <span class="event-type" style="color: var(--error)"></span>
       <span class="event-time">${displayTime}</span>
     </div>
     <div class="event-details">
       <pre class="event-message"></pre>
     </div>
   `;
-  // Safely set untrusted message using textContent to prevent XSS
+  // Use textContent for all dynamic content (translations and messages)
+  eventItem.querySelector('.event-type').textContent = '❌ ' + t('dashboard.eventTypes.error');
   eventItem.querySelector('.event-message').textContent = message;
 
   eventsList.insertBefore(eventItem, eventsList.firstChild);
@@ -671,20 +680,20 @@ function handleEventSubLog(data) {
   const displayTime = new Date(timestamp).toLocaleTimeString();
   const isError = data.type === 'error';
 
-  const eventTypeText = isError
-    ? '❌ ' + t('dashboard.eventTypes.error')
-    : '📢 ' + t('dashboard.eventTypes.event');
-
   eventItem.innerHTML = `
     <div class="event-header">
-      <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}">${eventTypeText}</span>
+      <span class="event-type" style="color: ${isError ? 'var(--error)' : 'var(--success)'}"></span>
       <span class="event-time">${displayTime}</span>
     </div>
     <div class="event-details">
       <pre class="event-message"></pre>
     </div>
   `;
-  // Safely set untrusted message using textContent to prevent XSS
+  // Use textContent for all dynamic content (translations and messages)
+  const eventType = isError
+    ? '❌ ' + t('dashboard.eventTypes.error')
+    : '📢 ' + t('dashboard.eventTypes.event');
+  eventItem.querySelector('.event-type').textContent = eventType;
   eventItem.querySelector('.event-message').textContent = data.message;
 
   // Add to top of list
@@ -763,9 +772,11 @@ function clearEvents() {
       <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" opacity="0.3">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
-      <p>${t('dashboard.emptyState')}</p>
+      <p class="empty-message"></p>
     </div>
   `;
+  // Use textContent for all dynamic content including translations
+  eventsList.querySelector('.empty-message').textContent = t('dashboard.emptyState');
 
   state.eventCount = 0;
   state.allEvents = []; // Clear all stored events
