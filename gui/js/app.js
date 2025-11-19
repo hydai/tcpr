@@ -522,6 +522,22 @@ async function saveSettings() {
   }
 }
 
+// Helper function to check if OAuth token has been updated
+function isTokenUpdated(oldAccessToken, newToken) {
+  // newToken must be a valid non-empty string
+  if (typeof newToken !== 'string' || newToken.trim() === '') {
+    return false;
+  }
+
+  // Allow initial token acquisition (oldAccessToken is empty/undefined)
+  // or token refresh (oldAccessToken exists but is different)
+  return (
+    typeof oldAccessToken !== 'string' ||
+    oldAccessToken.trim() === '' ||
+    newToken !== oldAccessToken
+  );
+}
+
 // Poll for OAuth refresh completion with exponential backoff
 function pollForOAuthRefreshCompletion(oldAccessToken) {
   // Clear any existing polling interval and timeout to prevent duplicates
@@ -556,16 +572,10 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
     if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
       const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
 
-      // Check if token has changed, including initial acquisition
-      if (
-        typeof newToken === 'string' && newToken.trim() !== '' &&
-        (typeof oldAccessToken !== 'string' || oldAccessToken.trim() === '' || newToken !== oldAccessToken)
-      ) {
-        // Clear polling timeout
-        if (state.oauthRefreshInterval) {
-          clearTimeout(state.oauthRefreshInterval);
-          state.oauthRefreshInterval = null;
-        }
+      // Check if token has been updated (initial acquisition or refresh)
+      if (isTokenUpdated(oldAccessToken, newToken)) {
+        // Token successfully obtained - stop polling and update UI
+        state.oauthRefreshInterval = null;
 
         // Update state
         state.config = { ...state.config, ...configResult.config };
