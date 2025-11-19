@@ -91,21 +91,41 @@
             <p class="step-description" data-i18n="wizard.step1.description">To use this monitor, you need to create a Twitch application to get your Client ID and Client Secret.</p>
 
             <div class="instruction-box">
-              <h3>📋 Instructions:</h3>
+              <h3 data-i18n="wizard.step1.instructionsTitle">📋 Instructions:</h3>
               <ol class="instruction-list">
-                <li>Visit the <a href="#" onclick="openExternal('https://dev.twitch.tv/console/apps'); return false;">Twitch Developer Console</a></li>
-                <li>Click "Register Your Application"</li>
-                <li>Fill in the application details:
+                <li>
+                  <span data-i18n="wizard.step1.instructions.step1">Visit the</span>
+                  <a href="#" onclick="openExternal('https://dev.twitch.tv/console/apps'); return false;" data-i18n="wizard.step1.instructions.step1Link">Twitch Developer Console</a>
+                </li>
+                <li data-i18n="wizard.step1.instructions.step2">Click "Register Your Application"</li>
+                <li>
+                  <span data-i18n="wizard.step1.instructions.step3">Fill in the application details:</span>
                   <ul>
-                    <li><strong>Name:</strong> Choose any name (e.g., "My Channel Points Monitor")</li>
-                    <li><strong>OAuth Redirect URLs:</strong> <code>http://localhost:3000/callback</code></li>
-                    <li><strong>Category:</strong> Application Integration</li>
+                    <li>
+                      <strong data-i18n="wizard.step1.instructions.step3Details.name">Name:</strong>
+                      <span data-i18n="wizard.step1.instructions.step3Details.nameValue">Choose any name (e.g., "My Channel Points Monitor")</span>
+                    </li>
+                    <li>
+                      <strong data-i18n="wizard.step1.instructions.step3Details.oauth">OAuth Redirect URLs:</strong>
+                      <code data-i18n="wizard.step1.instructions.step3Details.oauthValue">http://localhost:3000/callback</code>
+                    </li>
+                    <li>
+                      <strong data-i18n="wizard.step1.instructions.step3Details.category">Category:</strong>
+                      <span data-i18n="wizard.step1.instructions.step3Details.categoryValue">Application Integration</span>
+                    </li>
                   </ul>
                 </li>
-                <li>Click "Create"</li>
-                <li>Click "Manage" on your new application</li>
-                <li>Copy your <strong>Client ID</strong></li>
-                <li>Click "New Secret" to generate a <strong>Client Secret</strong> and copy it</li>
+                <li data-i18n="wizard.step1.instructions.step4">Click "Create"</li>
+                <li data-i18n="wizard.step1.instructions.step5">Click "Manage" on your new application</li>
+                <li>
+                  <span data-i18n="wizard.step1.instructions.step6">Copy your</span>
+                  <strong data-i18n="wizard.step1.instructions.step6Bold">Client ID</strong>
+                </li>
+                <li>
+                  <span data-i18n="wizard.step1.instructions.step7">Click "New Secret" to generate a</span>
+                  <strong data-i18n="wizard.step1.instructions.step7Bold">Client Secret</strong>
+                  <span data-i18n="wizard.step1.instructions.step7End">and copy it</span>
+                </li>
               </ol>
             </div>
 

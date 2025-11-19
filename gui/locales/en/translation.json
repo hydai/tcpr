@@ -101,6 +101,9 @@
       "tokenValid": "Token is valid!",
       "tokenInvalid": "Validation failed!",
       "validationError": "Validation error!",
+      "userLabel": "User:",
+      "idLabel": "ID:",
+      "scopesLabel": "Scopes:",
       "back": "Back",
       "continue": "Continue"
     },
@@ -193,7 +196,9 @@
       "authSuccess": "Authentication successful!",
       "confirmRefresh": "This will start a new OAuth flow. Continue?",
       "serverStarted": "OAuth server started. Complete the authentication in your browser.",
-      "modalSuccess": "OAuth server started. Please complete the authentication in your browser, then save the new token in Settings."
+      "modalSuccess": "OAuth server started. Please complete the authentication in your browser, then save the new token in Settings.",
+      "retryAuthentication": "Retry Authentication",
+      "error": "Error:"
     },
     "settings": {
       "saveSuccess": "Settings saved successfully!",

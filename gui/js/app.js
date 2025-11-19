@@ -268,11 +268,11 @@ async function startOAuthFlow() {
           <line x1="15" y1="9" x2="9" y2="15"/>
           <line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
-        <span>Error: ${error.message}</span>
+        <span>${t('messages.oauth.error')} ${error.message}</span>
       </div>
     `;
     btn.disabled = false;
-    btn.textContent = 'Retry Authentication';
+    btn.textContent = t('messages.oauth.retryAuthentication');
   }
 }
 
@@ -390,8 +390,8 @@ async function validateConfiguration() {
           <div class="validation-icon">✓</div>
           <div class="validation-text">
             <strong>${t('wizard.step4.tokenValid')}</strong>
-            <p>User: ${result.data.login} (ID: ${result.data.user_id})</p>
-            <p>Scopes: ${result.data.scopes.join(', ')}</p>
+            <p>${t('wizard.step4.userLabel')} ${result.data.login} (${t('wizard.step4.idLabel')} ${result.data.user_id})</p>
+            <p>${t('wizard.step4.scopesLabel')} ${result.data.scopes.join(', ')}</p>
           </div>
         </div>
       `;

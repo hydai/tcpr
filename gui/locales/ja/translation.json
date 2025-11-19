@@ -101,6 +101,9 @@
       "tokenValid": "トークンは有効です！",
       "tokenInvalid": "検証に失敗しました！",
       "validationError": "検証エラー！",
+      "userLabel": "ユーザー：",
+      "idLabel": "ID：",
+      "scopesLabel": "スコープ：",
       "back": "戻る",
       "continue": "続ける"
     },
@@ -193,7 +196,9 @@
       "authSuccess": "認証に成功しました！",
       "confirmRefresh": "新しいOAuthフローを開始します。続行しますか？",
       "serverStarted": "OAuthサーバーが起動しました。ブラウザで認証を完了してください。",
-      "modalSuccess": "OAuthサーバーが起動しました。ブラウザで認証を完了してから、設定で新しいトークンを保存してください。"
+      "modalSuccess": "OAuthサーバーが起動しました。ブラウザで認証を完了してから、設定で新しいトークンを保存してください。",
+      "retryAuthentication": "認証を再試行",
+      "error": "エラー："
     },
     "settings": {
       "saveSuccess": "設定を正常に保存しました！",
