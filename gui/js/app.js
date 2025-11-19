@@ -602,8 +602,8 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
     state.oauthRefreshInterval = setTimeout(poll, currentInterval);
   };
 
-  // Start polling
-  state.oauthRefreshInterval = setTimeout(poll, currentInterval);
+  // Start polling immediately
+  poll();
 }
 
 // Refresh OAuth
