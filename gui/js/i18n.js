@@ -69,8 +69,13 @@ function updatePageTranslations() {
 
     // Use textContent instead of innerHTML to prevent XSS
     // Special handling for different element types
-    if (element.tagName === 'INPUT' && element.type !== 'submit' && element.type !== 'button') {
-      // For input elements, set value
+    if (
+      element.tagName === 'INPUT' &&
+      element.type !== 'submit' &&
+      element.type !== 'button' &&
+      (element.readOnly || element.disabled)
+    ) {
+      // For readonly or disabled input elements, set value
       element.value = translation;
     } else {
       // For all other elements, use textContent
