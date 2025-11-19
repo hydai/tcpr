@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0] - 2025-11-20
+## [Unreleased]
 
 ### Added
 
@@ -28,8 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Windows: `%APPDATA%/twitch-channel-points-redemption/`
   - macOS: `~/Library/Application Support/twitch-channel-points-redemption/`
 - Event count tracking and uptime monitoring
+- Automatic event log saving with NDJSON format and session-based validation
+- Session management with exponential backoff retry logic
 - OAuth token refresh capability from settings
 - Application information display (version, config location, repository)
+- Session ID display in settings panel for debugging and support
+- Event export functionality (CSV and JSON formats)
+- Folder opening buttons to access event logs and configuration directories
 - Internationalization (i18n) support with translation files
 - Cross-platform build support (Windows `.exe`, macOS `.dmg`)
 - Portable Windows build option
@@ -46,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `session_reconnect` - Server-initiated reconnection
   - `revocation` - Subscription cancellation
 - Automatic reconnection support
+- Keepalive packet filtering to reduce event display noise
 - Built-in OAuth server for easy token generation
 - Web-based OAuth flow at `http://localhost:3000`
 - Token validation utility (`npm run validate`)
@@ -71,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BUILD_README.md for distribution and build configuration
 - CONTRIBUTING.md with contribution guidelines
 - CHANGELOG.md for version history tracking
+- Event logs storage location documentation
+  - Windows: `%APPDATA%/twitch-channel-points-redemption/event_logs/`
+  - macOS: `~/Library/Application Support/twitch-channel-points-redemption/event_logs/`
 - Icon creation instructions (`build/ICONS_README.txt`)
 - Inline code documentation
 - Setup wizard with step-by-step instructions
@@ -104,6 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Secure token storage
 - Context isolation in Electron renderer process
 - IPC security via preload script
+- XSS vulnerability fixes in internationalization implementation
+- Data sanitization for user-facing content
 - Credential files excluded from version control (`.gitignore`)
 - HTTPS/WSS enforcement for network communication
 - Token validation before monitoring
@@ -126,7 +137,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned Features
 - System tray integration
-- Event export (CSV, JSON)
 - Event filtering and search
 - Custom event notifications
 - Multiple channel monitoring
@@ -134,13 +144,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark/Light theme toggle
 - Auto-update functionality
 - Linux support
-
----
-
-## Version History Summary
-
-- **1.0.0** (2025-11-20) - Initial release with desktop GUI and CLI mode
-
----
-
-[1.0.0]: https://github.com/hydai/tcpr/releases/tag/v1.0.0
