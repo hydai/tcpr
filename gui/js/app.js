@@ -1106,6 +1106,19 @@ async function refreshOAuthFromModal() {
   }
 }
 
+// Toggle Language
+function toggleLanguage() {
+  const currentLang = getCurrentLanguage();
+  const newLang = currentLang === 'en' ? 'ja' : 'en';
+  changeLanguage(newLang);
+
+  // Update language selector in settings panel if open
+  const settingsPanel = document.getElementById('settingsPanel');
+  if (settingsPanel && settingsPanel.style.display === 'block') {
+    document.getElementById('settingsLanguage').value = newLang;
+  }
+}
+
 // Export functions to global scope
 window.wizardNext = wizardNext;
 window.wizardPrev = wizardPrev;
@@ -1123,6 +1136,8 @@ window.stopMonitoring = stopMonitoring;
 window.clearEvents = clearEvents;
 window.exportEvents = exportEvents;
 window.openExternal = openExternal;
+window.openFolder = openFolder;
+window.toggleLanguage = toggleLanguage;
 window.showTokenErrorModal = showTokenErrorModal;
 window.closeTokenErrorModal = closeTokenErrorModal;
 window.refreshOAuthFromModal = refreshOAuthFromModal;
