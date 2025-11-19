@@ -17,6 +17,7 @@ const state = {
   eventCount: 0,
   startTime: null,
   uptimeInterval: null,
+  oauthRefreshInterval: null, // Interval for polling OAuth refresh completion
   allEvents: [], // Store all events for export
   sessionId: null // Session ID for auto-save
 };
@@ -522,14 +523,21 @@ async function saveSettings() {
 
 // Poll for OAuth refresh completion
 function pollForOAuthRefreshCompletion(oldAccessToken) {
-  const interval = setInterval(async () => {
+  // Clear any existing polling interval to prevent duplicates
+  if (state.oauthRefreshInterval) {
+    clearInterval(state.oauthRefreshInterval);
+    state.oauthRefreshInterval = null;
+  }
+
+  state.oauthRefreshInterval = setInterval(async () => {
     const configResult = await window.electronAPI.loadConfig();
     if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
       const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
 
       // Check if token has changed
       if (newToken !== oldAccessToken) {
-        clearInterval(interval);
+        clearInterval(state.oauthRefreshInterval);
+        state.oauthRefreshInterval = null;
 
         // Update state
         state.config = { ...state.config, ...configResult.config };
@@ -557,8 +565,17 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
   }, 2000);
 
   // Timeout after configured time
-  setTimeout(() => {
-    clearInterval(interval);
+  setTimeout(async () => {
+    if (state.oauthRefreshInterval) {
+      clearInterval(state.oauthRefreshInterval);
+      state.oauthRefreshInterval = null;
+      alert(t('messages.oauth.refreshTimeout'));
+      try {
+        await window.electronAPI.stopOAuth();
+      } catch (e) {
+        console.error('Failed to stop OAuth server after timeout:', e);
+      }
+    }
   }, OAUTH_TIMEOUT_MS);
 }
 

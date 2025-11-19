@@ -195,7 +195,8 @@
       "modalSuccess": "OAuthサーバーが起動しました。ブラウザで認証を完了してから、設定で新しいトークンを保存してください。",
       "retryAuthentication": "認証を再試行",
       "error": "エラー：",
-      "refreshSuccess": "OAuthの更新が正常に完了しました！"
+      "refreshSuccess": "OAuthの更新が正常に完了しました！",
+      "refreshTimeout": "OAuthの更新がタイムアウトしました。5分以内に認証が完了しませんでした。もう一度お試しください。"
     },
     "settings": {
       "saveSuccess": "設定を正常に保存しました！",
