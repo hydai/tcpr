@@ -539,11 +539,10 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
     if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
       const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
 
-      // Check if token has changed and both tokens are valid
+      // Check if token has changed, including initial acquisition
       if (
-        typeof oldAccessToken === 'string' && oldAccessToken.trim() !== '' &&
         typeof newToken === 'string' && newToken.trim() !== '' &&
-        newToken !== oldAccessToken
+        (typeof oldAccessToken !== 'string' || oldAccessToken.trim() === '' || newToken !== oldAccessToken)
       ) {
         // Clear both interval and timeout
         clearInterval(state.oauthRefreshInterval);
