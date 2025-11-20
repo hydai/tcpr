@@ -373,7 +373,10 @@ ipcMain.handle('config:save', async (event, config) => {
     configObject.TWITCH_ACCESS_TOKEN = config.TWITCH_ACCESS_TOKEN || '';
     configObject.TWITCH_BROADCASTER_ID = config.TWITCH_BROADCASTER_ID || '';
     configObject.REDIRECT_URI = config.REDIRECT_URI || 'http://localhost:3000/callback';
-    configObject.PORT = parseInt(config.PORT, 10) || 3000;
+
+    // Ensure PORT is always a valid number
+    const portValue = parseInt(config.PORT, 10);
+    configObject.PORT = isNaN(portValue) ? 3000 : portValue;
 
     // Write as formatted JSON
     fs.writeFileSync(configPath, JSON.stringify(configObject, null, 2), 'utf-8');
