@@ -321,7 +321,8 @@ async function loadConfig() {
       const content = fs.readFileSync(configPath, 'utf-8');
       const jsonConfig = JSON.parse(content);
 
-      // Merge JSON config into config object
+      // Merge JSON config into config object.
+      // Skip empty values to prevent clearing required configuration.
       for (const [key, value] of Object.entries(jsonConfig)) {
         if (value !== null && value !== undefined && value !== '') {
           config[key] = value;
