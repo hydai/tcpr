@@ -8,7 +8,7 @@ import { EventSubSubscriber } from './client/EventSubSubscriber.js';
 import { EventFormatter } from './client/EventFormatter.js';
 import { PacketFilter } from './client/PacketFilter.js';
 
-// Load configuration from config.json or .env
+// Load configuration from config.json
 loadConfig();
 
 /**
