@@ -105,8 +105,10 @@ jobs:
         id: version
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
+          VERSION_NO_V=${VERSION#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "version_no_v=$VERSION_NO_V" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION (without v: $VERSION_NO_V)"
 
       - name: Detect prerelease
         id: prerelease
@@ -124,8 +126,8 @@ jobs:
         id: changelog
         run: |
           if [ -f CHANGELOG.md ]; then
-            # Extract the latest version's changelog
-            sed -n "/^## \[${{ steps.version.outputs.version }}\]/,/^## \[/p" CHANGELOG.md | sed '$ d' > release_notes.md
+            # Extract the latest version's changelog (using version without 'v' prefix)
+            sed -n "/^## \[${{ steps.version.outputs.version_no_v }}\]/,/^## \[/p" CHANGELOG.md | sed '$ d' > release_notes.md
             if [ ! -s release_notes.md ]; then
               echo "## What's New" > release_notes.md
               echo "" >> release_notes.md
