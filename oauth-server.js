@@ -209,7 +209,7 @@ app.listen(PORT, () => {
 
   // Validate configuration
   if (!CLIENT_ID || !CLIENT_SECRET) {
-    Logger.warn('WARNING: Missing required environment variables!');
+    Logger.warn('WARNING: Missing required config.json fields!');
     Logger.log('Please add the following to your config.json file:');
     if (!CLIENT_ID) Logger.log('- TWITCH_CLIENT_ID');
     if (!CLIENT_SECRET) Logger.log('- TWITCH_CLIENT_SECRET');
