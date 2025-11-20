@@ -1,0 +1,96 @@
+name: Build Desktop Applications
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows application
+        run: npm run build:win
+        env:
+          NODE_ENV: production
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.msi
+          retention-days: 30
+          if-no-files-found: warn
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS application
+        run: npm run build:mac
+        env:
+          NODE_ENV: production
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          retention-days: 30
+          if-no-files-found: warn
+
+  summary:
+    name: Build Summary
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check build status
+        run: |
+          echo "Build Summary:"
+          echo "Windows Build: ${{ needs.build-windows.result }}"
+          echo "macOS Build: ${{ needs.build-macos.result }}"
+
+          if [ "${{ needs.build-windows.result }}" != "success" ] || [ "${{ needs.build-macos.result }}" != "success" ]; then
+            echo "⚠️ One or more builds failed"
+            exit 1
+          else
+            echo "✅ All builds completed successfully"
+          fi
