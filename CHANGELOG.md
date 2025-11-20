@@ -66,19 +66,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Configuration
 - Support for `config.json` (visible file format)
 - Support for `.env` (traditional hidden file format)
-- Configuration priority: builtin → .env → empty values ignored
-- Build-time credential embedding via `.secret` file
 - Example configuration files:
   - `config.example.json`
   - `.env.example`
-  - `.secret.example`
 - Secure credential storage for desktop application
 - OAuth redirect URI configuration
 - Custom server port configuration
 
 #### Documentation
 - Comprehensive README with GUI-first approach
-- BUILD_README.md for distribution and build configuration
 - CONTRIBUTING.md with contribution guidelines
 - CHANGELOG.md for version history tracking
 - Event logs storage location documentation
@@ -100,8 +96,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `npm run build:win` - Windows only
   - `npm run build:mac` - macOS only
   - `npm run build:dir` - Unpacked for testing
-- Pre-build script for embedding credentials
-- Post-install script for configuration initialization
 - Custom icon support (`.ico`, `.icns`, `.png`)
 
 #### Development

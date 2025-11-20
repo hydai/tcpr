@@ -514,7 +514,6 @@ tcpr/
 ├── oauth-server.js          # OAuth server for CLI
 ├── validateToken.js         # Token validation utility
 ├── package.json             # Project configuration
-├── BUILD_README.md          # Build configuration guide
 ├── CONTRIBUTING.md          # Contribution guidelines
 ├── CHANGELOG.md             # Version history
 └── README.md               # This file
@@ -666,8 +665,6 @@ npm run validate
 
 ## Building & Distribution
 
-For detailed information on building the application for distribution, including embedding credentials and creating installers, see **[BUILD_README.md](BUILD_README.md)**.
-
 ### Quick Build Commands
 
 ```bash
@@ -771,7 +768,7 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 ### Support
 
-- **Documentation**: This README and [BUILD_README.md](BUILD_README.md)
+- **Documentation**: This README
 - **Issues**: [GitHub Issues](https://github.com/hydai/tcpr/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/hydai/tcpr/discussions)
 

@@ -316,7 +316,7 @@ Before submitting a pull request:
 
 ### Security Considerations
 
-- **Never commit credentials** - Keep `config.json` and `.secret` out of version control
+- **Never commit credentials** - Keep `config.json` out of version control
 - **Validate user input** - Always sanitize and validate input from users
 - **Use secure communication** - Always use HTTPS/WSS for network requests
 - **Follow OAuth best practices** - Properly handle tokens and OAuth flows
@@ -401,7 +401,7 @@ If you need help with contributing:
 
 - **GitHub Issues** - Ask questions in a new issue
 - **GitHub Discussions** - Join the community discussions
-- **Documentation** - Check the [README.md](README.md) and [BUILD_README.md](BUILD_README.md)
+- **Documentation** - Check the [README.md](README.md)
 
 ---
 

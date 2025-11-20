@@ -29,7 +29,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows application
-        run: npm run prebuild && npx electron-builder --win --publish never
+        run: npx electron-builder --win --publish never
         env:
           NODE_ENV: production
 
@@ -61,7 +61,7 @@ jobs:
         run: npm ci
 
       - name: Build macOS application
-        run: npm run prebuild && npx electron-builder --mac --publish never
+        run: npx electron-builder --mac --publish never
         env:
           NODE_ENV: production
 
