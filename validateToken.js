@@ -4,7 +4,7 @@ import { TokenValidator } from './lib/tokenValidator.js';
 import { Logger } from './lib/logger.js';
 import { TokenValidationError } from './lib/errors.js';
 
-// Load configuration from config.json or .env
+// Load configuration from config.json
 loadConfig();
 
 /**
@@ -15,8 +15,8 @@ async function validateToken() {
   const result = Config.loadForValidation();
 
   if (!result.valid) {
-    Logger.error('Missing required environment variables');
-    Logger.log('Please ensure the following are set in your config.json or .env file:');
+    Logger.error('Missing required config.json fields');
+    Logger.log('Please ensure the following are set in your config.json file:');
     result.missing.forEach(field => {
       Logger.log(`  - ${Config.getEnvName(field)}`);
     });

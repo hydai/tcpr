@@ -8,7 +8,7 @@ import { TWITCH_URLS, DEFAULT_OAUTH_SCOPES } from '../config/constants.js';
 import { Logger } from '../lib/logger.js';
 import { StateTokenManager } from '../lib/StateTokenManager.js';
 
-// Load configuration from config.json or .env
+// Load configuration from config.json
 loadConfig();
 
 const __filename = fileURLToPath(import.meta.url);

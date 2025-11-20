@@ -8,7 +8,7 @@ import { Config } from './config/env.js';
 import { Logger } from './lib/logger.js';
 import { StateTokenManager } from './lib/StateTokenManager.js';
 
-// Load configuration from config.json or .env
+// Load configuration from config.json
 loadConfig();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,7 +47,7 @@ app.get('/auth', (req, res) => {
   if (!CLIENT_ID || !CLIENT_SECRET) {
     Logger.error('Missing CLIENT_ID or CLIENT_SECRET');
     return res.status(500).send(
-      'Server configuration error: Missing TWITCH_CLIENT_ID or TWITCH_CLIENT_SECRET in .env file'
+      'Server configuration error: Missing TWITCH_CLIENT_ID or TWITCH_CLIENT_SECRET in config.json'
     );
   }
 
@@ -138,7 +138,7 @@ app.get('/callback', async (req, res) => {
     // Display token information in console
     Logger.header('TWITCH OAUTH SUCCESSFUL', '=', 80);
     Logger.log('\n⚠️  WARNING: Access token will be displayed. Do not share or commit this token!\n');
-    Logger.log('Add these values to your .env file:\n');
+    Logger.log('Add these values to your config.json file:\n');
     Logger.log(`TWITCH_ACCESS_TOKEN=${access_token}`);
     Logger.log(`TWITCH_BROADCASTER_ID=${user_id}`);
     if (refresh_token) {
@@ -203,14 +203,14 @@ app.listen(PORT, () => {
   Logger.log(`1. Open your browser and navigate to: http://localhost:${PORT}`);
   Logger.log(`2. Click "Connect with Twitch"`);
   Logger.log(`3. Authorize the application`);
-  Logger.log(`4. Copy the access token and add it to your .env file`);
+  Logger.log(`4. Copy the access token and add it to your config.json file`);
   Logger.divider('=', 80);
   Logger.log('');
 
   // Validate configuration
   if (!CLIENT_ID || !CLIENT_SECRET) {
-    Logger.warn('WARNING: Missing required environment variables!');
-    Logger.log('Please add the following to your .env file:');
+    Logger.warn('WARNING: Missing required config.json fields!');
+    Logger.log('Please add the following to your config.json file:');
     if (!CLIENT_ID) Logger.log('- TWITCH_CLIENT_ID');
     if (!CLIENT_SECRET) Logger.log('- TWITCH_CLIENT_SECRET');
     Logger.log('');
