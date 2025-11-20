@@ -114,7 +114,8 @@ jobs:
         id: prerelease
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          if [[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
+          # Match prerelease versions: alpha, beta, rc (with optional numbers)
+          if [[ "$VERSION" =~ -(alpha|beta|rc)[0-9]* ]]; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "This is a prerelease version"
           else
@@ -127,17 +128,33 @@ jobs:
         run: |
           if [ -f CHANGELOG.md ]; then
             # Extract the latest version's changelog (using version without 'v' prefix)
-            sed -n "/^## \[${{ steps.version.outputs.version_no_v }}\]/,/^## \[/p" CHANGELOG.md | sed '$ d' > release_notes.md
-            if [ ! -s release_notes.md ]; then
-              echo "## What's New" > release_notes.md
-              echo "" >> release_notes.md
-              echo "Release ${{ steps.version.outputs.version }}" >> release_notes.md
+            # Step 1: Find the line number where the current version's changelog starts
+            start_line=$(grep -n "^## \[${{ steps.version.outputs.version_no_v }}\]" CHANGELOG.md | head -n1 | cut -d: -f1)
+
+            if [ -n "$start_line" ]; then
+              # Step 2: Find the line number where the next version's changelog starts (after the current one)
+              next_line=$(tail -n +"$((start_line + 1))" CHANGELOG.md | grep -n "^## \[" | head -n1 | cut -d: -f1)
+
+              if [ -n "$next_line" ]; then
+                # Step 3a: Calculate end line (stop before next version section)
+                end_line=$((start_line + next_line - 2))
+              else
+                # Step 3b: No next version found, extract to end of file
+                end_line=$(wc -l < CHANGELOG.md)
+              fi
+
+              # Step 4: Extract the content between start and end (skip the header line)
+              sed -n "${start_line},${end_line}p" CHANGELOG.md | tail -n +2 > release_notes.md
             fi
-          else
+          fi
+
+          # Fallback if release_notes.md is empty or extraction failed
+          if [ ! -s release_notes.md ]; then
             echo "## What's New" > release_notes.md
             echo "" >> release_notes.md
             echo "Release ${{ steps.version.outputs.version }}" >> release_notes.md
           fi
+
           cat release_notes.md
 
       - name: Create GitHub Release
