@@ -163,13 +163,19 @@ function initializeSession() {
   // Generate unique session ID
   sessionId = randomUUID();
 
-  // Create session log file path
+  // Create session log file path in logs subdirectory
   const userDataDir = app.getPath('userData');
   if (!fs.existsSync(userDataDir)) {
     fs.mkdirSync(userDataDir, { recursive: true });
   }
 
-  sessionLogPath = path.join(userDataDir, `session-${sessionId}.jsonl`);
+  // Create logs directory if it doesn't exist
+  const logsDir = path.join(userDataDir, 'logs');
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+
+  sessionLogPath = path.join(logsDir, `session-${sessionId}.jsonl`);
 
   // Initialize log file as empty (NDJSON format)
   try {
