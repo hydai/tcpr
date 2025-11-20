@@ -72,7 +72,7 @@ When end users run the built application:
 The application loads configuration in the following priority order:
 
 1. Builtin config (from `.secret` build) as the base
-2. User's `.env` file config overrides builtin config
+2. User's `config.json` file config overrides builtin config
 3. Empty values do not override existing config
 
 ### Security Considerations
@@ -166,9 +166,9 @@ npm run build:win  # or build:mac
 
 ## Development Mode
 
-In development mode (`npm run gui:dev`), the application loads the built-in config first (if available), then applies any overrides from the `.env` file. This allows developers to test different credentials without rebuilding, while still using the built-in config as a base.
+In development mode (`npm run gui:dev`), the application loads the built-in config first (if available), then applies any overrides from the `config.json` file. This allows developers to test different credentials without rebuilding, while still using the built-in config as a base.
 
 The configuration loading order is the same in both development and production:
 1. Built-in credentials (from `config/builtin.js`) are loaded first
-2. User's `.env` file values override the built-in values
-3. Empty values in `.env` do not override existing built-in values
+2. User's `config.json` file values override the built-in values
+3. Empty values in `config.json` do not override existing built-in values

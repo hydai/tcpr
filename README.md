@@ -289,7 +289,6 @@ npm install
 # 2. Configure your application credentials
 cp config.example.json config.json
 # Edit config.json and add your TWITCH_CLIENT_ID and TWITCH_CLIENT_SECRET
-# (Alternatively, you can use .env file: cp .env.example .env)
 
 # 3. Start the OAuth server
 npm run oauth
@@ -332,10 +331,6 @@ Visit [StreamWeasels Username to User ID Converter](https://www.streamweasels.co
 
 ### 4. Configure Environment Variables
 
-You can use either a visible `config.json` file (recommended) or the traditional `.env` file:
-
-#### Option A: config.json (Recommended - Visible file)
-
 1. Copy the example configuration file:
    ```bash
    cp config.example.json config.json
@@ -353,34 +348,14 @@ You can use either a visible `config.json` file (recommended) or the traditional
    }
    ```
 
-#### Option B: .env (Traditional - Hidden file)
-
-1. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Edit `.env` and fill in your credentials:
-   ```env
-   # Required for main application
-   TWITCH_CLIENT_ID=your_client_id_here
-   TWITCH_ACCESS_TOKEN=your_access_token_here
-   TWITCH_BROADCASTER_ID=your_broadcaster_id_here
-
-   # Required only for OAuth server (npm run oauth)
-   TWITCH_CLIENT_SECRET=your_client_secret_here
-   REDIRECT_URI=http://localhost:3000/callback
-   PORT=3000
-   ```
-
 **Note:** If you used the OAuth web server (Option A in step 2), you'll already have these values!
 
 #### Configuration Location
 
 For the desktop GUI, configuration is stored in:
-- **Windows**: `%APPDATA%/twitch-channel-points-redemption/config.json` (or `.env`)
-- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/config.json` (or `.env`)
-- **Development**: `<project-root>/config.json` (or `.env`)
+- **Windows**: `%APPDATA%/twitch-channel-points-redemption/config.json`
+- **macOS**: `~/Library/Application Support/twitch-channel-points-redemption/config.json`
+- **Development**: `<project-root>/config.json`
 
 ---
 
@@ -591,7 +566,7 @@ Update UI (Renderer)
 
 ### EventSub Integration
 
-1. **Configuration Loading**: Main process reads `config.json` or `.env` file
+1. **Configuration Loading**: Main process reads `config.json` file
 2. **Process Forking**: EventSub client runs in child process
 3. **Event Streaming**: Events piped to main process via stdout
 4. **Event Broadcasting**: Main process sends events to renderer
@@ -644,14 +619,14 @@ The `channel.channel_points_custom_reward.add` event is triggered when:
 - **Test connection**: Stop and restart monitoring
 
 #### Configuration issues
-- **Reset config**: Delete the `config.json` (or `.env`) file and run the wizard again
+- **Reset config**: Delete the `config.json` file and run the wizard again
 - **Check permissions**: Ensure write access to config directory
 - **Validate manually**: Use `npm run validate` from the command line
 
 ### CLI Mode Issues
 
-#### "Missing required environment variables"
-Ensure your `config.json` or `.env` file exists and contains all required variables.
+#### "Missing required configuration"
+Ensure your `config.json` file exists and contains all required variables.
 
 #### "Failed to subscribe to event: 401"
 Your access token is invalid or expired. Generate a new token with the `channel:read:redemptions` scope.

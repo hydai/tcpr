@@ -1,5 +1,4 @@
-# Environment variables
-.env
+# Configuration files
 config.json
 
 # Secret configuration file (contains sensitive credentials)
