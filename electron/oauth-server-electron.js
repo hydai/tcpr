@@ -169,7 +169,7 @@ export function startOAuthServer(config) {
           }
           if (!existingConfig.PORT) {
             // Ensure PORT is always a valid number
-            const portValue = typeof PORT === 'number' ? PORT : parseInt(PORT, 10);
+            const portValue = parseInt(PORT, 10);
             existingConfig.PORT = isNaN(portValue) ? 3000 : portValue;
           }
 
