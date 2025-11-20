@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
-import { BUILTIN_CONFIG } from '../config/builtin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -317,19 +316,13 @@ async function loadConfig() {
   try {
     const config = {};
 
-    // First, load builtin credentials if available
-    if (BUILTIN_CONFIG.hasBuiltinCredentials) {
-      config.TWITCH_CLIENT_ID = BUILTIN_CONFIG.clientId;
-      config.TWITCH_CLIENT_SECRET = BUILTIN_CONFIG.clientSecret;
-    }
-
-    // Then, load user configuration from config.json file (overrides builtin)
+    // Load user configuration from config.json file
     if (fs.existsSync(configPath)) {
       const content = fs.readFileSync(configPath, 'utf-8');
       const jsonConfig = JSON.parse(content);
 
-      // Merge JSON config into config object
-      // Only override if value is not empty (preserves built-in credentials when config has empty values)
+      // Merge JSON config into config object.
+      // Skip empty values to prevent clearing required configuration.
       for (const [key, value] of Object.entries(jsonConfig)) {
         if (value !== null && value !== undefined && value !== '') {
           config[key] = value;
@@ -355,22 +348,14 @@ ipcMain.handle('config:save', async (event, config) => {
       fs.mkdirSync(userDataDir, { recursive: true });
     }
 
-    // Helper function to determine if a credential should be saved
-    const shouldSaveCredential = (value, builtinValue) =>
-      !BUILTIN_CONFIG.hasBuiltinCredentials || (value && value !== builtinValue);
-
-    // Only save Client ID and Secret if they differ from builtin or if no builtin exists
-    const shouldSaveClientId = shouldSaveCredential(config.TWITCH_CLIENT_ID, BUILTIN_CONFIG.clientId);
-    const shouldSaveClientSecret = shouldSaveCredential(config.TWITCH_CLIENT_SECRET, BUILTIN_CONFIG.clientSecret);
-
     // Build config object
     const configObject = {};
 
-    // Only save Client ID and Secret if they differ from builtin
-    if (shouldSaveClientId && config.TWITCH_CLIENT_ID) {
+    // Save all configuration values
+    if (config.TWITCH_CLIENT_ID) {
       configObject.TWITCH_CLIENT_ID = config.TWITCH_CLIENT_ID;
     }
-    if (shouldSaveClientSecret && config.TWITCH_CLIENT_SECRET) {
+    if (config.TWITCH_CLIENT_SECRET) {
       configObject.TWITCH_CLIENT_SECRET = config.TWITCH_CLIENT_SECRET;
     }
 
