@@ -115,7 +115,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           # Match prerelease versions: alpha, beta, rc (with optional numbers)
-          if [[ "$VERSION" =~ -(alpha|beta|rc)[0-9]* ]]; then
+          if [[ "$VERSION" =~ -(alpha|beta|rc)([0-9]+)? ]]; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "This is a prerelease version"
           else
@@ -129,7 +129,7 @@ jobs:
           if [ -f CHANGELOG.md ]; then
             # Extract the latest version's changelog (using version without 'v' prefix)
             # Step 1: Find the line number where the current version's changelog starts
-            start_line=$(grep -n "^## \[${{ steps.version.outputs.version_no_v }}\]" CHANGELOG.md | head -n1 | cut -d: -f1)
+            start_line=$(grep -Fn "## [${{ steps.version.outputs.version_no_v }}]" CHANGELOG.md | head -n1 | cut -d: -f1)
 
             if [ -n "$start_line" ]; then
               # Step 2: Find the line number where the next version's changelog starts (after the current one)
@@ -159,7 +159,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@5e4e7c60e1c6e0e66980b9dcd51cb07cdbcdaadb  # v2.2.0
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
