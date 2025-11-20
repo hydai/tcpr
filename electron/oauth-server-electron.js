@@ -168,7 +168,9 @@ export function startOAuthServer(config) {
             existingConfig.REDIRECT_URI = REDIRECT_URI;
           }
           if (!existingConfig.PORT) {
-            existingConfig.PORT = PORT;
+            // Ensure PORT is always a valid number
+            const portValue = typeof PORT === 'number' ? PORT : parseInt(PORT, 10);
+            existingConfig.PORT = isNaN(portValue) ? 3000 : portValue;
           }
 
           // Add comment
