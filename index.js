@@ -145,7 +145,7 @@ class TwitchEventSubClient {
     try {
       const subscription = await this.subscriber.subscribe(
         {
-          type: EVENT_TYPES.REWARD_ADD,
+          type: EVENT_TYPES.REDEMPTION_ADD,
           version: '1',
           condition: {
             broadcaster_user_id: this.broadcasterId
@@ -154,7 +154,7 @@ class TwitchEventSubClient {
         this.sessionId
       );
 
-      Logger.log('\nWaiting for custom reward creation events...\n');
+      Logger.log('\nWaiting for channel point reward redemption events...\n');
     } catch (error) {
       Logger.error('Failed to subscribe:', error);
       process.exit(1);
