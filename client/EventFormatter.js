@@ -77,8 +77,13 @@ export class EventFormatter {
    */
   static formatRedemption(event) {
     const details = {
+      'Redemption ID': event.id,
       'Redeemer': `${event.user_name} (${event.user_login})`,
+      'Redeemer User ID': event.user_id,
+      'Broadcaster': `${event.broadcaster_user_name} (${event.broadcaster_user_login})`,
+      'Broadcaster User ID': event.broadcaster_user_id,
       'Reward': event.reward.title,
+      'Reward ID': event.reward.id,
       'Cost': `${event.reward.cost} points`,
       'Status': event.status,
       'Redeemed At': event.redeemed_at
