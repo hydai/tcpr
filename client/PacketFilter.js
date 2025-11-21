@@ -10,7 +10,7 @@ import { MESSAGE_TYPES, EVENT_TYPES } from '../config/constants.js';
 /**
  * Filter options configuration
  * @typedef {Object} FilterOptions
- * @property {boolean} allowKeepalive - Whether to allow keepalive messages through the filter for processing (default: true)
+ * @property {boolean} allowKeepalive - Whether to allow keepalive messages to pass through the filter for processing and logging (default: true)
  * @property {boolean} allowRewardAdd - Whether to allow reward add events through the filter for processing (default: true)
  * @property {boolean} allowRewardUpdate - Whether to allow reward update events through the filter for processing (default: true)
  * @property {boolean} allowRedemptionAdd - Whether to allow redemption add events through the filter for processing (default: true)

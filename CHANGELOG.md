@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Enable keepalive message logging by default to provide more detailed connection monitoring and analysis
+- Allow keepalive messages through the packet filter by default (enabling their processing and logging) to provide more detailed connection monitoring and analysis
 
 ---
 
