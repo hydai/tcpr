@@ -9,9 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2025-11-21
+
+### Fixed
+- Subscribe to redemption events (`channel.channel_points_custom_reward_redemption.add`) instead of reward creation events for proper channel points monitoring
+- Update error messages to reference `config.json` instead of environment variables for clarity
+
 ### Changed
 - OAuth token refresh polling now starts immediately instead of after 1-second delay for better responsiveness
 - Message formatting moved from JavaScript code to translation files for better internationalization
+- Remove all dotenv references from codebase in favor of `config.json` configuration
 
 ### Added
 
