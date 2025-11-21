@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Enable keepalive message logging by default to provide more detailed connection monitoring and analysis
+
 ---
 
 ## [1.1.0] - 2025-11-21
