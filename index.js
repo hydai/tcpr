@@ -39,7 +39,7 @@ class TwitchEventSubClient {
     let clientId, clientSecret, accessToken, refreshToken, broadcasterId;
 
     // Support both object-style and positional parameters
-    if (typeof arg1 === 'object' && arg1 !== null && 'clientId' in arg1) {
+    if (typeof arg1 === 'object' && arg1 !== null && Object.hasOwn(arg1, 'clientId')) {
       // Object style (new)
       ({ clientId, clientSecret, accessToken, refreshToken, broadcasterId } = arg1);
     } else {
