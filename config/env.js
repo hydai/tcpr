@@ -23,6 +23,7 @@ export class Config {
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
       accessToken: process.env.TWITCH_ACCESS_TOKEN,
       broadcasterId: process.env.TWITCH_BROADCASTER_ID,
+      refreshToken: process.env.TWITCH_REFRESH_TOKEN,
       redirectUri: process.env.REDIRECT_URI || DEFAULTS.REDIRECT_URI,
       port: process.env.PORT ? parseInt(process.env.PORT, 10) : DEFAULTS.PORT
     };
@@ -142,6 +143,7 @@ export class Config {
       clientSecret: 'TWITCH_CLIENT_SECRET',
       accessToken: 'TWITCH_ACCESS_TOKEN',
       broadcasterId: 'TWITCH_BROADCASTER_ID',
+      refreshToken: 'TWITCH_REFRESH_TOKEN',
       redirectUri: 'REDIRECT_URI',
       port: 'PORT'
     };
