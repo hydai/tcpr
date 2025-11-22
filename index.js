@@ -273,9 +273,41 @@ class TwitchEventSubClient {
       this.tokenRefreshTimer.unref();
     };
 
-    // Start the first run immediately to ensure token is fresh
-    // This handles cases where token may be close to expiration on session start
-    scheduleNextRefresh();
+    // Check if token needs immediate refresh based on expiration time
+    this.checkAndScheduleRefresh(scheduleNextRefresh);
+  }
+
+  /**
+   * Check token expiration and schedule refresh appropriately
+   * @param {Function} scheduleNextRefresh - Function to call for refresh
+   */
+  async checkAndScheduleRefresh(scheduleNextRefresh) {
+    try {
+      const tokenData = await TokenValidator.quickCheck(this.accessToken);
+
+      if (tokenData && tokenData.expires_in) {
+        const expiresInMs = tokenData.expires_in * 1000;
+
+        // If token expires within the refresh interval, refresh immediately
+        if (expiresInMs <= TOKEN_REFRESH_INTERVAL_MS) {
+          Logger.info(`Token expires in ${Math.round(tokenData.expires_in / 60)} minutes, refreshing now...`);
+          scheduleNextRefresh();
+        } else {
+          // Token is fresh enough, schedule next refresh after interval
+          Logger.info(`Token valid for ${Math.round(tokenData.expires_in / 3600)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
+          this.tokenRefreshTimer = setTimeout(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
+          this.tokenRefreshTimer.unref();
+        }
+      } else {
+        // Couldn't check expiration, refresh immediately to be safe
+        Logger.warn('Could not check token expiration, refreshing now...');
+        scheduleNextRefresh();
+      }
+    } catch (error) {
+      // On error, refresh immediately to be safe
+      Logger.warn('Error checking token expiration, refreshing now...');
+      scheduleNextRefresh();
+    }
   }
 
   /**
@@ -339,7 +371,7 @@ class TwitchEventSubClient {
     const errorInfo = TokenRefresher.formatError(lastError);
     errorInfo.solution.forEach(line => Logger.log(`  ${line}`));
 
-    this._consecutiveRefreshFailures = (this._consecutiveRefreshFailures || 0) + 1;
+    this._consecutiveRefreshFailures++;
     if (this._consecutiveRefreshFailures >= 3) {
       Logger.warn(`Token refresh has failed ${this._consecutiveRefreshFailures} consecutive times. Token may expire soon.`);
     }
