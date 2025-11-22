@@ -32,6 +32,15 @@ export class EventSubSubscriber {
   }
 
   /**
+   * Update the access token used for API requests
+   * This preserves existing subscriptions and state
+   * @param {string} newAccessToken - New access token
+   */
+  updateToken(newAccessToken) {
+    this.accessToken = newAccessToken;
+  }
+
+  /**
    * Subscribe to an EventSub event
    * @param {SubscriptionConfig} config - Subscription configuration
    * @param {string} sessionId - WebSocket session ID

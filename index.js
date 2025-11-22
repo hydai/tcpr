@@ -72,6 +72,7 @@ class TwitchEventSubClient {
     this.broadcasterId = broadcasterId;
     this.sessionId = null;
     this.tokenRefreshTimer = null;
+    this._consecutiveRefreshFailures = 0;
 
     // Initialize WebSocket manager
     this.wsManager = new WebSocketManager({
@@ -272,9 +273,9 @@ class TwitchEventSubClient {
       this.tokenRefreshTimer.unref();
     };
 
-    // Start the first run after the interval
-    this.tokenRefreshTimer = setTimeout(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
-    this.tokenRefreshTimer.unref();
+    // Start the first run immediately to ensure token is fresh
+    // This handles cases where token may be close to expiration on session start
+    scheduleNextRefresh();
   }
 
   /**
@@ -313,8 +314,8 @@ class TwitchEventSubClient {
         this.accessToken = newTokens.accessToken;
         this.refreshToken = newTokens.refreshToken;
 
-        // Update the subscriber with the new access token
-        this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
+        // Update the subscriber's token (preserves existing subscriptions)
+        this.subscriber.updateToken(this.accessToken);
 
         // Update environment variables
         TokenRefresher.updateEnvironment(newTokens);
