@@ -18,15 +18,38 @@ loadConfig();
 class TwitchEventSubClient {
   /**
    * Create a new TwitchEventSubClient
+   * Supports both object-style and positional parameters for backward compatibility.
+   *
+   * Object style (recommended):
    * @param {Object} config - Configuration object
    * @param {string} config.clientId - Twitch client ID (required)
    * @param {string} config.clientSecret - Twitch client secret (optional, for token refresh)
    * @param {string} config.accessToken - Twitch access token (required)
    * @param {string} config.refreshToken - Twitch refresh token (optional, for token refresh)
    * @param {string} config.broadcasterId - Broadcaster user ID (required)
+   *
+   * Positional style (legacy, deprecated):
+   * @param {string} clientId - Twitch client ID
+   * @param {string} accessToken - Twitch access token
+   * @param {string} broadcasterId - Broadcaster user ID
+   *
    * @throws {Error} If required parameters are missing
    */
-  constructor({ clientId, clientSecret, accessToken, refreshToken, broadcasterId }) {
+  constructor(arg1, arg2, arg3) {
+    let clientId, clientSecret, accessToken, refreshToken, broadcasterId;
+
+    // Support both object-style and positional parameters
+    if (typeof arg1 === 'object' && arg1 !== null && 'clientId' in arg1) {
+      // Object style (new)
+      ({ clientId, clientSecret, accessToken, refreshToken, broadcasterId } = arg1);
+    } else {
+      // Positional style (legacy) - clientId, accessToken, broadcasterId
+      clientId = arg1;
+      accessToken = arg2;
+      broadcasterId = arg3;
+      // Note: clientSecret and refreshToken not available in legacy style
+    }
+
     // Validate required parameters
     if (!clientId) {
       throw new Error('Missing required parameter: clientId. Ensure TWITCH_CLIENT_ID is set in config.json');
@@ -150,7 +173,7 @@ class TwitchEventSubClient {
       await TokenValidator.validate(this.accessToken, this.broadcasterId);
       return true;
     } catch (error) {
-      Logger.error('Token validation failed:', error.message);
+      Logger.error('Token validation failed:', error?.message || String(error));
 
       // Attempt to refresh the token if we have refresh credentials
       if (this.refreshToken && this.clientSecret) {
@@ -180,7 +203,7 @@ class TwitchEventSubClient {
           Logger.success('Token refreshed successfully!');
           return true;
         } catch (refreshError) {
-          Logger.error('Token refresh failed:', refreshError.message);
+          Logger.error('Token refresh failed:', refreshError?.message || String(refreshError));
           const errorInfo = TokenRefresher.formatError(refreshError);
           errorInfo.solution.forEach(line => Logger.log(`  ${line}`));
         }
