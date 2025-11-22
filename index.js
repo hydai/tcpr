@@ -29,13 +29,13 @@ class TwitchEventSubClient {
   constructor({ clientId, clientSecret, accessToken, refreshToken, broadcasterId }) {
     // Validate required parameters
     if (!clientId) {
-      throw new Error('Missing required parameter: clientId');
+      throw new Error('Missing required parameter: clientId. Ensure TWITCH_CLIENT_ID is set in config.json');
     }
     if (!accessToken) {
-      throw new Error('Missing required parameter: accessToken');
+      throw new Error('Missing required parameter: accessToken. Ensure TWITCH_ACCESS_TOKEN is set in config.json');
     }
     if (!broadcasterId) {
-      throw new Error('Missing required parameter: broadcasterId');
+      throw new Error('Missing required parameter: broadcasterId. Ensure TWITCH_BROADCASTER_ID is set in config.json');
     }
 
     this.clientId = clientId;
