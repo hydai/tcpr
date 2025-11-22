@@ -2,6 +2,7 @@ import { loadConfig } from './config/loader.js';
 import { EVENT_TYPES, MESSAGE_TYPES } from './config/constants.js';
 import { Config } from './config/env.js';
 import { TokenValidator } from './lib/tokenValidator.js';
+import { TokenRefresher } from './lib/TokenRefresher.js';
 import { Logger } from './lib/logger.js';
 import { WebSocketManager } from './client/WebSocketManager.js';
 import { EventSubSubscriber } from './client/EventSubSubscriber.js';
@@ -17,13 +18,18 @@ loadConfig();
 class TwitchEventSubClient {
   /**
    * Create a new TwitchEventSubClient
-   * @param {string} clientId - Twitch client ID
-   * @param {string} accessToken - Twitch access token
-   * @param {string} broadcasterId - Broadcaster user ID
+   * @param {Object} config - Configuration object
+   * @param {string} config.clientId - Twitch client ID
+   * @param {string} config.clientSecret - Twitch client secret (for token refresh)
+   * @param {string} config.accessToken - Twitch access token
+   * @param {string} config.refreshToken - Twitch refresh token (for token refresh)
+   * @param {string} config.broadcasterId - Broadcaster user ID
    */
-  constructor(clientId, accessToken, broadcasterId) {
+  constructor({ clientId, clientSecret, accessToken, refreshToken, broadcasterId }) {
     this.clientId = clientId;
+    this.clientSecret = clientSecret;
     this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
     this.broadcasterId = broadcasterId;
     this.sessionId = null;
 
@@ -124,15 +130,56 @@ class TwitchEventSubClient {
   }
 
   /**
-   * Validate access token
-   * @returns {Promise<boolean>} True if valid
+   * Validate access token, attempting refresh if validation fails
+   * @returns {Promise<boolean>} True if valid (or successfully refreshed)
    */
   async validateToken() {
     try {
       await TokenValidator.validate(this.accessToken, this.broadcasterId);
       return true;
     } catch (error) {
-      Logger.error('Token validation failed:', error);
+      Logger.error('Token validation failed:', error.message);
+
+      // Attempt to refresh the token if we have refresh credentials
+      if (this.refreshToken && this.clientSecret) {
+        Logger.info('Attempting to refresh token...');
+
+        try {
+          const newTokens = await TokenRefresher.refreshAndSave({
+            refreshToken: this.refreshToken,
+            clientId: this.clientId,
+            clientSecret: this.clientSecret
+          });
+
+          // Update instance with new tokens
+          this.accessToken = newTokens.accessToken;
+          this.refreshToken = newTokens.refreshToken;
+
+          // Update the subscriber with new access token
+          this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
+
+          // Update environment variables
+          TokenRefresher.updateEnvironment(newTokens);
+
+          // Validate the new token
+          await TokenValidator.validate(this.accessToken, this.broadcasterId);
+          Logger.success('Token refreshed and validated successfully!');
+          return true;
+        } catch (refreshError) {
+          Logger.error('Token refresh failed:', refreshError.message);
+          const errorInfo = TokenRefresher.formatError(refreshError);
+          errorInfo.solution.forEach(line => Logger.log(`  ${line}`));
+        }
+      } else {
+        if (!this.refreshToken) {
+          Logger.warn('No refresh token available - cannot auto-refresh');
+        }
+        if (!this.clientSecret) {
+          Logger.warn('No client secret available - cannot auto-refresh');
+        }
+        Logger.log('💡 Add TWITCH_REFRESH_TOKEN and TWITCH_CLIENT_SECRET to config.json for auto-refresh');
+      }
+
       return false;
     }
   }
@@ -223,13 +270,20 @@ async function main() {
 
     Logger.log('Starting Twitch EventSub WebSocket Client...');
     Logger.log(`Broadcaster ID: ${config.broadcasterId}`);
+    if (config.refreshToken && config.clientSecret) {
+      Logger.log('Auto token refresh: enabled');
+    } else {
+      Logger.log('Auto token refresh: disabled (missing refresh token or client secret)');
+    }
     Logger.divider('─', 60);
 
-    const client = new TwitchEventSubClient(
-      config.clientId,
-      config.accessToken,
-      config.broadcasterId
-    );
+    const client = new TwitchEventSubClient({
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      accessToken: config.accessToken,
+      refreshToken: config.refreshToken,
+      broadcasterId: config.broadcasterId
+    });
 
     await client.connect();
 

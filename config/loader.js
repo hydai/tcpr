@@ -17,6 +17,7 @@ const CONFIG_MAPPING = [
   { key: 'TWITCH_CLIENT_SECRET', env: 'TWITCH_CLIENT_SECRET' },
   { key: 'TWITCH_ACCESS_TOKEN', env: 'TWITCH_ACCESS_TOKEN' },
   { key: 'TWITCH_BROADCASTER_ID', env: 'TWITCH_BROADCASTER_ID' },
+  { key: 'TWITCH_REFRESH_TOKEN', env: 'TWITCH_REFRESH_TOKEN' },
   { key: 'REDIRECT_URI', env: 'REDIRECT_URI' },
   { key: 'PORT', env: 'PORT' }
 ];
