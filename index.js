@@ -198,7 +198,14 @@ class TwitchEventSubClient {
 
           // Replace subscriber with new access token
           // Defensive check: warn if subscriptions exist (shouldn't happen in normal flow)
-          const existingSubscriptions = this.subscriber.getSubscriptionCount();
+          let existingSubscriptions = 0;
+          if (this.subscriber && typeof this.subscriber.getSubscriptionCount === 'function') {
+            try {
+              existingSubscriptions = this.subscriber.getSubscriptionCount();
+            } catch {
+              // Ignore errors - this is just a defensive check
+            }
+          }
           if (existingSubscriptions > 0) {
             Logger.warn(`Replacing subscriber with ${existingSubscriptions} existing subscription(s) - they will be lost`);
           }
