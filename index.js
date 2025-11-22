@@ -176,9 +176,8 @@ class TwitchEventSubClient {
           // Update environment variables
           TokenRefresher.updateEnvironment(newTokens);
 
-          // Validate the new token
-          await TokenValidator.validate(this.accessToken, this.broadcasterId);
-          Logger.success('Token refreshed and validated successfully!');
+          // Token is already validated by Twitch during the refresh operation
+          Logger.success('Token refreshed successfully!');
           return true;
         } catch (refreshError) {
           Logger.error('Token refresh failed:', refreshError.message);
