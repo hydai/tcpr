@@ -19,13 +19,25 @@ class TwitchEventSubClient {
   /**
    * Create a new TwitchEventSubClient
    * @param {Object} config - Configuration object
-   * @param {string} config.clientId - Twitch client ID
-   * @param {string} config.clientSecret - Twitch client secret (for token refresh)
-   * @param {string} config.accessToken - Twitch access token
-   * @param {string} config.refreshToken - Twitch refresh token (for token refresh)
-   * @param {string} config.broadcasterId - Broadcaster user ID
+   * @param {string} config.clientId - Twitch client ID (required)
+   * @param {string} config.clientSecret - Twitch client secret (optional, for token refresh)
+   * @param {string} config.accessToken - Twitch access token (required)
+   * @param {string} config.refreshToken - Twitch refresh token (optional, for token refresh)
+   * @param {string} config.broadcasterId - Broadcaster user ID (required)
+   * @throws {Error} If required parameters are missing
    */
   constructor({ clientId, clientSecret, accessToken, refreshToken, broadcasterId }) {
+    // Validate required parameters
+    if (!clientId) {
+      throw new Error('Missing required parameter: clientId');
+    }
+    if (!accessToken) {
+      throw new Error('Missing required parameter: accessToken');
+    }
+    if (!broadcasterId) {
+      throw new Error('Missing required parameter: broadcasterId');
+    }
+
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.accessToken = accessToken;
@@ -155,7 +167,10 @@ class TwitchEventSubClient {
           this.accessToken = newTokens.accessToken;
           this.refreshToken = newTokens.refreshToken;
 
-          // Update the subscriber with new access token
+          // Replace subscriber with new access token
+          // Note: This is safe because validateToken() is called during handleWelcome(),
+          // which happens BEFORE subscribeToEvents(). At this point, no subscriptions
+          // have been created yet, so there's no state to preserve or clean up.
           this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
 
           // Update environment variables
