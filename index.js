@@ -12,6 +12,10 @@ import { PacketFilter } from './client/PacketFilter.js';
 // Load configuration from config.json
 loadConfig();
 
+// Token refresh interval: 1 hour (in milliseconds)
+// Twitch tokens expire after ~4 hours, so refreshing every hour keeps us ahead
+const TOKEN_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+
 /**
  * Main EventSub client class
  */
@@ -67,6 +71,7 @@ class TwitchEventSubClient {
     this.refreshToken = refreshToken;
     this.broadcasterId = broadcasterId;
     this.sessionId = null;
+    this.tokenRefreshTimer = null;
 
     // Initialize WebSocket manager
     this.wsManager = new WebSocketManager({
@@ -168,6 +173,9 @@ class TwitchEventSubClient {
 
     // Subscribe to channel points custom reward add event
     await this.subscribeToEvents();
+
+    // Start periodic token refresh to prevent expiration during active sessions
+    this.startTokenRefreshTimer();
   }
 
   /**
@@ -233,6 +241,75 @@ class TwitchEventSubClient {
       }
 
       return false;
+    }
+  }
+
+  /**
+   * Start periodic token refresh timer
+   * Refreshes token every hour to prevent expiration during active sessions
+   */
+  startTokenRefreshTimer() {
+    // Only start if we have refresh credentials
+    if (!this.refreshToken || !this.clientSecret) {
+      Logger.info('Token refresh timer not started (missing refresh credentials)');
+      return;
+    }
+
+    // Clear any existing timer
+    this.stopTokenRefreshTimer();
+
+    Logger.info(`Starting token refresh timer (interval: ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes)`);
+
+    this.tokenRefreshTimer = setInterval(async () => {
+      await this.refreshTokenPeriodically();
+    }, TOKEN_REFRESH_INTERVAL_MS);
+
+    // Don't prevent process exit
+    this.tokenRefreshTimer.unref();
+  }
+
+  /**
+   * Stop the periodic token refresh timer
+   */
+  stopTokenRefreshTimer() {
+    if (this.tokenRefreshTimer) {
+      clearInterval(this.tokenRefreshTimer);
+      this.tokenRefreshTimer = null;
+    }
+  }
+
+  /**
+   * Perform periodic token refresh
+   * Called by the refresh timer to proactively renew tokens before expiration
+   */
+  async refreshTokenPeriodically() {
+    Logger.info('Periodic token refresh: checking token...');
+
+    try {
+      const newTokens = await TokenRefresher.refreshAndSave({
+        refreshToken: this.refreshToken,
+        clientId: this.clientId,
+        clientSecret: this.clientSecret
+      });
+
+      // Update instance with new tokens
+      this.accessToken = newTokens.accessToken;
+      this.refreshToken = newTokens.refreshToken;
+
+      // Update the subscriber with the new access token
+      this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
+
+      // Update environment variables
+      TokenRefresher.updateEnvironment(newTokens);
+
+      Logger.success('Periodic token refresh completed successfully');
+    } catch (error) {
+      Logger.error('Periodic token refresh failed:', error?.message || String(error));
+      const errorInfo = TokenRefresher.formatError(error);
+      errorInfo.solution.forEach(line => Logger.log(`  ${line}`));
+
+      // Don't exit on periodic refresh failure - the token might still be valid
+      // The next refresh attempt will try again
     }
   }
 
@@ -308,6 +385,7 @@ class TwitchEventSubClient {
    * Disconnect from EventSub
    */
   disconnect() {
+    this.stopTokenRefreshTimer();
     this.wsManager.disconnect();
   }
 }
