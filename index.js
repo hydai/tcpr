@@ -146,13 +146,19 @@ class TwitchEventSubClient {
 
   /**
    * Handle session welcome message
+   *
+   * IMPORTANT: The order of operations here matters for token refresh safety.
+   * validateToken() must be called BEFORE subscribeToEvents() because token
+   * refresh may replace the subscriber instance. If subscriptions existed,
+   * they would be lost during replacement.
+   *
    * @param {Object} payload - Welcome message payload
    */
   async handleWelcome(payload) {
     this.sessionId = payload.session.id;
     EventFormatter.formatWelcome(payload.session);
 
-    // Validate token before subscribing
+    // Validate token before subscribing (order matters - see JSDoc above)
     const isValid = await this.validateToken();
     if (!isValid) {
       Logger.error('Token validation failed. Exiting...');
@@ -191,9 +197,11 @@ class TwitchEventSubClient {
           this.refreshToken = newTokens.refreshToken;
 
           // Replace subscriber with new access token
-          // Note: This is safe because validateToken() is called during handleWelcome(),
-          // which happens BEFORE subscribeToEvents(). At this point, no subscriptions
-          // have been created yet, so there's no state to preserve or clean up.
+          // Defensive check: warn if subscriptions exist (shouldn't happen in normal flow)
+          const existingSubscriptions = this.subscriber.getSubscriptionCount();
+          if (existingSubscriptions > 0) {
+            Logger.warn(`Replacing subscriber with ${existingSubscriptions} existing subscription(s) - they will be lost`);
+          }
           this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
 
           // Update environment variables
