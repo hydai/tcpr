@@ -363,9 +363,7 @@ ipcMain.handle('config:save', async (event, config) => {
     configObject.TWITCH_BROADCASTER_ID = config.TWITCH_BROADCASTER_ID || '';
 
     // Save refresh token for auto-refresh functionality
-    if (config.TWITCH_REFRESH_TOKEN) {
-      configObject.TWITCH_REFRESH_TOKEN = config.TWITCH_REFRESH_TOKEN;
-    }
+    configObject.TWITCH_REFRESH_TOKEN = config.TWITCH_REFRESH_TOKEN || '';
 
     configObject.REDIRECT_URI = config.REDIRECT_URI || 'http://localhost:3000/callback';
 
