@@ -19,6 +19,11 @@ const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
 const TOKEN_REFRESH_INTERVAL_MINUTES = TOKEN_REFRESH_INTERVAL_MS / 1000 / SECONDS_PER_MINUTE;
 
+// Retry configuration for token refresh
+const MAX_REFRESH_ATTEMPTS = 3; // Total attempts per refresh cycle: 1 initial + 2 retries
+const INITIAL_RETRY_BACKOFF_MS = 1000; // Starting backoff delay for retries
+const MAX_CONSECUTIVE_FAILURES = 3; // Warn user after this many consecutive refresh failures
+
 /**
  * Main EventSub client class
  */
@@ -278,7 +283,10 @@ class TwitchEventSubClient {
         Logger.error('Unexpected error in token refresh:', error?.message || String(error));
       }
       // Schedule next run only after previous completes (always, even on error)
-      this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
+      // Check if timer was stopped during refresh to avoid rescheduling after stop
+      if (this.tokenRefreshTimer !== null) {
+        this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
+      }
     };
 
     // Check if token needs immediate refresh based on expiration time
@@ -299,7 +307,7 @@ class TwitchEventSubClient {
 
   /**
    * Check token expiration and schedule refresh appropriately
-   * @param {Function} scheduleNextRefresh - Function to call for refresh
+   * @param {Function} scheduleNextRefresh - Function to call for subsequent refreshes
    */
   async checkAndScheduleRefresh(scheduleNextRefresh) {
     try {
@@ -312,7 +320,9 @@ class TwitchEventSubClient {
         if (expiresInMs <= TOKEN_REFRESH_INTERVAL_MS) {
           // Use minutes for short durations (more precise than "0 hours")
           Logger.info(`Token expires in ${Math.round(tokenData.expires_in / SECONDS_PER_MINUTE)} minutes, refreshing now...`);
-          await scheduleNextRefresh();
+          // Refresh directly, then schedule next refresh (avoid double scheduling)
+          await this.refreshTokenPeriodically();
+          this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
         } else {
           // Use hours for longer durations (more readable)
           Logger.info(`Token valid for ${Math.round(tokenData.expires_in / SECONDS_PER_HOUR)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MINUTES} minutes`);
@@ -321,12 +331,14 @@ class TwitchEventSubClient {
       } else {
         // Couldn't check expiration, refresh immediately to be safe
         Logger.warn('Could not check token expiration, refreshing now...');
-        await scheduleNextRefresh();
+        await this.refreshTokenPeriodically();
+        this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
       }
     } catch (error) {
       // On error, refresh immediately to be safe
       Logger.warn('Error checking token expiration, refreshing now...');
-      await scheduleNextRefresh();
+      await this.refreshTokenPeriodically();
+      this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
     }
   }
 
@@ -348,13 +360,10 @@ class TwitchEventSubClient {
   async refreshTokenPeriodically() {
     Logger.info('Periodic token refresh: checking token...');
 
-    const MAX_RETRIES = 3;
-    const INITIAL_BACKOFF_MS = 1000;
-
     let attempt = 0;
     let lastError = null;
 
-    while (attempt < MAX_RETRIES) {
+    while (attempt < MAX_REFRESH_ATTEMPTS) {
       try {
         const newTokens = await TokenRefresher.refreshAndSave({
           refreshToken: this.refreshToken,
@@ -378,22 +387,22 @@ class TwitchEventSubClient {
       } catch (error) {
         lastError = error;
         attempt++;
-        if (attempt < MAX_RETRIES) {
-          // Exponential backoff: 1s, 2s, 4s for attempts 1, 2, 3
-          const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1);
+        if (attempt < MAX_REFRESH_ATTEMPTS) {
+          // Exponential backoff: 1s after 1st failure, 2s after 2nd failure
+          const backoffMs = INITIAL_RETRY_BACKOFF_MS * Math.pow(2, attempt - 1);
           Logger.warn(`Token refresh attempt ${attempt} failed. Retrying in ${backoffMs / 1000}s...`);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
       }
     }
 
-    // All retries exhausted
+    // All attempts exhausted
     Logger.error('Periodic token refresh failed after multiple attempts:', lastError?.message || String(lastError));
     const errorInfo = TokenRefresher.formatError(lastError);
     errorInfo.solution.forEach(line => Logger.log(`  ${line}`));
 
     this._consecutiveRefreshFailures++;
-    if (this._consecutiveRefreshFailures >= 3) {
+    if (this._consecutiveRefreshFailures >= MAX_CONSECUTIVE_FAILURES) {
       Logger.warn(`Token refresh has failed ${this._consecutiveRefreshFailures} consecutive times. Token may expire soon.`);
     }
   }
