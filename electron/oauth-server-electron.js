@@ -64,8 +64,9 @@ function saveTokensToConfigFile({ configPath, tokens, userInfo, oauthConfig }) {
   }
   if (!existingConfig.PORT) {
     // Ensure PORT is always a valid number
-    const portValue = parseInt(oauthConfig.port, 10);
-    existingConfig.PORT = isNaN(portValue) ? 3000 : portValue;
+    const DEFAULT_PORT = 3000;
+    const portValue = parseInt(oauthConfig.port || DEFAULT_PORT, 10);
+    existingConfig.PORT = isNaN(portValue) ? DEFAULT_PORT : portValue;
   }
 
   // Write back to file as JSON
