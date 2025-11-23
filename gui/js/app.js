@@ -1068,6 +1068,12 @@ async function confirmDeleteLogs() {
     if (result.success) {
       if (result.deletedCount === 0) {
         showNotification('info', t('modal.notification.infoTitle'), t('messages.logs.noLogsToDelete'));
+      } else if (result.errors && result.errors.length > 0) {
+        // Partial success - some files deleted but with errors
+        showNotification('info', t('modal.notification.infoTitle'), t('messages.logs.deletePartialSuccess', {
+          count: result.deletedCount,
+          errorCount: result.errors.length
+        }));
       } else {
         showNotification('success', t('modal.notification.successTitle'), t('messages.logs.deleteSuccess', { count: result.deletedCount }));
       }
@@ -1076,7 +1082,7 @@ async function confirmDeleteLogs() {
     }
   } catch (error) {
     console.error('Error deleting logs:', error);
-    showNotification('error', t('modal.notification.errorTitle'), t('messages.logs.deleteFailed', { error: error.message || 'Unknown error occurred' }));
+    showNotification('error', t('modal.notification.errorTitle'), t('messages.logs.deleteFailed', { error: error.message || t('messages.logs.unknownError') }));
   }
 }
 

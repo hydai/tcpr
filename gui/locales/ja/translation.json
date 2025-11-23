@@ -242,8 +242,10 @@
     },
     "logs": {
       "deleteSuccess": "{{count}}件のログファイルを正常に削除しました。",
+      "deletePartialSuccess": "{{count}}件のログファイルを削除しましたが、{{errorCount}}件のエラーが発生しました。一部のファイルを削除できませんでした。",
       "deleteFailed": "ログの削除に失敗しました：{{error}}",
-      "noLogsToDelete": "削除するログファイルがありません。"
+      "noLogsToDelete": "削除するログファイルがありません。",
+      "unknownError": "不明なエラーが発生しました"
     }
   }
 }

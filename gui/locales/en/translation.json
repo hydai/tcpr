@@ -242,8 +242,10 @@
     },
     "logs": {
       "deleteSuccess": "Successfully deleted {{count}} log file(s).",
+      "deletePartialSuccess": "Deleted {{count}} log file(s) with {{errorCount}} error(s). Some files could not be deleted.",
       "deleteFailed": "Failed to delete logs: {{error}}",
-      "noLogsToDelete": "No log files to delete."
+      "noLogsToDelete": "No log files to delete.",
+      "unknownError": "Unknown error occurred"
     }
   }
 }
