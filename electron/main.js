@@ -404,6 +404,32 @@ ipcMain.handle('token:validate', async (event, accessToken) => {
   }
 });
 
+// Get token expiration info
+ipcMain.handle('token:getExpiry', async () => {
+  try {
+    // Load current configuration
+    const configResult = await loadConfig();
+    if (!configResult.success || !configResult.config.TWITCH_ACCESS_TOKEN) {
+      return { success: false, error: 'No access token configured' };
+    }
+
+    const { TokenValidator } = await import('../lib/tokenValidator.js');
+    const result = await TokenValidator.quickCheck(configResult.config.TWITCH_ACCESS_TOKEN);
+
+    if (result && result.expires_in !== undefined) {
+      return {
+        success: true,
+        expiresIn: result.expires_in, // seconds until expiration
+        expiresAt: Date.now() + (result.expires_in * 1000) // absolute timestamp
+      };
+    } else {
+      return { success: false, error: 'Unable to get token expiration info' };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Start OAuth server
 ipcMain.handle('oauth:start', async (event, port = 3000) => {
   try {
