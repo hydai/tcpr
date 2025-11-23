@@ -15,6 +15,9 @@ loadConfig();
 // Token refresh interval: 1 hour (in milliseconds)
 // Twitch tokens expire after ~4 hours, so refreshing every hour keeps us ahead
 const TOKEN_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+const TOKEN_REFRESH_INTERVAL_MINUTES = TOKEN_REFRESH_INTERVAL_MS / 1000 / SECONDS_PER_MINUTE;
 
 /**
  * Main EventSub client class
@@ -263,7 +266,7 @@ class TwitchEventSubClient {
     // Reset consecutive failure counter
     this._consecutiveRefreshFailures = 0;
 
-    Logger.info(`Starting token refresh timer (interval: ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes)`);
+    Logger.info(`Starting token refresh timer (interval: ${TOKEN_REFRESH_INTERVAL_MINUTES} minutes)`);
 
     // Use recursive setTimeout to prevent overlapping executions
     // Wrapped in try-catch to ensure timer chain continues even on errors
@@ -289,6 +292,8 @@ class TwitchEventSubClient {
    */
   scheduleRefreshTimer(callback, delay) {
     this.tokenRefreshTimer = setTimeout(callback, delay);
+    // Allow the Node.js process to exit even if the timer is active.
+    // This prevents the timer from keeping the process alive unnecessarily.
     this.tokenRefreshTimer.unref();
   }
 
@@ -305,11 +310,12 @@ class TwitchEventSubClient {
 
         // If token expires within the refresh interval, refresh immediately
         if (expiresInMs <= TOKEN_REFRESH_INTERVAL_MS) {
-          Logger.info(`Token expires in ${Math.round(tokenData.expires_in / 60)} minutes, refreshing now...`);
+          // Use minutes for short durations (more precise than "0 hours")
+          Logger.info(`Token expires in ${Math.round(tokenData.expires_in / SECONDS_PER_MINUTE)} minutes, refreshing now...`);
           await scheduleNextRefresh();
         } else {
-          // Token is fresh enough, schedule next refresh after interval
-          Logger.info(`Token valid for ${Math.round(tokenData.expires_in / 3600)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
+          // Use hours for longer durations (more readable)
+          Logger.info(`Token valid for ${Math.round(tokenData.expires_in / SECONDS_PER_HOUR)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MINUTES} minutes`);
           this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
         }
       } else {
@@ -373,7 +379,8 @@ class TwitchEventSubClient {
         lastError = error;
         attempt++;
         if (attempt < MAX_RETRIES) {
-          const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
+          // Exponential backoff: 1s, 2s, 4s for attempts 1, 2, 3
+          const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1);
           Logger.warn(`Token refresh attempt ${attempt} failed. Retrying in ${backoffMs / 1000}s...`);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
