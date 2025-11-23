@@ -9,7 +9,13 @@ import { Logger } from '../lib/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
-const CONFIG_JSON_PATH = join(PROJECT_ROOT, 'config.json');
+
+// Use CONFIG_PATH env variable if set (for Electron), otherwise use project root
+// This allows the Electron main process to specify where config.json is stored
+const CONFIG_JSON_PATH = process.env.CONFIG_PATH || join(PROJECT_ROOT, 'config.json');
+
+// Export the config path for other modules (e.g., TokenRefresher)
+export { CONFIG_JSON_PATH };
 
 // Configuration mapping for setting environment variables
 const CONFIG_MAPPING = [
