@@ -1041,6 +1041,30 @@ async function openFolder(folderType) {
   }
 }
 
+// Delete all logs
+async function deleteAllLogs() {
+  if (!confirm(t('messages.logs.confirmDelete'))) {
+    return;
+  }
+
+  try {
+    const result = await window.electronAPI.deleteAllLogs();
+
+    if (result.success) {
+      if (result.deletedCount === 0) {
+        alert(t('messages.logs.noLogsToDelete'));
+      } else {
+        alert(t('messages.logs.deleteSuccess', { count: result.deletedCount }));
+      }
+    } else {
+      alert(t('messages.logs.deleteFailed', { error: result.error }));
+    }
+  } catch (error) {
+    console.error('Error deleting logs:', error);
+    alert(t('messages.logs.deleteFailed', { error: error.message || 'Unknown error occurred' }));
+  }
+}
+
 // Utility: Escape HTML
 function escapeHtml(unsafe) {
   return unsafe
@@ -1141,3 +1165,4 @@ window.toggleLanguage = toggleLanguage;
 window.showTokenErrorModal = showTokenErrorModal;
 window.closeTokenErrorModal = closeTokenErrorModal;
 window.refreshOAuthFromModal = refreshOAuthFromModal;
+window.deleteAllLogs = deleteAllLogs;

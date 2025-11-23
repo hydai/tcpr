@@ -168,6 +168,7 @@
     "repository": "Repository:",
     "openEventLogsFolder": "Open Event Logs Folder",
     "openConfigFolder": "Open Config Folder",
+    "deleteAllLogs": "Delete All Logs",
     "language": "Language"
   },
   "modal": {
@@ -225,6 +226,12 @@
     },
     "config": {
       "saveFailed": "Failed to save configuration: {{error}}"
+    },
+    "logs": {
+      "confirmDelete": "Are you sure you want to delete all log files? This will free up disk space but cannot be undone.\n\nNote: The current session log will be preserved.",
+      "deleteSuccess": "Successfully deleted {{count}} log file(s).",
+      "deleteFailed": "Failed to delete logs: {{error}}",
+      "noLogsToDelete": "No log files to delete."
     }
   }
 }
