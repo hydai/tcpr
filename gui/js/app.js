@@ -878,8 +878,8 @@ async function fetchAndStartTokenExpiryTimer() {
     if (result.success) {
       state.tokenExpiresAt = result.expiresAt;
       updateTokenExpiry();
-      // Update token expiry every second
-      state.tokenExpiryInterval = setInterval(updateTokenExpiry, 1000);
+      // Schedule updates with dynamic interval based on remaining time
+      scheduleTokenExpiryUpdate();
     } else {
       console.error('Failed to get token expiry:', result.error);
       document.getElementById('tokenExpiry').textContent = t('dashboard.tokenExpiryUnknown');
@@ -890,10 +890,46 @@ async function fetchAndStartTokenExpiryTimer() {
   }
 }
 
+// Schedule token expiry updates with dynamic interval based on remaining time
+function scheduleTokenExpiryUpdate() {
+  // Clear any existing interval
+  if (state.tokenExpiryInterval) {
+    clearTimeout(state.tokenExpiryInterval);
+    state.tokenExpiryInterval = null;
+  }
+
+  if (!state.tokenExpiresAt) {
+    return;
+  }
+
+  const remaining = state.tokenExpiresAt - Date.now();
+
+  // Determine update interval based on remaining time
+  let interval;
+  if (remaining <= 0) {
+    // Token expired, no need to schedule
+    return;
+  } else if (remaining < MINUTE_MS) {
+    // Less than 1 minute: update every second
+    interval = SECOND_MS;
+  } else if (remaining < HOUR_MS) {
+    // Less than 1 hour: update every minute
+    interval = MINUTE_MS;
+  } else {
+    // 1 hour or more: update every hour
+    interval = HOUR_MS;
+  }
+
+  state.tokenExpiryInterval = setTimeout(() => {
+    updateTokenExpiry();
+    scheduleTokenExpiryUpdate(); // Reschedule with potentially different interval
+  }, interval);
+}
+
 // Stop token expiry timer
 function stopTokenExpiryTimer() {
   if (state.tokenExpiryInterval) {
-    clearInterval(state.tokenExpiryInterval);
+    clearTimeout(state.tokenExpiryInterval);
     state.tokenExpiryInterval = null;
   }
   state.tokenExpiresAt = null;
@@ -925,7 +961,8 @@ function updateTokenExpiry() {
   const parts = [];
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
-  parts.push(`${seconds}s`);
+  // Only show seconds when less than 1 hour remains for cleaner display
+  if (hours === 0) parts.push(`${seconds}s`);
 
   tokenExpiryElement.textContent = parts.join(' ');
 
