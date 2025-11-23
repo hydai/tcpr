@@ -1041,6 +1041,92 @@ async function openFolder(folderType) {
   }
 }
 
+// Delete all logs - shows confirmation modal
+function deleteAllLogs() {
+  showDeleteLogsModal();
+}
+
+// Show Delete Logs Modal
+function showDeleteLogsModal() {
+  const modal = document.getElementById('deleteLogsModal');
+  modal.style.display = 'flex';
+}
+
+// Close Delete Logs Modal
+function closeDeleteLogsModal() {
+  const modal = document.getElementById('deleteLogsModal');
+  modal.style.display = 'none';
+}
+
+// Confirm Delete Logs - called when user confirms deletion
+async function confirmDeleteLogs() {
+  closeDeleteLogsModal();
+
+  try {
+    const result = await window.electronAPI.deleteAllLogs();
+
+    if (result.success) {
+      if (result.deletedCount === 0) {
+        showNotification('info', t('modal.notification.infoTitle'), t('messages.logs.noLogsToDelete'));
+      } else if (result.errors && result.errors.length > 0) {
+        // Partial success - some files deleted but with errors
+        showNotification('info', t('modal.notification.infoTitle'), t('messages.logs.deletePartialSuccess', {
+          count: result.deletedCount,
+          errorCount: result.errors.length
+        }));
+      } else {
+        showNotification('success', t('modal.notification.successTitle'), t('messages.logs.deleteSuccess', { count: result.deletedCount }));
+      }
+    } else {
+      showNotification('error', t('modal.notification.errorTitle'), t('messages.logs.deleteFailed', { error: result.error }));
+    }
+  } catch (error) {
+    console.error('Error deleting logs:', error);
+    showNotification('error', t('modal.notification.errorTitle'), t('messages.logs.deleteFailed', { error: error.message || t('messages.logs.unknownError') }));
+  }
+}
+
+// Show Notification Modal
+function showNotification(type, title, message) {
+  const modal = document.getElementById('notificationModal');
+  const iconElement = document.getElementById('notificationIcon');
+  const titleElement = document.getElementById('notificationTitle');
+  const messageElement = document.getElementById('notificationMessage');
+
+  // Update title and message
+  titleElement.textContent = title;
+  messageElement.textContent = message;
+
+  // Update icon based on type
+  let iconColor, iconPath;
+  switch (type) {
+    case 'success':
+      iconColor = 'var(--success)';
+      iconPath = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
+      break;
+    case 'error':
+      iconColor = 'var(--error)';
+      iconPath = '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>';
+      break;
+    case 'info':
+    default:
+      iconColor = 'var(--primary)';
+      iconPath = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>';
+      break;
+  }
+
+  iconElement.setAttribute('stroke', iconColor);
+  iconElement.innerHTML = iconPath;
+
+  modal.style.display = 'flex';
+}
+
+// Close Notification Modal
+function closeNotificationModal() {
+  const modal = document.getElementById('notificationModal');
+  modal.style.display = 'none';
+}
+
 // Utility: Escape HTML
 function escapeHtml(unsafe) {
   return unsafe
@@ -1141,3 +1227,9 @@ window.toggleLanguage = toggleLanguage;
 window.showTokenErrorModal = showTokenErrorModal;
 window.closeTokenErrorModal = closeTokenErrorModal;
 window.refreshOAuthFromModal = refreshOAuthFromModal;
+window.deleteAllLogs = deleteAllLogs;
+window.showDeleteLogsModal = showDeleteLogsModal;
+window.closeDeleteLogsModal = closeDeleteLogsModal;
+window.confirmDeleteLogs = confirmDeleteLogs;
+window.showNotification = showNotification;
+window.closeNotificationModal = closeNotificationModal;

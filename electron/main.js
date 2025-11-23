@@ -645,6 +645,54 @@ ipcMain.handle('session:readLog', async () => {
   }
 });
 
+// Delete all logs in the logs folder
+ipcMain.handle('logs:deleteAll', async () => {
+  try {
+    const userDataDir = app.getPath('userData');
+    const logsDir = path.join(userDataDir, 'logs');
+
+    if (!fs.existsSync(logsDir)) {
+      return { success: true, deletedCount: 0, message: 'Logs folder does not exist' };
+    }
+
+    // Read all files in the logs directory
+    const files = await fs.promises.readdir(logsDir);
+    let deletedCount = 0;
+    const errors = [];
+
+    for (const file of files) {
+      // Skip the current session log file to avoid breaking active logging
+      if (sessionLogPath && path.join(logsDir, file) === sessionLogPath) {
+        continue;
+      }
+
+      const filePath = path.join(logsDir, file);
+      try {
+        const stat = await fs.promises.stat(filePath);
+        if (stat.isFile()) {
+          await fs.promises.unlink(filePath);
+          deletedCount++;
+        }
+      } catch (fileError) {
+        errors.push(`Failed to delete ${file}: ${fileError.message}`);
+      }
+    }
+
+    if (errors.length > 0) {
+      return {
+        success: true,
+        deletedCount,
+        message: `Deleted ${deletedCount} files with ${errors.length} errors`,
+        errors
+      };
+    }
+
+    return { success: true, deletedCount, message: `Deleted ${deletedCount} log files` };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Validate logs in main process to prevent UI blocking
 ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
   try {

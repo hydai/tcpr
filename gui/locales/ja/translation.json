@@ -168,6 +168,7 @@
     "repository": "リポジトリ：",
     "openEventLogsFolder": "イベントログフォルダを開く",
     "openConfigFolder": "設定フォルダを開く",
+    "deleteAllLogs": "すべてのログを削除",
     "language": "言語"
   },
   "modal": {
@@ -176,6 +177,19 @@
       "message": "アクセストークンが無効または期限切れです。監視を続けるには、OAuth認証を更新してください。",
       "refreshButton": "OAuthを更新",
       "close": "閉じる"
+    },
+    "deleteLogs": {
+      "title": "すべてのログを削除",
+      "message": "すべてのログファイルを削除してもよろしいですか？ディスク容量は解放されますが、この操作は取り消せません。",
+      "note": "注：現在のセッションログは保持されます。",
+      "confirmButton": "ログを削除",
+      "cancelButton": "キャンセル"
+    },
+    "notification": {
+      "ok": "OK",
+      "successTitle": "成功",
+      "errorTitle": "エラー",
+      "infoTitle": "情報"
     }
   },
   "messages": {
@@ -225,6 +239,13 @@
     },
     "config": {
       "saveFailed": "設定の保存に失敗しました：{{error}}"
+    },
+    "logs": {
+      "deleteSuccess": "{{count}}件のログファイルを正常に削除しました。",
+      "deletePartialSuccess": "{{count}}件のログファイルを削除しましたが、{{errorCount}}件のエラーが発生しました。一部のファイルを削除できませんでした。",
+      "deleteFailed": "ログの削除に失敗しました：{{error}}",
+      "noLogsToDelete": "削除するログファイルがありません。",
+      "unknownError": "不明なエラーが発生しました"
     }
   }
 }

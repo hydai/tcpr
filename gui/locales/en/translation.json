@@ -168,6 +168,7 @@
     "repository": "Repository:",
     "openEventLogsFolder": "Open Event Logs Folder",
     "openConfigFolder": "Open Config Folder",
+    "deleteAllLogs": "Delete All Logs",
     "language": "Language"
   },
   "modal": {
@@ -176,6 +177,19 @@
       "message": "Your access token is invalid or has expired. Please refresh your OAuth authentication to continue.",
       "refreshButton": "Refresh OAuth",
       "close": "Close"
+    },
+    "deleteLogs": {
+      "title": "Delete All Logs",
+      "message": "Are you sure you want to delete all log files? This will free up disk space but cannot be undone.",
+      "note": "Note: The current session log will be preserved.",
+      "confirmButton": "Delete Logs",
+      "cancelButton": "Cancel"
+    },
+    "notification": {
+      "ok": "OK",
+      "successTitle": "Success",
+      "errorTitle": "Error",
+      "infoTitle": "Information"
     }
   },
   "messages": {
@@ -225,6 +239,13 @@
     },
     "config": {
       "saveFailed": "Failed to save configuration: {{error}}"
+    },
+    "logs": {
+      "deleteSuccess": "Successfully deleted {{count}} log file(s).",
+      "deletePartialSuccess": "Deleted {{count}} log file(s) with {{errorCount}} error(s). Some files could not be deleted.",
+      "deleteFailed": "Failed to delete logs: {{error}}",
+      "noLogsToDelete": "No log files to delete.",
+      "unknownError": "Unknown error occurred"
     }
   }
 }
