@@ -110,6 +110,14 @@ function setupEventListeners() {
   window.electronAPI.onOAuthStopped((code) => {
     console.log('OAuth server stopped with code:', code);
   });
+
+  // Token refresh listener - update expiry timer when token is refreshed
+  window.electronAPI.onTokenRefreshed(() => {
+    console.log('Token refreshed, updating expiry timer...');
+    if (state.monitoringActive) {
+      fetchAndStartTokenExpiryTimer();
+    }
+  });
 }
 
 // Wizard Navigation
@@ -916,12 +924,9 @@ function scheduleTokenExpiryUpdate() {
   } else if (remaining < MINUTE_MS) {
     // Less than 1 minute: update every second
     interval = SECOND_MS;
-  } else if (remaining < HOUR_MS) {
-    // Less than 1 hour: update every minute
-    interval = MINUTE_MS;
   } else {
-    // 1 hour or more: update every hour
-    interval = HOUR_MS;
+    // 1 minute or more: update every minute for responsive countdown
+    interval = MINUTE_MS;
   }
 
   state.tokenExpiryInterval = setTimeout(() => {

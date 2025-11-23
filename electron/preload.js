@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Token validation
   validateToken: (accessToken) => ipcRenderer.invoke('token:validate', accessToken),
   getTokenExpiry: () => ipcRenderer.invoke('token:getExpiry'),
+  onTokenRefreshed: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('token:refreshed', handler);
+    return () => ipcRenderer.removeListener('token:refreshed', handler);
+  },
 
   // OAuth
   startOAuth: (port) => ipcRenderer.invoke('oauth:start', port),

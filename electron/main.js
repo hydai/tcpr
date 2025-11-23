@@ -549,6 +549,13 @@ ipcMain.handle('eventsub:start', async () => {
       appendToSessionLog(logEntry);
     });
 
+    // Handle structured IPC messages from child process
+    eventSubProcess.on('message', (message) => {
+      if (message.type === 'token:refreshed' && mainWindow) {
+        mainWindow.webContents.send('token:refreshed');
+      }
+    });
+
     eventSubProcess.stderr.on('data', (data) => {
       const logEntry = {
         timestamp: new Date().toISOString(),
