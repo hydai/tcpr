@@ -275,12 +275,21 @@ class TwitchEventSubClient {
         Logger.error('Unexpected error in token refresh:', error?.message || String(error));
       }
       // Schedule next run only after previous completes (always, even on error)
-      this.tokenRefreshTimer = setTimeout(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
-      this.tokenRefreshTimer.unref();
+      this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
     };
 
     // Check if token needs immediate refresh based on expiration time
     this.checkAndScheduleRefresh(scheduleNextRefresh);
+  }
+
+  /**
+   * Schedule a refresh timer with consistent behavior
+   * @param {Function} callback - Function to call when timer fires
+   * @param {number} delay - Delay in milliseconds
+   */
+  scheduleRefreshTimer(callback, delay) {
+    this.tokenRefreshTimer = setTimeout(callback, delay);
+    this.tokenRefreshTimer.unref();
   }
 
   /**
@@ -301,8 +310,7 @@ class TwitchEventSubClient {
         } else {
           // Token is fresh enough, schedule next refresh after interval
           Logger.info(`Token valid for ${Math.round(tokenData.expires_in / 3600)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
-          this.tokenRefreshTimer = setTimeout(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
-          this.tokenRefreshTimer.unref();
+          this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
         }
       } else {
         // Couldn't check expiration, refresh immediately to be safe
@@ -365,7 +373,7 @@ class TwitchEventSubClient {
         lastError = error;
         attempt++;
         if (attempt < MAX_RETRIES) {
-          const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1);
+          const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
           Logger.warn(`Token refresh attempt ${attempt} failed. Retrying in ${backoffMs / 1000}s...`);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
