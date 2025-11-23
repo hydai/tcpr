@@ -64,7 +64,7 @@ function saveTokensToConfigFile({ configPath, tokens, userInfo, oauthConfig }) {
     existingConfig.REDIRECT_URI = oauthConfig.redirectUri;
   }
   if (!existingConfig.PORT) {
-    existingConfig.PORT = parsePort(oauthConfig.port);
+    existingConfig.PORT = oauthConfig.port;
   }
 
   // Write back to file as JSON
