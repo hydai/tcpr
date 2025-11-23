@@ -535,25 +535,25 @@ ipcMain.handle('eventsub:start', async () => {
     });
 
     eventSubProcess.stdout.on('data', (data) => {
-      const message = data.toString();
       const logEntry = {
         timestamp: new Date().toISOString(),
         type: 'info',
-        message: message
+        message: data.toString()
       };
 
       if (mainWindow) {
         mainWindow.webContents.send('eventsub:log', logEntry);
-
-        // Detect token refresh success and notify frontend to update expiry timer
-        if (message.includes('token refresh completed successfully') ||
-            message.includes('Token refreshed successfully')) {
-          mainWindow.webContents.send('token:refreshed');
-        }
       }
 
       // Auto-save to session log
       appendToSessionLog(logEntry);
+    });
+
+    // Handle structured IPC messages from child process
+    eventSubProcess.on('message', (message) => {
+      if (message.type === 'token:refreshed' && mainWindow) {
+        mainWindow.webContents.send('token:refreshed');
+      }
     });
 
     eventSubProcess.stderr.on('data', (data) => {

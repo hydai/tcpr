@@ -233,6 +233,12 @@ class TwitchEventSubClient {
 
           // Token is already validated by Twitch during the refresh operation
           Logger.success('Token refreshed successfully!');
+
+          // Notify parent process (Electron main) about token refresh via IPC
+          if (process.send) {
+            process.send({ type: 'token:refreshed' });
+          }
+
           return true;
         } catch (refreshError) {
           Logger.error('Token refresh failed:', refreshError?.message || String(refreshError));
@@ -382,6 +388,12 @@ class TwitchEventSubClient {
         TokenRefresher.updateEnvironment(newTokens);
 
         Logger.success('Periodic token refresh completed successfully');
+
+        // Notify parent process (Electron main) about token refresh via IPC
+        if (process.send) {
+          process.send({ type: 'token:refreshed' });
+        }
+
         this._consecutiveRefreshFailures = 0;
         return; // Success - exit the method
       } catch (error) {
