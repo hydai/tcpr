@@ -266,9 +266,15 @@ class TwitchEventSubClient {
     Logger.info(`Starting token refresh timer (interval: ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes)`);
 
     // Use recursive setTimeout to prevent overlapping executions
+    // Wrapped in try-catch to ensure timer chain continues even on errors
     const scheduleNextRefresh = async () => {
-      await this.refreshTokenPeriodically();
-      // Schedule next run only after previous completes
+      try {
+        await this.refreshTokenPeriodically();
+      } catch (error) {
+        // Log unexpected errors but don't break the timer chain
+        Logger.error('Unexpected error in token refresh:', error?.message || String(error));
+      }
+      // Schedule next run only after previous completes (always, even on error)
       this.tokenRefreshTimer = setTimeout(scheduleNextRefresh, TOKEN_REFRESH_INTERVAL_MS);
       this.tokenRefreshTimer.unref();
     };
@@ -291,7 +297,7 @@ class TwitchEventSubClient {
         // If token expires within the refresh interval, refresh immediately
         if (expiresInMs <= TOKEN_REFRESH_INTERVAL_MS) {
           Logger.info(`Token expires in ${Math.round(tokenData.expires_in / 60)} minutes, refreshing now...`);
-          scheduleNextRefresh();
+          await scheduleNextRefresh();
         } else {
           // Token is fresh enough, schedule next refresh after interval
           Logger.info(`Token valid for ${Math.round(tokenData.expires_in / 3600)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MS / 1000 / 60} minutes`);
@@ -301,12 +307,12 @@ class TwitchEventSubClient {
       } else {
         // Couldn't check expiration, refresh immediately to be safe
         Logger.warn('Could not check token expiration, refreshing now...');
-        scheduleNextRefresh();
+        await scheduleNextRefresh();
       }
     } catch (error) {
       // On error, refresh immediately to be safe
       Logger.warn('Error checking token expiration, refreshing now...');
-      scheduleNextRefresh();
+      await scheduleNextRefresh();
     }
   }
 
