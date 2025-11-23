@@ -1,12 +1,19 @@
 import express from 'express';
-import axios from 'axios';
 import { loadConfig } from '../config/loader.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
-import { TWITCH_URLS, DEFAULT_OAUTH_SCOPES } from '../config/constants.js';
+import { DEFAULT_OAUTH_SCOPES } from '../config/constants.js';
 import { Logger } from '../lib/logger.js';
 import { StateTokenManager } from '../lib/StateTokenManager.js';
+import {
+  buildAuthUrl,
+  exchangeCodeForToken,
+  validateAndGetUserInfo,
+  buildErrorRedirect,
+  buildSuccessRedirect,
+  getHealthCheckResponse
+} from '../lib/oauth-handler.js';
 
 // Load configuration from config.json
 loadConfig();
@@ -19,6 +26,52 @@ const CONFIG_PATH = process.env.ELECTRON_CONFIG_PATH || join(dirname(__dirname),
 
 // Server instance
 let server = null;
+
+/**
+ * Save tokens to config file (Electron-specific)
+ * @param {Object} params - Parameters
+ * @param {string} params.configPath - Path to config file
+ * @param {Object} params.tokens - Token data
+ * @param {Object} params.userInfo - User information
+ * @param {Object} params.oauthConfig - OAuth configuration
+ */
+function saveTokensToConfigFile({ configPath, tokens, userInfo, oauthConfig }) {
+  // Read existing config or create new
+  let existingConfig = {};
+  if (fs.existsSync(configPath)) {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    existingConfig = JSON.parse(content);
+  }
+
+  // Update with new values
+  existingConfig.TWITCH_ACCESS_TOKEN = tokens.accessToken;
+  existingConfig.TWITCH_BROADCASTER_ID = userInfo.userId;
+  if (tokens.refreshToken) {
+    existingConfig.TWITCH_REFRESH_TOKEN = tokens.refreshToken;
+  }
+
+  // Ensure we have the client credentials
+  if (oauthConfig.clientId && !existingConfig.TWITCH_CLIENT_ID) {
+    existingConfig.TWITCH_CLIENT_ID = oauthConfig.clientId;
+  }
+  if (oauthConfig.clientSecret && !existingConfig.TWITCH_CLIENT_SECRET) {
+    existingConfig.TWITCH_CLIENT_SECRET = oauthConfig.clientSecret;
+  }
+
+  // Ensure we have redirect URI and port
+  if (!existingConfig.REDIRECT_URI) {
+    existingConfig.REDIRECT_URI = oauthConfig.redirectUri;
+  }
+  if (!existingConfig.PORT) {
+    // Ensure PORT is always a valid number
+    const portValue = parseInt(oauthConfig.port, 10);
+    existingConfig.PORT = isNaN(portValue) ? 3000 : portValue;
+  }
+
+  // Write back to file as JSON
+  fs.writeFileSync(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
+  Logger.success(`Configuration saved to: ${configPath}`);
+}
 
 /**
  * Start OAuth server for Electron
@@ -34,10 +87,16 @@ export function startOAuthServer(config) {
     const app = express();
 
     const PORT = config.port || 3000;
-    const CLIENT_ID = config.clientId;
-    const CLIENT_SECRET = config.clientSecret;
-    const REDIRECT_URI = config.redirectUri || `http://localhost:${PORT}/callback`;
     const SCOPES = DEFAULT_OAUTH_SCOPES;
+
+    // OAuth configuration object for shared handler
+    const oauthConfig = {
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      redirectUri: config.redirectUri || `http://localhost:${PORT}/callback`,
+      scopes: SCOPES,
+      port: PORT
+    };
 
     // Initialize state token manager
     const stateTokenManager = new StateTokenManager();
@@ -51,7 +110,7 @@ export function startOAuthServer(config) {
      */
     app.get('/auth', (req, res) => {
       // Validate environment variables
-      if (!CLIENT_ID || !CLIENT_SECRET) {
+      if (!oauthConfig.clientId || !oauthConfig.clientSecret) {
         Logger.error('Missing CLIENT_ID or CLIENT_SECRET');
         return res.status(500).send(
           'Server configuration error: Missing CLIENT_ID or CLIENT_SECRET'
@@ -61,16 +120,8 @@ export function startOAuthServer(config) {
       // Generate a state token for CSRF protection
       const state = stateTokenManager.create();
 
-      // Build authorization URL
-      const authParams = new URLSearchParams({
-        client_id: CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        response_type: 'code',
-        scope: SCOPES.join(' '),
-        state: state
-      });
-
-      const authUrl = `${TWITCH_URLS.OAUTH_AUTHORIZE}?${authParams.toString()}`;
+      // Build authorization URL using shared handler
+      const authUrl = buildAuthUrl(oauthConfig, state);
 
       Logger.info('Redirecting to Twitch OAuth...');
 
@@ -88,113 +139,49 @@ export function startOAuthServer(config) {
       // Handle OAuth errors
       if (error) {
         Logger.error('OAuth Error:', { error, error_description });
-        return res.redirect(`/?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(error_description || '')}`);
+        return res.redirect(buildErrorRedirect(error, error_description || ''));
       }
 
       // Validate required parameters
       if (!code || !state) {
         Logger.error('Missing code or state parameter');
-        return res.redirect('/?error=invalid_request&error_description=Missing+code+or+state+parameter');
+        return res.redirect(buildErrorRedirect('invalid_request', 'Missing code or state parameter'));
       }
 
       // Verify and consume state token (CSRF protection)
       if (!stateTokenManager.consume(state)) {
         Logger.error('Invalid state token');
-        return res.redirect('/?error=invalid_state&error_description=State+token+is+invalid+or+expired');
+        return res.redirect(buildErrorRedirect('invalid_state', 'State token is invalid or expired'));
       }
 
       try {
-        Logger.info('Exchanging authorization code for access token...');
+        // Exchange authorization code for access token using shared handler
+        const tokens = await exchangeCodeForToken(oauthConfig, code);
 
-        // Exchange authorization code for access token
-        const tokenResponse = await axios.post(TWITCH_URLS.OAUTH_TOKEN, null, {
-          params: {
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            code: code,
-            grant_type: 'authorization_code',
-            redirect_uri: REDIRECT_URI
-          },
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        });
+        // Validate the token and get user information using shared handler
+        const userInfo = await validateAndGetUserInfo(tokens.accessToken);
 
-        const { access_token, refresh_token, expires_in, scope, token_type } = tokenResponse.data;
-
-        Logger.success('Successfully obtained access token!');
-
-        // Validate the token and get user information
-        const validateResponse = await axios.get(TWITCH_URLS.OAUTH_VALIDATE, {
-          headers: {
-            'Authorization': `OAuth ${access_token}`
-          }
-        });
-
-        const { client_id, login, user_id, scopes } = validateResponse.data;
-
-        Logger.success('Token validated successfully!');
-        Logger.log(`User Login: ${login}`);
-        Logger.log(`User ID: ${user_id}`);
-
-        // Save to config file (Electron mode)
+        // Save to config file (Electron-specific behavior)
         try {
           const configPath = config.configPath || CONFIG_PATH;
-
-          // Read existing config or create new
-          let existingConfig = {};
-          if (fs.existsSync(configPath)) {
-            const content = fs.readFileSync(configPath, 'utf-8');
-            existingConfig = JSON.parse(content);
-          }
-
-          // Update with new values
-          existingConfig.TWITCH_ACCESS_TOKEN = access_token;
-          existingConfig.TWITCH_BROADCASTER_ID = user_id;
-          if (refresh_token) {
-            existingConfig.TWITCH_REFRESH_TOKEN = refresh_token;
-          }
-
-          // Ensure we have the client credentials
-          if (CLIENT_ID && !existingConfig.TWITCH_CLIENT_ID) {
-            existingConfig.TWITCH_CLIENT_ID = CLIENT_ID;
-          }
-          if (CLIENT_SECRET && !existingConfig.TWITCH_CLIENT_SECRET) {
-            existingConfig.TWITCH_CLIENT_SECRET = CLIENT_SECRET;
-          }
-
-          // Ensure we have redirect URI and port
-          if (!existingConfig.REDIRECT_URI) {
-            existingConfig.REDIRECT_URI = REDIRECT_URI;
-          }
-          if (!existingConfig.PORT) {
-            // Ensure PORT is always a valid number
-            const portValue = parseInt(PORT, 10);
-            existingConfig.PORT = isNaN(portValue) ? 3000 : portValue;
-          }
-
-          // Write back to file as JSON
-          fs.writeFileSync(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
-          Logger.success(`Configuration saved to: ${configPath}`);
+          saveTokensToConfigFile({ configPath, tokens, userInfo, oauthConfig });
         } catch (saveError) {
           Logger.error('Error saving configuration:', saveError);
         }
 
         // Redirect with success and token info
-        const redirectParams = new URLSearchParams({
-          access_token: access_token,
-          user_id: user_id,
-          username: login,
-          success: 'true'
-        });
-
-        res.redirect(`/?${redirectParams.toString()}`);
+        res.redirect(buildSuccessRedirect({
+          accessToken: tokens.accessToken,
+          userId: userInfo.userId,
+          username: userInfo.login,
+          success: true
+        }));
 
       } catch (error) {
         Logger.error('Error exchanging code for token:', error.response?.data || error.message);
 
         const errorMsg = error.response?.data?.message || error.message;
-        return res.redirect(`/?error=token_exchange_failed&error_description=${encodeURIComponent(errorMsg)}`);
+        return res.redirect(buildErrorRedirect('token_exchange_failed', errorMsg));
       }
     });
 
@@ -204,21 +191,7 @@ export function startOAuthServer(config) {
      */
     app.get('/health', (req, res) => {
       const stats = stateTokenManager.getStats();
-
-      res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        config: {
-          clientId: CLIENT_ID ? '✓ Set' : '✗ Missing',
-          clientSecret: CLIENT_SECRET ? '✓ Set' : '✗ Missing',
-          redirectUri: REDIRECT_URI
-        },
-        stateTokens: {
-          total: stats.total,
-          active: stats.active,
-          expired: stats.expired
-        }
-      });
+      res.json(getHealthCheckResponse(oauthConfig, stats));
     });
 
     // Start the server

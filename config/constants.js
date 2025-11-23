@@ -65,3 +65,23 @@ export const DEFAULTS = {
   STATE_TOKEN_EXPIRY: 5 * 60 * 1000, // 5 minutes
   KEEPALIVE_TIMEOUT: 10 // seconds
 };
+
+/**
+ * Token refresh configuration
+ * Twitch tokens expire after ~4 hours, so refreshing every hour keeps us ahead
+ */
+export const TOKEN_REFRESH = {
+  INTERVAL_MS: 60 * 60 * 1000, // 1 hour
+  MAX_ATTEMPTS: 3, // Total attempts per refresh cycle: 1 initial + 2 retries
+  INITIAL_BACKOFF_MS: 1000, // Starting backoff delay for retries
+  MAX_CONSECUTIVE_FAILURES: 3 // Warn user after this many consecutive refresh failures
+};
+
+/**
+ * Time conversion constants
+ */
+export const TIME = {
+  SECONDS_PER_MINUTE: 60,
+  SECONDS_PER_HOUR: 3600,
+  MS_PER_SECOND: 1000
+};

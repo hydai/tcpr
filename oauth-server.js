@@ -1,12 +1,19 @@
 import express from 'express';
-import axios from 'axios';
 import { loadConfig } from './config/loader.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { TWITCH_URLS, DEFAULT_OAUTH_SCOPES } from './config/constants.js';
+import { DEFAULT_OAUTH_SCOPES } from './config/constants.js';
 import { Config } from './config/env.js';
 import { Logger } from './lib/logger.js';
 import { StateTokenManager } from './lib/StateTokenManager.js';
+import {
+  buildAuthUrl,
+  exchangeCodeForToken,
+  validateAndGetUserInfo,
+  buildErrorRedirect,
+  logTokenInfo,
+  getHealthCheckResponse
+} from './lib/oauth-handler.js';
 
 // Load configuration from config.json
 loadConfig();
@@ -27,10 +34,15 @@ try {
 }
 
 const PORT = config.port;
-const CLIENT_ID = config.clientId;
-const CLIENT_SECRET = config.clientSecret;
-const REDIRECT_URI = config.redirectUri;
 const SCOPES = DEFAULT_OAUTH_SCOPES;
+
+// OAuth configuration object for shared handler
+const oauthConfig = {
+  clientId: config.clientId,
+  clientSecret: config.clientSecret,
+  redirectUri: config.redirectUri,
+  scopes: SCOPES
+};
 
 // Initialize state token manager
 const stateTokenManager = new StateTokenManager();
@@ -44,7 +56,7 @@ app.use(express.static(join(__dirname, 'public')));
  */
 app.get('/auth', (req, res) => {
   // Validate environment variables
-  if (!CLIENT_ID || !CLIENT_SECRET) {
+  if (!oauthConfig.clientId || !oauthConfig.clientSecret) {
     Logger.error('Missing CLIENT_ID or CLIENT_SECRET');
     return res.status(500).send(
       'Server configuration error: Missing TWITCH_CLIENT_ID or TWITCH_CLIENT_SECRET in config.json'
@@ -54,16 +66,8 @@ app.get('/auth', (req, res) => {
   // Generate a state token for CSRF protection
   const state = stateTokenManager.create();
 
-  // Build authorization URL
-  const authParams = new URLSearchParams({
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
-    response_type: 'code',
-    scope: SCOPES.join(' '),
-    state: state
-  });
-
-  const authUrl = `${TWITCH_URLS.OAUTH_AUTHORIZE}?${authParams.toString()}`;
+  // Build authorization URL using shared handler
+  const authUrl = buildAuthUrl(oauthConfig, state);
 
   Logger.info('Redirecting to Twitch OAuth...');
   Logger.debug('Authorization URL:', authUrl);
@@ -82,83 +86,39 @@ app.get('/callback', async (req, res) => {
   // Handle OAuth errors
   if (error) {
     Logger.error('OAuth Error:', { error, error_description });
-    return res.redirect(`/?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(error_description || '')}`);
+    return res.redirect(buildErrorRedirect(error, error_description || ''));
   }
 
   // Validate required parameters
   if (!code || !state) {
     Logger.error('Missing code or state parameter');
-    return res.redirect('/?error=invalid_request&error_description=Missing+code+or+state+parameter');
+    return res.redirect(buildErrorRedirect('invalid_request', 'Missing code or state parameter'));
   }
 
   // Verify and consume state token (CSRF protection)
   if (!stateTokenManager.consume(state)) {
     Logger.error('Invalid state token');
-    return res.redirect('/?error=invalid_state&error_description=State+token+is+invalid+or+expired');
+    return res.redirect(buildErrorRedirect('invalid_state', 'State token is invalid or expired'));
   }
 
   try {
-    Logger.info('Exchanging authorization code for access token...');
+    // Exchange authorization code for access token using shared handler
+    const tokens = await exchangeCodeForToken(oauthConfig, code);
 
-    // Exchange authorization code for access token
-    const tokenResponse = await axios.post(TWITCH_URLS.OAUTH_TOKEN, null, {
-      params: {
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        code: code,
-        grant_type: 'authorization_code',
-        redirect_uri: REDIRECT_URI
-      },
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
+    // Validate the token and get user information using shared handler
+    const userInfo = await validateAndGetUserInfo(tokens.accessToken);
 
-    const { access_token, refresh_token, expires_in, scope, token_type } = tokenResponse.data;
-
-    Logger.success('Successfully obtained access token!');
-    Logger.log(`Token Type: ${token_type}`);
-    Logger.log(`Expires In: ${expires_in} seconds`);
-    Logger.log(`Scopes: ${scope}`);
-
-    // Validate the token and get user information
-    const validateResponse = await axios.get(TWITCH_URLS.OAUTH_VALIDATE, {
-      headers: {
-        'Authorization': `OAuth ${access_token}`
-      }
-    });
-
-    const { client_id, login, user_id, scopes } = validateResponse.data;
-
-    Logger.success('Token validated successfully!');
-    Logger.log(`User Login: ${login}`);
-    Logger.log(`User ID: ${user_id}`);
-    Logger.log(`Client ID: ${client_id}`);
-
-    // Display token information in console
-    Logger.header('TWITCH OAUTH SUCCESSFUL', '=', 80);
-    Logger.log('\n⚠️  WARNING: Access token will be displayed. Do not share or commit this token!\n');
-    Logger.log('Add these values to your config.json file:\n');
-    Logger.log(`TWITCH_ACCESS_TOKEN=${access_token}`);
-    Logger.log(`TWITCH_BROADCASTER_ID=${user_id}`);
-    if (refresh_token) {
-      Logger.log(`TWITCH_REFRESH_TOKEN=${refresh_token}`);
-    }
-    Logger.log('\nUser Information:');
-    Logger.log(`Username: ${login}`);
-    Logger.log(`User ID: ${user_id}`);
-    Logger.log(`Scopes: ${scopes.join(', ')}`);
-    Logger.divider('=', 80);
-    Logger.log('');
+    // Display token information in console using shared handler
+    logTokenInfo(tokens, userInfo);
 
     // Redirect back to home page with success message and token
-    res.redirect(`/?access_token=${encodeURIComponent(access_token)}`);
+    res.redirect(`/?access_token=${encodeURIComponent(tokens.accessToken)}`);
 
   } catch (error) {
     Logger.error('Error exchanging code for token:', error.response?.data || error.message);
 
     const errorMsg = error.response?.data?.message || error.message;
-    return res.redirect(`/?error=token_exchange_failed&error_description=${encodeURIComponent(errorMsg)}`);
+    return res.redirect(buildErrorRedirect('token_exchange_failed', errorMsg));
   }
 });
 
@@ -168,21 +128,7 @@ app.get('/callback', async (req, res) => {
  */
 app.get('/health', (req, res) => {
   const stats = stateTokenManager.getStats();
-
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    config: {
-      clientId: CLIENT_ID ? '✓ Set' : '✗ Missing',
-      clientSecret: CLIENT_SECRET ? '✓ Set' : '✗ Missing',
-      redirectUri: REDIRECT_URI
-    },
-    stateTokens: {
-      total: stats.total,
-      active: stats.active,
-      expired: stats.expired
-    }
-  });
+  res.json(getHealthCheckResponse(oauthConfig, stats));
 });
 
 // Start the server
@@ -191,9 +137,9 @@ app.listen(PORT, () => {
   Logger.log(`\nServer running at: http://localhost:${PORT}`);
 
   Logger.configStatus({
-    'Client ID': CLIENT_ID,
-    'Client Secret': CLIENT_SECRET,
-    'Redirect URI': REDIRECT_URI
+    'Client ID': oauthConfig.clientId,
+    'Client Secret': oauthConfig.clientSecret,
+    'Redirect URI': oauthConfig.redirectUri
   });
 
   Logger.log(`\nRequired Scopes: ${SCOPES.join(', ')}`);
@@ -208,11 +154,11 @@ app.listen(PORT, () => {
   Logger.log('');
 
   // Validate configuration
-  if (!CLIENT_ID || !CLIENT_SECRET) {
+  if (!oauthConfig.clientId || !oauthConfig.clientSecret) {
     Logger.warn('WARNING: Missing required config.json fields!');
     Logger.log('Please add the following to your config.json file:');
-    if (!CLIENT_ID) Logger.log('- TWITCH_CLIENT_ID');
-    if (!CLIENT_SECRET) Logger.log('- TWITCH_CLIENT_SECRET');
+    if (!oauthConfig.clientId) Logger.log('- TWITCH_CLIENT_ID');
+    if (!oauthConfig.clientSecret) Logger.log('- TWITCH_CLIENT_SECRET');
     Logger.log('');
   }
 });
