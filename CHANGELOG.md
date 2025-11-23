@@ -9,8 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.2.0] - 2025-11-23
+
+### Added
+- Token expiration timer on dashboard showing remaining time until token expires
+- Delete all logs button in settings menu for easy log management
+- Automatic token refresh when access token expires to maintain uninterrupted sessions
+- Custom modal dialogs for delete confirmations (replacing native dialogs)
+
+### Fixed
+- Token expiration timer not updating correctly after token refresh
+- Token saving in Electron by passing CONFIG_PATH to child process environment
+- Localized error messages and handle partial deletion failures gracefully
+- Timer rescheduling issues after stop and double scheduling bugs
+- Token refresh timer chain reliability to ensure continuous operation
+- Token expiration check before first refresh and proper cleanup
+- Token refresh reliability and subscriber handling improvements
+- Hourly token auto-refresh to prevent expiration during active monitoring sessions
+- Refresh token preservation when saving config in GUI settings
+- Subscription count check made more defensive to handle edge cases
+
 ### Changed
-- Allow keepalive messages through the packet filter by default (enabling their processing and logging) to provide more detailed connection monitoring and analysis
+- Allow keepalive messages through the packet filter by default for detailed connection monitoring
+- Use structured IPC messaging for token refresh notification between processes
+- Extract token expiry timeout cleanup into helper function for better maintainability
+- Optimize token expiry timer updates and display rendering
+- Extract time constants for better code readability and maintenance
+- Replace native dialogs with custom modals for delete logs operations
+- Improve token refresh with setTimeout and retry logic for better reliability
+- Improve code robustness and backward compatibility across versions
+- Improve error messages with actionable guidance for users
+- Improve TokenRefresher code quality and structure
 
 ---
 
