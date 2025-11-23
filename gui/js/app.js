@@ -1,6 +1,12 @@
 // Constants
 const OAUTH_TIMEOUT_MS = 300000; // 5 minutes
 
+// Time constants for readability
+const HOUR_MS = 3600000;
+const MINUTE_MS = 60000;
+const SECOND_MS = 1000;
+const TOKEN_WARNING_THRESHOLD_MS = 10 * MINUTE_MS; // 10 minutes
+
 // Application State
 const state = {
   currentStep: 0,
@@ -853,9 +859,9 @@ function updateUptime() {
   }
 
   const elapsed = Date.now() - state.startTime;
-  const hours = Math.floor(elapsed / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  const seconds = Math.floor((elapsed % 60000) / 1000);
+  const hours = Math.floor(elapsed / HOUR_MS);
+  const minutes = Math.floor((elapsed % HOUR_MS) / MINUTE_MS);
+  const seconds = Math.floor((elapsed % MINUTE_MS) / SECOND_MS);
 
   const parts = [];
   if (hours > 0) parts.push(`${hours}h`);
@@ -912,9 +918,9 @@ function updateTokenExpiry() {
     return;
   }
 
-  const hours = Math.floor(remaining / 3600000);
-  const minutes = Math.floor((remaining % 3600000) / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
+  const hours = Math.floor(remaining / HOUR_MS);
+  const minutes = Math.floor((remaining % HOUR_MS) / MINUTE_MS);
+  const seconds = Math.floor((remaining % MINUTE_MS) / SECOND_MS);
 
   const parts = [];
   if (hours > 0) parts.push(`${hours}h`);
@@ -923,8 +929,8 @@ function updateTokenExpiry() {
 
   tokenExpiryElement.textContent = parts.join(' ');
 
-  // Add warning class if less than 10 minutes remaining
-  if (remaining < 600000) {
+  // Add warning class if token is expiring soon
+  if (remaining < TOKEN_WARNING_THRESHOLD_MS) {
     tokenExpiryElement.className = 'status-value token-expiry token-expiring-soon';
   } else {
     tokenExpiryElement.className = 'status-value token-expiry';
