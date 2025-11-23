@@ -473,6 +473,7 @@ ipcMain.handle('eventsub:start', async () => {
       TWITCH_CLIENT_ID: configResult.config.TWITCH_CLIENT_ID || '',
       TWITCH_CLIENT_SECRET: configResult.config.TWITCH_CLIENT_SECRET || '',
       TWITCH_ACCESS_TOKEN: configResult.config.TWITCH_ACCESS_TOKEN || '',
+      TWITCH_REFRESH_TOKEN: configResult.config.TWITCH_REFRESH_TOKEN || '',
       TWITCH_BROADCASTER_ID: configResult.config.TWITCH_BROADCASTER_ID || '',
       REDIRECT_URI: configResult.config.REDIRECT_URI || '',
       PORT: configResult.config.PORT || ''
