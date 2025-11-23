@@ -486,6 +486,55 @@
         </div>
       </div>
     </div>
+
+    <!-- Delete Logs Confirmation Modal -->
+    <div id="deleteLogsModal" class="modal" style="display: none;">
+      <div class="modal-overlay" onclick="closeDeleteLogsModal()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <h2 data-i18n="modal.deleteLogs.title">Delete All Logs</h2>
+        </div>
+        <div class="modal-body">
+          <p id="deleteLogsMessage" data-i18n="modal.deleteLogs.message">Are you sure you want to delete all log files? This will free up disk space but cannot be undone.</p>
+          <p class="modal-note" data-i18n="modal.deleteLogs.note">Note: The current session log will be preserved.</p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-danger" onclick="confirmDeleteLogs()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            <span data-i18n="modal.deleteLogs.confirmButton">Delete Logs</span>
+          </button>
+          <button class="btn btn-secondary" onclick="closeDeleteLogsModal()" data-i18n="modal.deleteLogs.cancelButton">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notificationModal" class="modal" style="display: none;">
+      <div class="modal-overlay" onclick="closeNotificationModal()"></div>
+      <div class="modal-content">
+        <div class="modal-header" id="notificationHeader">
+          <svg id="notificationIcon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <h2 id="notificationTitle">Notification</h2>
+        </div>
+        <div class="modal-body">
+          <p id="notificationMessage"></p>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" onclick="closeNotificationModal()" data-i18n="modal.notification.ok">OK</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="js/app.js"></script>

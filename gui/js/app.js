@@ -1041,28 +1041,84 @@ async function openFolder(folderType) {
   }
 }
 
-// Delete all logs
-async function deleteAllLogs() {
-  if (!confirm(t('messages.logs.confirmDelete'))) {
-    return;
-  }
+// Delete all logs - shows confirmation modal
+function deleteAllLogs() {
+  showDeleteLogsModal();
+}
+
+// Show Delete Logs Modal
+function showDeleteLogsModal() {
+  const modal = document.getElementById('deleteLogsModal');
+  modal.style.display = 'flex';
+}
+
+// Close Delete Logs Modal
+function closeDeleteLogsModal() {
+  const modal = document.getElementById('deleteLogsModal');
+  modal.style.display = 'none';
+}
+
+// Confirm Delete Logs - called when user confirms deletion
+async function confirmDeleteLogs() {
+  closeDeleteLogsModal();
 
   try {
     const result = await window.electronAPI.deleteAllLogs();
 
     if (result.success) {
       if (result.deletedCount === 0) {
-        alert(t('messages.logs.noLogsToDelete'));
+        showNotification('info', t('modal.notification.infoTitle'), t('messages.logs.noLogsToDelete'));
       } else {
-        alert(t('messages.logs.deleteSuccess', { count: result.deletedCount }));
+        showNotification('success', t('modal.notification.successTitle'), t('messages.logs.deleteSuccess', { count: result.deletedCount }));
       }
     } else {
-      alert(t('messages.logs.deleteFailed', { error: result.error }));
+      showNotification('error', t('modal.notification.errorTitle'), t('messages.logs.deleteFailed', { error: result.error }));
     }
   } catch (error) {
     console.error('Error deleting logs:', error);
-    alert(t('messages.logs.deleteFailed', { error: error.message || 'Unknown error occurred' }));
+    showNotification('error', t('modal.notification.errorTitle'), t('messages.logs.deleteFailed', { error: error.message || 'Unknown error occurred' }));
   }
+}
+
+// Show Notification Modal
+function showNotification(type, title, message) {
+  const modal = document.getElementById('notificationModal');
+  const iconElement = document.getElementById('notificationIcon');
+  const titleElement = document.getElementById('notificationTitle');
+  const messageElement = document.getElementById('notificationMessage');
+
+  // Update title and message
+  titleElement.textContent = title;
+  messageElement.textContent = message;
+
+  // Update icon based on type
+  let iconColor, iconPath;
+  switch (type) {
+    case 'success':
+      iconColor = 'var(--success)';
+      iconPath = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
+      break;
+    case 'error':
+      iconColor = 'var(--error)';
+      iconPath = '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>';
+      break;
+    case 'info':
+    default:
+      iconColor = 'var(--primary)';
+      iconPath = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>';
+      break;
+  }
+
+  iconElement.setAttribute('stroke', iconColor);
+  iconElement.innerHTML = iconPath;
+
+  modal.style.display = 'flex';
+}
+
+// Close Notification Modal
+function closeNotificationModal() {
+  const modal = document.getElementById('notificationModal');
+  modal.style.display = 'none';
 }
 
 // Utility: Escape HTML
@@ -1166,3 +1222,8 @@ window.showTokenErrorModal = showTokenErrorModal;
 window.closeTokenErrorModal = closeTokenErrorModal;
 window.refreshOAuthFromModal = refreshOAuthFromModal;
 window.deleteAllLogs = deleteAllLogs;
+window.showDeleteLogsModal = showDeleteLogsModal;
+window.closeDeleteLogsModal = closeDeleteLogsModal;
+window.confirmDeleteLogs = confirmDeleteLogs;
+window.showNotification = showNotification;
+window.closeNotificationModal = closeNotificationModal;
