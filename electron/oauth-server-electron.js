@@ -12,7 +12,8 @@ import {
   validateAndGetUserInfo,
   buildErrorRedirect,
   buildSuccessRedirect,
-  getHealthCheckResponse
+  getHealthCheckResponse,
+  parsePort
 } from '../lib/oauth-handler.js';
 
 // Load configuration from config.json
@@ -63,10 +64,7 @@ function saveTokensToConfigFile({ configPath, tokens, userInfo, oauthConfig }) {
     existingConfig.REDIRECT_URI = oauthConfig.redirectUri;
   }
   if (!existingConfig.PORT) {
-    // Ensure PORT is always a valid number
-    const DEFAULT_PORT = 3000;
-    const portValue = parseInt(oauthConfig.port || DEFAULT_PORT, 10);
-    existingConfig.PORT = isNaN(portValue) ? DEFAULT_PORT : portValue;
+    existingConfig.PORT = parsePort(oauthConfig.port);
   }
 
   // Write back to file as JSON
@@ -87,7 +85,7 @@ export function startOAuthServer(config) {
   return new Promise((resolve, reject) => {
     const app = express();
 
-    const PORT = config.port || 3000;
+    const PORT = parsePort(config.port);
     const SCOPES = DEFAULT_OAUTH_SCOPES;
 
     // OAuth configuration object for shared handler
