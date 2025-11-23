@@ -476,7 +476,9 @@ ipcMain.handle('eventsub:start', async () => {
       TWITCH_REFRESH_TOKEN: configResult.config.TWITCH_REFRESH_TOKEN || '',
       TWITCH_BROADCASTER_ID: configResult.config.TWITCH_BROADCASTER_ID || '',
       REDIRECT_URI: configResult.config.REDIRECT_URI || '',
-      PORT: configResult.config.PORT || ''
+      PORT: configResult.config.PORT || '',
+      // Pass the config path to the child process so TokenRefresher can save tokens
+      CONFIG_PATH: configPath
     };
 
     eventSubProcess = fork(
