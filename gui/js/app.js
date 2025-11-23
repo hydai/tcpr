@@ -890,13 +890,17 @@ async function fetchAndStartTokenExpiryTimer() {
   }
 }
 
-// Schedule token expiry updates with dynamic interval based on remaining time
-function scheduleTokenExpiryUpdate() {
-  // Clear any existing interval
+// Clear any pending token expiry timeout
+function clearTokenExpiryTimeout() {
   if (state.tokenExpiryInterval) {
     clearTimeout(state.tokenExpiryInterval);
     state.tokenExpiryInterval = null;
   }
+}
+
+// Schedule token expiry updates with dynamic interval based on remaining time
+function scheduleTokenExpiryUpdate() {
+  clearTokenExpiryTimeout();
 
   if (!state.tokenExpiresAt) {
     return;
@@ -928,10 +932,7 @@ function scheduleTokenExpiryUpdate() {
 
 // Stop token expiry timer
 function stopTokenExpiryTimer() {
-  if (state.tokenExpiryInterval) {
-    clearTimeout(state.tokenExpiryInterval);
-    state.tokenExpiryInterval = null;
-  }
+  clearTokenExpiryTimeout();
   state.tokenExpiresAt = null;
   document.getElementById('tokenExpiry').textContent = '-';
 }
