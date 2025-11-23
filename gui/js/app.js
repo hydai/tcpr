@@ -1,6 +1,12 @@
 // Constants
 const OAUTH_TIMEOUT_MS = 300000; // 5 minutes
 
+// Time constants for readability
+const HOUR_MS = 3600000;
+const MINUTE_MS = 60000;
+const SECOND_MS = 1000;
+const TOKEN_WARNING_THRESHOLD_MS = 10 * MINUTE_MS; // 10 minutes
+
 // Application State
 const state = {
   currentStep: 0,
@@ -19,7 +25,9 @@ const state = {
   uptimeInterval: null,
   oauthRefreshInterval: null, // Timeout ID for polling OAuth refresh completion
   allEvents: [], // Store all events for export
-  sessionId: null // Session ID for auto-save
+  sessionId: null, // Session ID for auto-save
+  tokenExpiresAt: null, // Timestamp when token expires
+  tokenExpiryInterval: null // Interval for updating token expiry display
 };
 
 // Initialize app on load
@@ -643,6 +651,9 @@ async function startMonitoring() {
       // Start uptime counter
       updateUptime();
       state.uptimeInterval = setInterval(updateUptime, 1000);
+
+      // Start token expiry timer
+      fetchAndStartTokenExpiryTimer();
     } else {
       alert(t('messages.monitoring.startFailed', { error: result.error }));
     }
@@ -680,6 +691,9 @@ function handleMonitoringStopped() {
     clearInterval(state.uptimeInterval);
     state.uptimeInterval = null;
   }
+
+  // Stop token expiry timer
+  stopTokenExpiryTimer();
 }
 
 // Check Monitoring Status
@@ -697,6 +711,9 @@ async function checkMonitoringStatus() {
 
       updateUptime();
       state.uptimeInterval = setInterval(updateUptime, 1000);
+
+      // Start token expiry timer
+      fetchAndStartTokenExpiryTimer();
     }
   } catch (error) {
     console.error('Status check error:', error);
@@ -842,9 +859,9 @@ function updateUptime() {
   }
 
   const elapsed = Date.now() - state.startTime;
-  const hours = Math.floor(elapsed / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  const seconds = Math.floor((elapsed % 60000) / 1000);
+  const hours = Math.floor(elapsed / HOUR_MS);
+  const minutes = Math.floor((elapsed % HOUR_MS) / MINUTE_MS);
+  const seconds = Math.floor((elapsed % MINUTE_MS) / SECOND_MS);
 
   const parts = [];
   if (hours > 0) parts.push(`${hours}h`);
@@ -852,6 +869,110 @@ function updateUptime() {
   parts.push(`${seconds}s`);
 
   document.getElementById('uptime').textContent = parts.join(' ');
+}
+
+// Fetch and start token expiry timer
+async function fetchAndStartTokenExpiryTimer() {
+  try {
+    const result = await window.electronAPI.getTokenExpiry();
+    if (result.success) {
+      state.tokenExpiresAt = result.expiresAt;
+      updateTokenExpiry();
+      // Schedule updates with dynamic interval based on remaining time
+      scheduleTokenExpiryUpdate();
+    } else {
+      console.error('Failed to get token expiry:', result.error);
+      document.getElementById('tokenExpiry').textContent = t('dashboard.tokenExpiryUnknown');
+    }
+  } catch (error) {
+    console.error('Error fetching token expiry:', error);
+    document.getElementById('tokenExpiry').textContent = t('dashboard.tokenExpiryUnknown');
+  }
+}
+
+// Clear any pending token expiry timeout
+function clearTokenExpiryTimeout() {
+  if (state.tokenExpiryInterval) {
+    clearTimeout(state.tokenExpiryInterval);
+    state.tokenExpiryInterval = null;
+  }
+}
+
+// Schedule token expiry updates with dynamic interval based on remaining time
+function scheduleTokenExpiryUpdate() {
+  clearTokenExpiryTimeout();
+
+  if (!state.tokenExpiresAt) {
+    return;
+  }
+
+  const remaining = state.tokenExpiresAt - Date.now();
+
+  // Determine update interval based on remaining time
+  let interval;
+  if (remaining <= 0) {
+    // Token expired, no need to schedule
+    return;
+  } else if (remaining < MINUTE_MS) {
+    // Less than 1 minute: update every second
+    interval = SECOND_MS;
+  } else if (remaining < HOUR_MS) {
+    // Less than 1 hour: update every minute
+    interval = MINUTE_MS;
+  } else {
+    // 1 hour or more: update every hour
+    interval = HOUR_MS;
+  }
+
+  state.tokenExpiryInterval = setTimeout(() => {
+    updateTokenExpiry();
+    scheduleTokenExpiryUpdate(); // Reschedule with potentially different interval
+  }, interval);
+}
+
+// Stop token expiry timer
+function stopTokenExpiryTimer() {
+  clearTokenExpiryTimeout();
+  state.tokenExpiresAt = null;
+  document.getElementById('tokenExpiry').textContent = '-';
+}
+
+// Update Token Expiry display
+function updateTokenExpiry() {
+  const tokenExpiryElement = document.getElementById('tokenExpiry');
+
+  if (!state.tokenExpiresAt) {
+    tokenExpiryElement.textContent = '-';
+    tokenExpiryElement.className = 'status-value token-expiry';
+    return;
+  }
+
+  const remaining = state.tokenExpiresAt - Date.now();
+
+  if (remaining <= 0) {
+    tokenExpiryElement.textContent = t('dashboard.tokenExpired');
+    tokenExpiryElement.className = 'status-value token-expiry token-expired';
+    return;
+  }
+
+  const hours = Math.floor(remaining / HOUR_MS);
+  const minutes = Math.floor((remaining % HOUR_MS) / MINUTE_MS);
+  const seconds = Math.floor((remaining % MINUTE_MS) / SECOND_MS);
+
+  const parts = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+  // Only show seconds when less than 1 hour remains for cleaner display
+  if (hours === 0) parts.push(`${seconds}s`);
+
+  tokenExpiryElement.textContent = parts.join(' ');
+
+  // Add warning class if token is expiring soon
+  if (remaining < TOKEN_WARNING_THRESHOLD_MS) {
+    tokenExpiryElement.className = 'status-value token-expiry token-expiring-soon';
+  } else {
+    tokenExpiryElement.className = 'status-value token-expiry';
+  }
 }
 
 // Clear Events

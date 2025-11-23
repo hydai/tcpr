@@ -672,6 +672,29 @@ body {
   color: var(--text-primary);
 }
 
+/* Token Expiry Timer Styles */
+.token-expiry {
+  transition: color 0.3s ease;
+}
+
+.token-expiring-soon {
+  color: var(--warning);
+  animation: pulse-warning 1.5s infinite;
+}
+
+.token-expired {
+  color: var(--error);
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 /* Events Container */
 .events-container {
   background-color: var(--bg-secondary);
