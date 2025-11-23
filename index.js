@@ -1,5 +1,5 @@
 import { loadConfig } from './config/loader.js';
-import { EVENT_TYPES, MESSAGE_TYPES, TOKEN_REFRESH, TIME } from './config/constants.js';
+import { EVENT_TYPES, MESSAGE_TYPES, TOKEN_REFRESH, TOKEN_REFRESH_INTERVAL_MINUTES } from './config/constants.js';
 import { Config } from './config/env.js';
 import { TokenValidator } from './lib/tokenValidator.js';
 import { TokenRefresher } from './lib/TokenRefresher.js';
@@ -11,9 +11,6 @@ import { PacketFilter } from './client/PacketFilter.js';
 
 // Load configuration from config.json
 loadConfig();
-
-// Derived constants for readability
-const TOKEN_REFRESH_INTERVAL_MINUTES = TOKEN_REFRESH.INTERVAL_MS / TIME.MS_PER_SECOND / TIME.SECONDS_PER_MINUTE;
 
 /**
  * Main EventSub client class

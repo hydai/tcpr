@@ -82,6 +82,11 @@ export const TOKEN_REFRESH = {
  */
 export const TIME = {
   SECONDS_PER_MINUTE: 60,
-  SECONDS_PER_HOUR: 3600,
+  SECONDS_PER_HOUR: 60 * 60,
   MS_PER_SECOND: 1000
 };
+
+/**
+ * Pre-calculated derived constants
+ */
+export const TOKEN_REFRESH_INTERVAL_MINUTES = TOKEN_REFRESH.INTERVAL_MS / TIME.MS_PER_SECOND / TIME.SECONDS_PER_MINUTE;
