@@ -535,14 +535,21 @@ ipcMain.handle('eventsub:start', async () => {
     });
 
     eventSubProcess.stdout.on('data', (data) => {
+      const message = data.toString();
       const logEntry = {
         timestamp: new Date().toISOString(),
         type: 'info',
-        message: data.toString()
+        message: message
       };
 
       if (mainWindow) {
         mainWindow.webContents.send('eventsub:log', logEntry);
+
+        // Detect token refresh success and notify frontend to update expiry timer
+        if (message.includes('token refresh completed successfully') ||
+            message.includes('Token refreshed successfully')) {
+          mainWindow.webContents.send('token:refreshed');
+        }
       }
 
       // Auto-save to session log
