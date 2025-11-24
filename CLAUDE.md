@@ -54,6 +54,7 @@ tcpr/
 │   ├── tokenValidator.js        # Token validation against Twitch API
 │   ├── TokenRefresher.js        # Automatic token refresh
 │   ├── StateTokenManager.js     # OAuth CSRF protection
+│   ├── oauth-handler.js         # Shared OAuth logic (URL building, token exchange)
 │   ├── errors.js                # Custom error classes
 │   └── retry.js                 # Exponential backoff retry logic
 │
@@ -188,6 +189,7 @@ Load → Validate → Auto-refresh (60 min) → Save to config → Update env
 | Adding translations | `gui/locales/en/translation.json`, `gui/locales/ja/translation.json` |
 | Electron IPC | `electron/main.js`, `electron/preload.js` |
 | Token handling | `lib/tokenValidator.js`, `lib/TokenRefresher.js` |
+| OAuth flow | `lib/oauth-handler.js`, `lib/StateTokenManager.js` |
 | Error handling | `lib/errors.js` |
 | Logging | `lib/logger.js` |
 
