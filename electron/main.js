@@ -311,17 +311,35 @@ app.on('window-all-closed', () => {
 });
 
 // Graceful shutdown - ensure session log queue is flushed before quitting
+let isQuitting = false;
 app.on('before-quit', async (event) => {
-  // Check if there are pending log entries to write
-  if (sessionLogQueueIndex < sessionLogQueue.length && !sessionLogWriting) {
-    event.preventDefault();
+  // Prevent re-entry if we're already in the quitting process
+  if (isQuitting) {
+    return;
+  }
 
-    // Process remaining queue entries
-    try {
-      await processSessionLogQueue();
-    } catch (error) {
-      console.error('Error flushing session log queue during shutdown:', error);
-    }
+  // Check if there are pending log entries to write
+  if (sessionLogQueueIndex < sessionLogQueue.length) {
+    event.preventDefault();
+    isQuitting = true;
+
+    // Wait for any in-progress writes to complete, then process remaining
+    const waitForQueue = async () => {
+      // Wait if currently writing
+      while (sessionLogWriting) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      // Process any remaining entries
+      if (sessionLogQueueIndex < sessionLogQueue.length) {
+        try {
+          await processSessionLogQueue();
+        } catch (error) {
+          console.error('Error flushing session log queue during shutdown:', error);
+        }
+      }
+    };
+
+    await waitForQueue();
 
     // Now quit
     app.quit();
@@ -685,12 +703,20 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
       app.getPath('userData')
     ];
 
-    // Check if the resolved path is within any allowed directory using path.relative
-    // This handles case-insensitive filesystems and prevents symlink attacks
-    const isAllowedPath = allowedDirs.some(dir => {
-      const rel = path.relative(dir, resolvedPath);
-      return rel && !rel.startsWith('..') && !path.isAbsolute(rel);
-    });
+    // Check if the resolved path is within any allowed directory
+    // Uses normalized, case-insensitive comparison on Windows/macOS
+    function isPathWithin(parent, child) {
+      const normalizedParent = path.normalize(parent);
+      const normalizedChild = path.normalize(child);
+      if (process.platform === 'win32' || process.platform === 'darwin') {
+        // Case-insensitive comparison for Windows and macOS
+        return normalizedChild.toLowerCase().startsWith(normalizedParent.toLowerCase() + path.sep);
+      } else {
+        // Case-sensitive comparison for Linux and other platforms
+        return normalizedChild.startsWith(normalizedParent + path.sep);
+      }
+    }
+    const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
 
     if (!isAllowedPath) {
       return {
