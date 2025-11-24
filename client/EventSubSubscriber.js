@@ -3,7 +3,7 @@
  */
 
 import axios from 'axios';
-import { TWITCH_URLS } from '../config/constants.js';
+import { TWITCH_URLS, TIMEOUTS } from '../config/constants.js';
 import { Logger } from '../lib/logger.js';
 import { SubscriptionError } from '../lib/errors.js';
 import { withHttpRetry, RetryStrategies } from '../lib/retry.js';
@@ -74,7 +74,8 @@ export class EventSubSubscriber {
               'Client-ID': this.clientId,
               'Authorization': `Bearer ${this.accessToken}`,
               'Content-Type': 'application/json'
-            }
+            },
+            timeout: TIMEOUTS.API_REQUEST
           }
         );
 

@@ -1,5 +1,7 @@
 // Constants
 const OAUTH_TIMEOUT_MS = 300000; // 5 minutes
+const MAX_EVENTS_IN_MEMORY = 10000; // Maximum events to keep in memory for export
+const MAX_EVENTS_DISPLAY = 100; // Maximum events to display in UI
 
 // Time constants for readability
 const HOUR_MS = 3600000;
@@ -814,6 +816,11 @@ function handleEventSubLog(data) {
   // Add to top of list
   eventsList.insertBefore(eventItem, eventsList.firstChild);
 
+  // Limit displayed events to prevent DOM bloat
+  while (eventsList.children.length > MAX_EVENTS_DISPLAY) {
+    eventsList.removeChild(eventsList.lastChild);
+  }
+
   // Store event in persistent array for export (excluding internal error logs)
   // The `internal` flag marks UI-only notifications (e.g., session write errors)
   // that should not be persisted to the session log file or exported.
@@ -825,6 +832,12 @@ function handleEventSubLog(data) {
       type: data.type || 'info',
       message: data.message
     });
+    
+    // Implement circular buffer: remove oldest events when exceeding max size
+    // This prevents memory leaks during long-running sessions
+    if (state.allEvents.length > MAX_EVENTS_IN_MEMORY) {
+      state.allEvents.shift(); // Remove oldest event
+    }
   }
 
   // Increment event count
