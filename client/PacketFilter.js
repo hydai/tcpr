@@ -139,5 +139,3 @@ export class PacketFilter {
     ].includes(eventType);
   }
 }
-
-export default PacketFilter;

@@ -603,9 +603,21 @@ ipcMain.handle('eventsub:status', async () => {
 });
 
 // Open external URL
+// Security: Only allow http and https URLs to prevent arbitrary protocol execution
 ipcMain.handle('shell:openExternal', async (event, url) => {
-  await shell.openExternal(url);
-  return { success: true };
+  try {
+    const parsedUrl = new URL(url);
+    const allowedProtocols = ['http:', 'https:'];
+
+    if (!allowedProtocols.includes(parsedUrl.protocol)) {
+      return { success: false, error: `Invalid URL protocol: ${parsedUrl.protocol}. Only http and https are allowed.` };
+    }
+
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: `Invalid URL: ${error.message}` };
+  }
 });
 
 // Open folder in system file explorer
