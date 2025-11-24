@@ -27,6 +27,32 @@ const MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
 const MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
 const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
+const SHUTDOWN_POLL_INTERVAL_MS = 50; // Polling interval for graceful shutdown
+
+/**
+ * Check if a child path is within a parent directory
+ * Handles case-insensitive filesystems (Windows/macOS) and prevents path traversal
+ * @param {string} parent - Parent directory path
+ * @param {string} child - Child path to validate
+ * @returns {boolean} True if child is within parent
+ */
+function isPathWithin(parent, child) {
+  const normalizedParent = path.normalize(parent);
+  const normalizedChild = path.normalize(child);
+
+  let relative;
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    // Case-insensitive comparison for Windows and macOS
+    relative = path.relative(normalizedParent.toLowerCase(), normalizedChild.toLowerCase());
+  } else {
+    // Case-sensitive comparison for Linux and other platforms
+    relative = path.relative(normalizedParent, normalizedChild);
+  }
+
+  // Ensure the relative path doesn't escape the parent (no '..' at start)
+  // and isn't an absolute path (which would indicate it's outside the parent)
+  return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
 
 // Create main window
 function createWindow() {
@@ -327,7 +353,7 @@ app.on('before-quit', async (event) => {
     const waitForQueue = async () => {
       // Wait if currently writing
       while (sessionLogWriting) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, SHUTDOWN_POLL_INTERVAL_MS));
       }
       // Process any remaining entries
       if (sessionLogQueueIndex < sessionLogQueue.length) {
@@ -704,18 +730,6 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     ];
 
     // Check if the resolved path is within any allowed directory
-    // Uses normalized, case-insensitive comparison on Windows/macOS
-    function isPathWithin(parent, child) {
-      const normalizedParent = path.normalize(parent);
-      const normalizedChild = path.normalize(child);
-      if (process.platform === 'win32' || process.platform === 'darwin') {
-        // Case-insensitive comparison for Windows and macOS
-        return normalizedChild.toLowerCase().startsWith(normalizedParent.toLowerCase() + path.sep);
-      } else {
-        // Case-sensitive comparison for Linux and other platforms
-        return normalizedChild.startsWith(normalizedParent + path.sep);
-      }
-    }
     const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
 
     if (!isAllowedPath) {
