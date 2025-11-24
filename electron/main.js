@@ -685,8 +685,12 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
       app.getPath('userData')
     ];
 
-    // Check if the resolved path starts with any allowed directory
-    const isAllowedPath = allowedDirs.some(dir => resolvedPath.startsWith(dir));
+    // Check if the resolved path is within any allowed directory using path.relative
+    // This handles case-insensitive filesystems and prevents symlink attacks
+    const isAllowedPath = allowedDirs.some(dir => {
+      const rel = path.relative(dir, resolvedPath);
+      return rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+    });
 
     if (!isAllowedPath) {
       return {
