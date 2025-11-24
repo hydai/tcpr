@@ -310,6 +310,24 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Graceful shutdown - ensure session log queue is flushed before quitting
+app.on('before-quit', async (event) => {
+  // Check if there are pending log entries to write
+  if (sessionLogQueueIndex < sessionLogQueue.length && !sessionLogWriting) {
+    event.preventDefault();
+
+    // Process remaining queue entries
+    try {
+      await processSessionLogQueue();
+    } catch (error) {
+      console.error('Error flushing session log queue during shutdown:', error);
+    }
+
+    // Now quit
+    app.quit();
+  }
+});
+
 // IPC Handlers
 
 // Helper function to load configuration
@@ -653,9 +671,31 @@ ipcMain.handle('app:getPath', async (event, name) => {
 });
 
 // Save event log
+// Security: Validate that the file path is within allowed directories
 ipcMain.handle('eventlog:save', async (event, filePath, content) => {
   try {
-    await fs.promises.writeFile(filePath, content, 'utf-8');
+    // Resolve to absolute path to prevent path traversal
+    const resolvedPath = path.resolve(filePath);
+
+    // Define allowed directories for saving files
+    const allowedDirs = [
+      app.getPath('downloads'),
+      app.getPath('documents'),
+      app.getPath('desktop'),
+      app.getPath('userData')
+    ];
+
+    // Check if the resolved path starts with any allowed directory
+    const isAllowedPath = allowedDirs.some(dir => resolvedPath.startsWith(dir));
+
+    if (!isAllowedPath) {
+      return {
+        success: false,
+        error: 'File path must be within Downloads, Documents, Desktop, or app data directory'
+      };
+    }
+
+    await fs.promises.writeFile(resolvedPath, content, 'utf-8');
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

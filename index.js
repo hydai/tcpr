@@ -1,5 +1,5 @@
 import { loadConfig } from './config/loader.js';
-import { EVENT_TYPES, MESSAGE_TYPES, TOKEN_REFRESH, TOKEN_REFRESH_INTERVAL_MINUTES } from './config/constants.js';
+import { EVENT_TYPES, MESSAGE_TYPES, TOKEN_REFRESH, TOKEN_REFRESH_INTERVAL_MINUTES, TIME } from './config/constants.js';
 import { Config } from './config/env.js';
 import { TokenValidator } from './lib/tokenValidator.js';
 import { TokenRefresher } from './lib/TokenRefresher.js';

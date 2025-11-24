@@ -4,6 +4,9 @@ config.json
 # Output
 dist/
 
+# Test coverage
+coverage/
+
 # Node modules
 node_modules/
 
