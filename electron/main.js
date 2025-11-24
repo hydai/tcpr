@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
+import { RETRY } from '../config/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,8 +23,8 @@ let sessionLogQueue = [];
 let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
 let sessionLogWriting = false;
 let sessionLogRetryCount = 0;
-const MAX_RETRY_ATTEMPTS = 5;
-const MAX_BACKOFF_DELAY_MS = 10000; // Maximum delay between retries (10 seconds)
+const MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
+const MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
 const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
 

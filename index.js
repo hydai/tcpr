@@ -201,20 +201,16 @@ class TwitchEventSubClient {
           this.accessToken = newTokens.accessToken;
           this.refreshToken = newTokens.refreshToken;
 
-          // Replace subscriber with new access token
-          // Defensive check: warn if subscriptions exist (shouldn't happen in normal flow)
-          let existingSubscriptions = 0;
-          if (this.subscriber && typeof this.subscriber.getSubscriptionCount === 'function') {
-            try {
-              existingSubscriptions = this.subscriber.getSubscriptionCount();
-            } catch {
-              // Ignore errors - this is just a defensive check
-            }
+          // Update subscriber token instead of replacing instance to preserve subscriptions
+          // This prevents losing active subscriptions during token refresh
+          if (this.subscriber) {
+            this.subscriber.updateToken(this.accessToken);
+            Logger.debug('Updated subscriber token while preserving existing subscriptions');
+          } else {
+            // No subscriber exists yet (shouldn't happen during normal operation)
+            this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
+            Logger.debug('Created new subscriber instance (no existing subscriber found)');
           }
-          if (existingSubscriptions > 0) {
-            Logger.warn(`Replacing subscriber with ${existingSubscriptions} existing subscription(s) - they will be lost`);
-          }
-          this.subscriber = new EventSubSubscriber(this.clientId, this.accessToken);
 
           // Update environment variables
           TokenRefresher.updateEnvironment(newTokens);

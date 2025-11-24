@@ -1,0 +1,34 @@
+{
+  "env": {
+    "es2022": true,
+    "node": true
+  },
+  "extends": ["eslint:recommended"],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "rules": {
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "semi": ["warn", "always"],
+    "no-unused-vars": ["warn", { 
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }],
+    "no-console": ["warn", { 
+      "allow": ["warn", "error"] 
+    }],
+    "prefer-const": "warn",
+    "no-var": "error",
+    "eqeqeq": ["error", "always"],
+    "curly": ["warn", "all"],
+    "brace-style": ["warn", "1tbs"],
+    "comma-dangle": ["warn", "never"],
+    "arrow-spacing": "warn",
+    "space-before-blocks": "warn",
+    "keyword-spacing": "warn",
+    "no-trailing-spaces": "warn",
+    "indent": ["warn", 2, { "SwitchCase": 1 }],
+    "no-multiple-empty-lines": ["warn", { "max": 2 }]
+  }
+}

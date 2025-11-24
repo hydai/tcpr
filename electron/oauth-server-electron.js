@@ -135,6 +135,16 @@ export function startOAuthServer(config) {
     app.get('/callback', async (req, res) => {
       const { code, state, error, error_description } = req.query;
 
+      // Validate parameter types to prevent injection attacks
+      if (code && typeof code !== 'string') {
+        Logger.error('Invalid code parameter type');
+        return res.redirect('/?error=invalid_request&error_description=Invalid+parameter+type');
+      }
+      if (state && typeof state !== 'string') {
+        Logger.error('Invalid state parameter type');
+        return res.redirect('/?error=invalid_request&error_description=Invalid+parameter+type');
+      }
+
       // Handle OAuth errors
       if (error) {
         Logger.error('OAuth Error:', { error, error_description });
