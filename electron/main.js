@@ -233,10 +233,12 @@ function appendToSessionLog(logEntry) {
 async function processSessionLogQueue() {
   if (sessionLogWritePromise) return;
 
-  // Create a promise that will be resolved when processing completes
+  // Create and set promise atomically to prevent race condition
   let resolveWritePromise;
-  sessionLogWritePromise = new Promise(resolve => {
+  let rejectWritePromise;
+  sessionLogWritePromise = new Promise((resolve, reject) => {
     resolveWritePromise = resolve;
+    rejectWritePromise = reject;
   });
 
   try {
@@ -293,16 +295,19 @@ async function processSessionLogQueue() {
             });
           }
 
-          // Exit loop to retry later with exponential backoff
+          // Resolve current promise to unblock any waiters (like shutdown)
+          resolveWritePromise();
+          sessionLogWritePromise = null;
+
+          // Schedule retry with exponential backoff
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
           setTimeout(() => {
-            sessionLogWritePromise = null; // Reset before retry
             processSessionLogQueue().catch(err => {
               console.error('Critical error in session log retry:', err);
             });
           }, backoffDelay);
 
-          return; // Exit without resolving the promise (retry scheduled)
+          return; // Exit after scheduling retry
         }
       }
     }
@@ -312,12 +317,14 @@ async function processSessionLogQueue() {
       sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
       sessionLogQueueIndex = 0;
     }
+
+    // Resolve the promise on successful completion
+    resolveWritePromise();
+  } catch (error) {
+    // Reject the promise on unexpected errors
+    rejectWritePromise(error);
   } finally {
-    // Only reset and resolve if we're not scheduling a retry
-    // (return statement above will skip this)
-    if (resolveWritePromise) {
-      resolveWritePromise();
-    }
+    // Always clear the promise reference
     sessionLogWritePromise = null;
   }
 }
