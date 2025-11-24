@@ -21,13 +21,12 @@ let sessionId = null;
 let sessionLogPath = null;
 let sessionLogQueue = [];
 let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
-let sessionLogWriting = false;
+let sessionLogWritePromise = null; // Promise that resolves when current write operation completes
 let sessionLogRetryCount = 0;
 const MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
 const MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
 const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
-const SHUTDOWN_POLL_INTERVAL_MS = 50; // Polling interval for graceful shutdown
 
 /**
  * Check if a child path is within a parent directory
@@ -223,7 +222,7 @@ function appendToSessionLog(logEntry) {
   sessionLogQueue.push(logEntry);
 
   // Start processing if not already running
-  if (!sessionLogWriting) {
+  if (!sessionLogWritePromise) {
     processSessionLogQueue().catch(error => {
       console.error('Critical error in session log processing:', error);
     });
@@ -232,8 +231,13 @@ function appendToSessionLog(logEntry) {
 
 // Process session log queue sequentially to prevent race conditions
 async function processSessionLogQueue() {
-  if (sessionLogWriting) return;
-  sessionLogWriting = true;
+  if (sessionLogWritePromise) return;
+
+  // Create a promise that will be resolved when processing completes
+  let resolveWritePromise;
+  sessionLogWritePromise = new Promise(resolve => {
+    resolveWritePromise = resolve;
+  });
 
   try {
     while (sessionLogQueueIndex < sessionLogQueue.length) {
@@ -290,16 +294,15 @@ async function processSessionLogQueue() {
           }
 
           // Exit loop to retry later with exponential backoff
-          // Keep sessionLogWriting = true to prevent concurrent retries
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
           setTimeout(() => {
-            sessionLogWriting = false; // Reset before retry
+            sessionLogWritePromise = null; // Reset before retry
             processSessionLogQueue().catch(err => {
               console.error('Critical error in session log retry:', err);
             });
           }, backoffDelay);
 
-          return; // Exit without setting sessionLogWriting = false
+          return; // Exit without resolving the promise (retry scheduled)
         }
       }
     }
@@ -310,9 +313,12 @@ async function processSessionLogQueue() {
       sessionLogQueueIndex = 0;
     }
   } finally {
-    // Only reset if we're not scheduling a retry
+    // Only reset and resolve if we're not scheduling a retry
     // (return statement above will skip this)
-    sessionLogWriting = false;
+    if (resolveWritePromise) {
+      resolveWritePromise();
+    }
+    sessionLogWritePromise = null;
   }
 }
 
@@ -349,23 +355,19 @@ app.on('before-quit', async (event) => {
     event.preventDefault();
     isQuitting = true;
 
-    // Wait for any in-progress writes to complete, then process remaining
-    const waitForQueue = async () => {
-      // Wait if currently writing
-      while (sessionLogWriting) {
-        await new Promise(resolve => setTimeout(resolve, SHUTDOWN_POLL_INTERVAL_MS));
+    try {
+      // Wait for any in-progress writes to complete
+      if (sessionLogWritePromise) {
+        await sessionLogWritePromise;
       }
-      // Process any remaining entries
-      if (sessionLogQueueIndex < sessionLogQueue.length) {
-        try {
-          await processSessionLogQueue();
-        } catch (error) {
-          console.error('Error flushing session log queue during shutdown:', error);
-        }
-      }
-    };
 
-    await waitForQueue();
+      // Process any remaining entries in the queue
+      if (sessionLogQueueIndex < sessionLogQueue.length) {
+        await processSessionLogQueue();
+      }
+    } catch (error) {
+      console.error('Error flushing session log queue during shutdown:', error);
+    }
 
     // Now quit
     app.quit();
