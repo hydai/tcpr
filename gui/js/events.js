@@ -141,7 +141,7 @@ export function displayErrorNotification(message) {
  */
 export function handleEventSubLog(data) {
   // Filter keepalive messages if disabled (default: hidden)
-  if (!getShowKeepaliveLogs() && isKeepaliveMessage(data.message)) {
+  if (!getShowKeepaliveLogs() && isKeepaliveMessage(data?.message)) {
     return;
   }
 
