@@ -320,11 +320,10 @@ async function processSessionLogQueue() {
 
     // Resolve the promise on successful completion
     resolveWritePromise();
+    sessionLogWritePromise = null;
   } catch (error) {
     // Reject the promise on unexpected errors
     rejectWritePromise(error);
-  } finally {
-    // Always clear the promise reference
     sessionLogWritePromise = null;
   }
 }
