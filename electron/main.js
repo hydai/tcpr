@@ -241,8 +241,8 @@ async function processSessionLogQueue() {
   // Create promise and capture resolve/reject handlers
   // This assignment is synchronous and atomic, ensuring handlers are always defined
   // before any code that might throw
-  let resolveWritePromise;
-  let rejectWritePromise;
+  let resolveWritePromise = null;
+  let rejectWritePromise = null;
   sessionLogWritePromise = new Promise((resolve, reject) => {
     resolveWritePromise = resolve;
     rejectWritePromise = reject;
