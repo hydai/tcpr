@@ -342,13 +342,15 @@ async function processSessionLogQueue() {
       sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
       sessionLogQueueIndex = 0;
     }
-
-    // Resolve promise and clear reference to prevent race condition
-    resolveAndClearWritePromise(resolveWritePromise);
   } catch (error) {
     // Reject promise and clear reference to prevent race condition
     rejectAndClearWritePromise(rejectWritePromise, error);
+    return;
   }
+
+  // Resolve promise and clear reference to prevent race condition
+  // Only reached if try block completes successfully
+  resolveAndClearWritePromise(resolveWritePromise);
 }
 
 // App ready
@@ -373,7 +375,7 @@ app.on('window-all-closed', () => {
 
 // Graceful shutdown - ensure session log queue is flushed before quitting
 let isQuitting = false;
-app.on('before-quit', async (event) => {
+app.on('before-quit', (event) => {
   // Prevent re-entry if we're already in the quitting process
   if (isQuitting) {
     return;
@@ -384,22 +386,26 @@ app.on('before-quit', async (event) => {
     event.preventDefault();
     isQuitting = true;
 
-    try {
-      // Wait for any in-progress writes to complete
-      if (sessionLogWritePromise) {
-        await sessionLogWritePromise;
+    // Use Promise to handle async operations explicitly
+    // This is more reliable than async event handlers in Electron
+    (async () => {
+      try {
+        // Wait for any in-progress writes to complete
+        if (sessionLogWritePromise) {
+          await sessionLogWritePromise;
+        }
+
+        // Process any remaining entries in the queue
+        if (sessionLogQueueIndex < sessionLogQueue.length) {
+          await processSessionLogQueue();
+        }
+      } catch (error) {
+        console.error('Error flushing session log queue during shutdown:', error);
       }
 
-      // Process any remaining entries in the queue
-      if (sessionLogQueueIndex < sessionLogQueue.length) {
-        await processSessionLogQueue();
-      }
-    } catch (error) {
-      console.error('Error flushing session log queue during shutdown:', error);
-    }
-
-    // Now quit
-    app.quit();
+      // Now quit - must use app.exit() to bypass event loop
+      app.exit(0);
+    })();
   }
 });
 
@@ -770,13 +776,20 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
       // This handles the case where the file doesn't exist yet
     }
 
-    // Define allowed directories for saving files
+    // Define allowed directories for saving files, resolving symlinks
     const allowedDirs = [
       app.getPath('downloads'),
       app.getPath('documents'),
       app.getPath('desktop'),
       app.getPath('userData')
-    ];
+    ].map(dir => {
+      try {
+        return fs.realpathSync(dir);
+      } catch (e) {
+        // If directory doesn't exist or can't be resolved, use original path
+        return dir;
+      }
+    });
 
     // Check if the resolved path is within any allowed directory
     const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
