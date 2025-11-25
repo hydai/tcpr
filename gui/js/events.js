@@ -21,7 +21,9 @@ let showKeepaliveLogsCache = null;
  */
 export function getShowKeepaliveLogs() {
   if (showKeepaliveLogsCache === null) {
-    showKeepaliveLogsCache = localStorage.getItem('showKeepaliveLogs') === 'true';
+    const stored = localStorage.getItem('showKeepaliveLogs');
+    // Default to false (hidden) when localStorage key doesn't exist
+    showKeepaliveLogsCache = stored === null ? false : stored === 'true';
   }
   return showKeepaliveLogsCache;
 }
@@ -138,12 +140,12 @@ export function displayErrorNotification(message) {
  * @param {Object} data - Log data from EventSub
  */
 export function handleEventSubLog(data) {
-  console.log('EventSub log:', data);
-
   // Filter keepalive messages if disabled (default: hidden)
   if (!getShowKeepaliveLogs() && isKeepaliveMessage(data.message)) {
     return;
   }
+
+  console.log('EventSub log:', data);
 
   const eventsList = document.getElementById('eventsList');
 
