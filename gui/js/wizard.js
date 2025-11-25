@@ -150,7 +150,7 @@ async function validateConfiguration() {
 
   // Create pending state
   resultsDiv.textContent = '';
-  const pendingItem = createValidationItem('pending', '\u23F3', 'Validating access token...', 'Checking token validity and permissions');
+  const pendingItem = createValidationItem('pending', '\u23F3', t('wizard.step4.validating'), t('wizard.step4.checkingToken'));
   resultsDiv.appendChild(pendingItem);
 
   try {

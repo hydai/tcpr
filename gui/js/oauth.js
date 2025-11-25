@@ -177,17 +177,19 @@ function pollForOAuthCompletion() {
 }
 
 /**
- * Helper function to check if OAuth token has been updated
+ * Check if a new OAuth token represents an update from the old token
+ * @param {string} oldAccessToken - Previous token (may be empty/undefined)
+ * @param {string} newToken - New token to check
+ * @returns {boolean} True if newToken is valid and different from oldAccessToken
  */
 function isTokenUpdated(oldAccessToken, newToken) {
-  if (typeof newToken !== 'string' || newToken.trim() === '') {
+  const isNewTokenValid = typeof newToken === 'string' && newToken.trim() !== '';
+  if (!isNewTokenValid) {
     return false;
   }
-  return (
-    typeof oldAccessToken !== 'string' ||
-    oldAccessToken.trim() === '' ||
-    newToken !== oldAccessToken
-  );
+
+  const wasOldTokenEmpty = typeof oldAccessToken !== 'string' || oldAccessToken.trim() === '';
+  return wasOldTokenEmpty || newToken !== oldAccessToken;
 }
 
 /**

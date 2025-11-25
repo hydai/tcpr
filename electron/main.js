@@ -62,6 +62,7 @@ class SessionLogger {
 
   /**
    * Append log entry to session file
+   * Skips internal logs (e.g., system status messages) to keep session files clean
    */
   append(logEntry) {
     if (!this.logPath || logEntry.internal) {
@@ -77,9 +78,10 @@ class SessionLogger {
 
   /**
    * Flush remaining entries synchronously (for shutdown compatibility)
+   * Kept for API compatibility - append() uses sync writes so nothing to flush
    */
   flushSync() {
-    // Already using sync writes, nothing to flush
+    // Using sync writes, no buffered entries to flush
   }
 
   // Getters for external access
