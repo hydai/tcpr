@@ -4,7 +4,6 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
-import { RETRY } from '../config/constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,48 +16,20 @@ let oauthServerProcess = null;
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
 /**
- * SessionLogger - Manages session log writing with queuing and retry logic
+ * SessionLogger - Manages session log writing
  *
  * Responsibilities:
  * - Creates and manages unique session IDs for each app run
  * - Writes event logs to NDJSON files in the user data directory
- * - Queues log entries to prevent race conditions during concurrent writes
- * - Implements retry logic with exponential backoff for failed writes
- * - Sends UI notifications to the renderer process
  *
- * Key methods:
- * - initialize() - Creates session file and generates unique ID
- * - append(logEntry) - Queues a log entry for writing
- * - flushSync() - Synchronously writes remaining entries (for shutdown)
- * - setMainWindow(window) - Sets renderer window for notifications
+ * Note: Uses synchronous file writes for simplicity and reliability during shutdown.
+ * This may block the event loop for large entries but ensures data integrity.
  */
 class SessionLogger {
-  /** @type {number} Maximum retry attempts for failed writes */
-  static MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
-  /** @type {number} Maximum backoff delay in milliseconds */
-  static MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
-  /** @type {number} Queue index threshold before cleanup */
-  static QUEUE_CLEANUP_THRESHOLD = 100;
-
-  /**
-   * @property {string|null} sessionId - Unique UUID for this session
-   * @property {string|null} logPath - Full path to the session log file
-   * @property {Array} queue - Pending log entries awaiting write
-   * @property {number} queueIndex - Current position in the queue
-   * @property {Promise|null} writePromise - Active write operation promise
-   * @property {number} retryCount - Current retry attempt for failed writes
-   * @property {BrowserWindow|null} mainWindow - Reference to renderer window
-   * @property {Array} pendingNotifications - Notifications queued before window ready
-   */
   constructor() {
     this.sessionId = null;
     this.logPath = null;
-    this.queue = [];
-    this.queueIndex = 0;
-    this.writePromise = null;
-    this.retryCount = 0;
     this.mainWindow = null;
-    this.pendingNotifications = [];
   }
 
   /**
@@ -67,14 +38,11 @@ class SessionLogger {
   initialize() {
     this.sessionId = randomUUID();
 
-    const userDataDir = app.getPath('userData');
-    if (!fs.existsSync(userDataDir)) {
-      fs.mkdirSync(userDataDir, { recursive: true });
-    }
-
-    const logsDir = path.join(userDataDir, 'logs');
-    if (!fs.existsSync(logsDir)) {
+    const logsDir = path.join(app.getPath('userData'), 'logs');
+    try {
       fs.mkdirSync(logsDir, { recursive: true });
+    } catch (error) {
+      console.error('Failed to create logs directory:', error);
     }
 
     this.logPath = path.join(logsDir, `session-${this.sessionId}.jsonl`);
@@ -89,160 +57,34 @@ class SessionLogger {
   }
 
   /**
-   * Set the main window reference for sending notifications
-   * Flushes any notifications that were queued before window was ready
+   * Set the main window reference
    */
   setMainWindow(window) {
     this.mainWindow = window;
-
-    // Flush pending notifications
-    if (this.mainWindow && this.pendingNotifications.length > 0) {
-      for (const notification of this.pendingNotifications) {
-        this.mainWindow.webContents.send('eventsub:log', notification);
-      }
-      this.pendingNotifications = [];
-    }
   }
 
   /**
-   * Append log entry to session file (queued to prevent race conditions)
+   * Append log entry to session file
+   * Skips internal logs (e.g., system status messages) to keep session files clean
    */
   append(logEntry) {
-    if (!this.logPath) {
-      console.error('Session log path not initialized');
+    if (!this.logPath || logEntry.internal) {
       return;
     }
-
-    this.queue.push(logEntry);
-
-    if (!this.writePromise) {
-      this._processQueue().catch(error => {
-        console.error('Critical error in session log processing:', error);
-      });
-    }
-  }
-
-  /**
-   * Check if there are pending entries to write
-   */
-  hasPendingEntries() {
-    return this.queueIndex < this.queue.length;
-  }
-
-  /**
-   * Wait for any in-progress writes to complete
-   */
-  async waitForPendingWrites() {
-    if (this.writePromise) {
-      await this.writePromise;
-    }
-  }
-
-  /**
-   * Flush remaining entries synchronously (for shutdown)
-   */
-  flushSync() {
-    while (this.queueIndex < this.queue.length) {
-      const logEntry = this.queue[this.queueIndex];
-      if (!logEntry.internal) {
-        try {
-          fs.appendFileSync(this.logPath, JSON.stringify(logEntry) + '\n', 'utf-8');
-        } catch (error) {
-          console.error('Failed to flush log entry during shutdown:', error);
-        }
-      }
-      this.queueIndex++;
-    }
-  }
-
-  /**
-   * Send notification to renderer process
-   * Queues notification if mainWindow is not yet ready
-   */
-  _notify(type, message) {
-    const notification = {
-      type,
-      message,
-      timestamp: new Date().toISOString(),
-      internal: true
-    };
-
-    if (this.mainWindow) {
-      this.mainWindow.webContents.send('eventsub:log', notification);
-    } else {
-      // Queue notification for when mainWindow becomes available
-      this.pendingNotifications.push(notification);
-    }
-  }
-
-  /**
-   * Process session log queue sequentially with retry logic
-   */
-  async _processQueue() {
-    if (this.writePromise) return;
-
-    let resolvePromise = null;
-    let rejectPromise = null;
-    this.writePromise = new Promise((resolve, reject) => {
-      resolvePromise = resolve;
-      rejectPromise = reject;
-    });
 
     try {
-      while (this.queueIndex < this.queue.length) {
-        const logEntry = this.queue[this.queueIndex];
-
-        if (logEntry.internal) {
-          this.queueIndex++;
-          continue;
-        }
-
-        try {
-          await fs.promises.appendFile(
-            this.logPath,
-            JSON.stringify(logEntry) + '\n',
-            'utf-8'
-          );
-          this.queueIndex++;
-          this.retryCount = 0;
-        } catch (error) {
-          this.retryCount++;
-          console.error(`Failed to append to session log (attempt ${this.retryCount}/${SessionLogger.MAX_RETRY_ATTEMPTS}):`, error);
-
-          if (this.retryCount >= SessionLogger.MAX_RETRY_ATTEMPTS) {
-            console.error('Max retry attempts reached. Discarding log entry:', logEntry);
-            this._notify('error', `Critical: Session log write failed after ${SessionLogger.MAX_RETRY_ATTEMPTS} attempts. Some logs may be lost.`);
-            this.queueIndex++;
-            this.retryCount = 0;
-          } else {
-            this._notify('error', `Warning: Failed to save log to session file (will retry): ${error.message}`);
-            this.writePromise = null;
-            resolvePromise();
-
-            const backoffDelay = Math.min(1000 * Math.pow(2, this.retryCount), SessionLogger.MAX_BACKOFF_DELAY_MS);
-            setTimeout(() => {
-              this._processQueue().catch(err => {
-                console.error('Critical error in session log retry:', err);
-              });
-            }, backoffDelay);
-            return;
-          }
-        }
-      }
-
-      // Clean up processed entries periodically
-      if (this.queueIndex > SessionLogger.QUEUE_CLEANUP_THRESHOLD) {
-        this.queue = this.queue.slice(this.queueIndex);
-        this.queueIndex = 0;
-      }
+      fs.appendFileSync(this.logPath, JSON.stringify(logEntry) + '\n', 'utf-8');
     } catch (error) {
-      this.writePromise = null;
-      rejectPromise(error);
-      return;
+      console.error('Failed to append to session log:', error);
     }
+  }
 
-    this.writePromise = null;
-    resolvePromise();
+  /**
+   * Flush remaining entries synchronously
+   * Called from app 'before-quit' handler for shutdown compatibility.
+   * No-op since append() uses sync writes, but kept for explicit shutdown semantics.
+   */
+  flushSync() {
   }
 
   // Getters for external access
@@ -774,12 +616,6 @@ ipcMain.handle('shell:openPath', async (event, folderPath) => {
   return { success: true };
 });
 
-// Show open dialog
-ipcMain.handle('dialog:showOpen', async (event, options) => {
-  const result = await dialog.showOpenDialog(mainWindow, options);
-  return result;
-});
-
 // Show save dialog
 ipcMain.handle('dialog:showSave', async (event, options) => {
   const result = await dialog.showSaveDialog(mainWindow, options);
@@ -861,27 +697,6 @@ ipcMain.handle('session:getId', async () => {
 // Get session log file path
 ipcMain.handle('session:getLogPath', async () => {
   return { success: true, path: sessionLogger.path };
-});
-
-// Read session log for validation
-ipcMain.handle('session:readLog', async () => {
-  try {
-    if (!sessionLogger.path || !fs.existsSync(sessionLogger.path)) {
-      return { success: false, error: 'Session log file not found' };
-    }
-
-    const content = await fs.promises.readFile(sessionLogger.path, 'utf-8');
-
-    // Parse NDJSON format (newline-delimited JSON)
-    const logs = content
-      .split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => JSON.parse(line));
-
-    return { success: true, logs };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
 });
 
 // Delete all logs in the logs folder

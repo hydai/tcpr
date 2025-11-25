@@ -45,13 +45,6 @@ export class PacketFilter {
   }
 
   /**
-   * Reset filter options to defaults
-   */
-  static reset() {
-    this.options = { ...this.defaultOptions };
-  }
-
-  /**
    * Get current filter configuration
    * @returns {FilterOptions} Current filter options
    */
@@ -114,28 +107,5 @@ export class PacketFilter {
 
     // Allow all other message types (welcome, reconnect, revocation)
     return true;
-  }
-
-  /**
-   * Check if a message type is a keepalive
-   * @param {Object} message - The message object
-   * @returns {boolean} true if message is keepalive
-   */
-  static isKeepalive(message) {
-    return message?.metadata?.message_type === MESSAGE_TYPES.SESSION_KEEPALIVE;
-  }
-
-  /**
-   * Check if an event type is a points-related event
-   * @param {string} eventType - The event subscription type
-   * @returns {boolean} true if event is points-related
-   */
-  static isPointsEvent(eventType) {
-    return [
-      EVENT_TYPES.REWARD_ADD,
-      EVENT_TYPES.REWARD_UPDATE,
-      EVENT_TYPES.REDEMPTION_ADD,
-      EVENT_TYPES.REDEMPTION_UPDATE,
-    ].includes(eventType);
   }
 }

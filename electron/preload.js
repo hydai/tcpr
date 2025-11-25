@@ -25,11 +25,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // OAuth
   startOAuth: (port) => ipcRenderer.invoke('oauth:start', port),
   stopOAuth: () => ipcRenderer.invoke('oauth:stop'),
-  onOAuthMessage: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('oauth:message', handler);
-    return () => ipcRenderer.removeListener('oauth:message', handler);
-  },
   onOAuthStopped: (callback) => {
     const handler = (event, code) => callback(code);
     ipcRenderer.on('oauth:stopped', handler);
@@ -56,7 +51,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPath: (folderPath) => ipcRenderer.invoke('shell:openPath', folderPath),
 
   // Dialogs
-  showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpen', options),
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
 
   // Event log export
@@ -64,8 +58,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Session management
   getSessionId: () => ipcRenderer.invoke('session:getId'),
-  getSessionLogPath: () => ipcRenderer.invoke('session:getLogPath'),
-  readSessionLog: () => ipcRenderer.invoke('session:readLog'),
   validateSessionLogs: (inMemoryLogs) => ipcRenderer.invoke('session:validateLogs', inMemoryLogs),
 
   // Logs management
