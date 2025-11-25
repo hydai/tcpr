@@ -21,6 +21,9 @@ const configPath = path.join(app.getPath('userData'), 'config.json');
  * Responsibilities:
  * - Creates and manages unique session IDs for each app run
  * - Writes event logs to NDJSON files in the user data directory
+ *
+ * Note: Uses synchronous file writes for simplicity and reliability during shutdown.
+ * This may block the event loop for large entries but ensures data integrity.
  */
 class SessionLogger {
   constructor() {
@@ -77,11 +80,11 @@ class SessionLogger {
   }
 
   /**
-   * Flush remaining entries synchronously (for shutdown compatibility)
-   * Kept for API compatibility - append() uses sync writes so nothing to flush
+   * Flush remaining entries synchronously
+   * Called from app 'before-quit' handler for shutdown compatibility.
+   * No-op since append() uses sync writes, but kept for explicit shutdown semantics.
    */
   flushSync() {
-    // Using sync writes, no buffered entries to flush
   }
 
   // Getters for external access
