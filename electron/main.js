@@ -231,6 +231,25 @@ function appendToSessionLog(logEntry) {
   }
 }
 
+/**
+ * Resolve the session log write promise and clear the reference
+ * @param {Function} resolve - Promise resolve function
+ */
+function resolveAndClearWritePromise(resolve) {
+  resolve();
+  sessionLogWritePromise = null;
+}
+
+/**
+ * Reject the session log write promise and clear the reference
+ * @param {Function} reject - Promise reject function
+ * @param {Error} error - Error to reject with
+ */
+function rejectAndClearWritePromise(reject, error) {
+  reject(error);
+  sessionLogWritePromise = null;
+}
+
 // Process session log queue sequentially to prevent race conditions
 async function processSessionLogQueue() {
   // Guard against concurrent execution
@@ -302,9 +321,8 @@ async function processSessionLogQueue() {
             });
           }
 
-          // Resolve promise first, then clear reference to prevent race condition
-          resolveWritePromise();
-          sessionLogWritePromise = null;
+          // Resolve promise and clear reference to prevent race condition
+          resolveAndClearWritePromise(resolveWritePromise);
 
           // Schedule retry with exponential backoff
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
@@ -325,13 +343,11 @@ async function processSessionLogQueue() {
       sessionLogQueueIndex = 0;
     }
 
-    // Resolve promise first, then clear reference to prevent race condition
-    resolveWritePromise();
-    sessionLogWritePromise = null;
+    // Resolve promise and clear reference to prevent race condition
+    resolveAndClearWritePromise(resolveWritePromise);
   } catch (error) {
-    // Reject promise first, then clear reference to prevent race condition
-    rejectWritePromise(error);
-    sessionLogWritePromise = null;
+    // Reject promise and clear reference to prevent race condition
+    rejectAndClearWritePromise(rejectWritePromise, error);
   }
 }
 
@@ -737,7 +753,7 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     let resolvedPath = path.resolve(filePath);
 
     // Resolve symlinks to prevent bypass attacks
-    // If parent directory exists, resolve it; otherwise validate the intended path
+    // If parent directory exists, resolve it; validation occurs later via isAllowedPath check
     try {
       const parentDir = path.dirname(resolvedPath);
       if (fs.existsSync(parentDir)) {
