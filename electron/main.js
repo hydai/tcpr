@@ -275,25 +275,11 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Graceful shutdown - ensure session log queue is flushed before quitting
-let isQuitting = false;
-app.on('before-quit', (event) => {
-  if (isQuitting) return;
-
-  if (sessionLogger.hasPendingEntries()) {
-    event.preventDefault();
-    isQuitting = true;
-
-    (async () => {
-      try {
-        await sessionLogger.waitForPendingWrites();
-        sessionLogger.flushSync();
-      } catch (error) {
-        console.error('Error flushing session log queue during shutdown:', error);
-      }
-      app.exit(0);
-    })();
-  }
+// Graceful shutdown - ensure session log is finalized before quitting
+// Note: SessionLogger uses synchronous writes, so flushSync() is a no-op.
+// This handler is kept for explicit shutdown semantics and future extensibility.
+app.on('before-quit', () => {
+  sessionLogger.flushSync();
 });
 
 // IPC Handlers
