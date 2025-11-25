@@ -3,11 +3,11 @@ name: Build Desktop Applications
 on:
   push:
     branches:
-      - main
+      - master
       - 'claude/**'
   pull_request:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 jobs:

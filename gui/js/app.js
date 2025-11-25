@@ -9,6 +9,63 @@ const MINUTE_MS = 60000;
 const SECOND_MS = 1000;
 const TOKEN_WARNING_THRESHOLD_MS = 10 * MINUTE_MS; // 10 minutes
 
+// SVG icon definitions for alert messages
+const ALERT_ICONS = {
+  success: {
+    paths: [
+      { element: 'path', d: 'M22 11.08V12a10 10 0 1 1-5.93-9.14' },
+      { element: 'polyline', points: '22 4 12 14.01 9 11.01' }
+    ]
+  },
+  error: {
+    paths: [
+      { element: 'circle', cx: '12', cy: '12', r: '10' },
+      { element: 'line', x1: '15', y1: '9', x2: '9', y2: '15' },
+      { element: 'line', x1: '9', y1: '9', x2: '15', y2: '15' }
+    ]
+  }
+};
+
+/**
+ * Create an alert element with icon and message
+ * @param {string} type - 'success' or 'error'
+ * @param {string} message - Alert message text
+ * @returns {HTMLElement} Alert div element
+ */
+function createAlertElement(type, message) {
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type}`;
+
+  // Create SVG icon
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '20');
+  svg.setAttribute('height', '20');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+
+  const iconDef = ALERT_ICONS[type];
+  if (iconDef) {
+    for (const pathDef of iconDef.paths) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', pathDef.element);
+      for (const [attr, value] of Object.entries(pathDef)) {
+        if (attr !== 'element') {
+          el.setAttribute(attr, value);
+        }
+      }
+      svg.appendChild(el);
+    }
+  }
+
+  const span = document.createElement('span');
+  span.textContent = message;
+
+  alertDiv.appendChild(svg);
+  alertDiv.appendChild(span);
+
+  return alertDiv;
+}
+
 // Application State
 const state = {
   currentStep: 0,
@@ -283,73 +340,116 @@ async function startOAuthFlow() {
     }
   } catch (error) {
     console.error('OAuth error:', error);
-    statusDiv.innerHTML = `
-      <div class="alert alert-error">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-        <span class="error-message"></span>
-      </div>
-    `;
-    // Safely set untrusted error message using textContent to prevent XSS
-    const errorSpan = statusDiv.querySelector('.error-message');
-    errorSpan.textContent = t('messages.oauth.error') + ' ' + error.message;
+    statusDiv.textContent = '';
+    statusDiv.appendChild(createAlertElement('error', t('messages.oauth.error') + ' ' + error.message));
     btn.disabled = false;
     btn.textContent = t('messages.oauth.retryAuthentication');
   }
 }
 
-// Poll for OAuth completion
-function pollForOAuthCompletion() {
-  const interval = setInterval(async () => {
-    const configResult = await window.electronAPI.loadConfig();
-    if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
-      clearInterval(interval);
+/**
+ * Generic OAuth polling utility
+ * @param {Object} options - Polling configuration
+ * @param {Function} options.isComplete - Check if polling should stop: (configResult) => boolean
+ * @param {Function} options.onSuccess - Handler when complete: (configResult) => Promise
+ * @param {Function} [options.onTimeout] - Optional timeout handler
+ * @param {number} [options.interval=2000] - Polling interval in ms
+ * @param {boolean} [options.useBackoff=false] - Use exponential backoff
+ * @param {number} [options.maxInterval=10000] - Max interval for backoff
+ * @param {string} [options.stateKey] - Key in state to store timeout ID
+ * @returns {Promise<void>} Resolves when polling is complete or times out
+ */
+async function pollOAuth(options) {
+  const {
+    isComplete,
+    onSuccess,
+    onTimeout,
+    interval = 2000,
+    useBackoff = false,
+    maxInterval = 10000,
+    stateKey = null
+  } = options;
 
-      // Update state
+  const startTime = Date.now();
+  let currentInterval = interval;
+  let timerId = null;
+
+  const cleanup = () => {
+    if (timerId) {
+      clearTimeout(timerId);
+      timerId = null;
+    }
+    if (stateKey && state[stateKey]) {
+      state[stateKey] = null;
+    }
+  };
+
+  const poll = async () => {
+    if (Date.now() - startTime >= OAUTH_TIMEOUT_MS) {
+      cleanup();
+      if (onTimeout) await onTimeout();
+      return;
+    }
+
+    try {
+      const configResult = await window.electronAPI.loadConfig();
+
+      // Re-check timeout after async operation to prevent race condition:
+      // ensures we don't proceed with success handling if the timeout expired during the loadConfig() call.
+      if (Date.now() - startTime >= OAUTH_TIMEOUT_MS) {
+        cleanup();
+        if (onTimeout) await onTimeout();
+        return;
+      }
+      if (isComplete(configResult)) {
+        cleanup();
+        await onSuccess(configResult);
+        return;
+      }
+    } catch (e) {
+      console.error('OAuth poll error:', e);
+    }
+
+    if (useBackoff) {
+      currentInterval = Math.min(currentInterval * 2, maxInterval);
+    }
+    timerId = setTimeout(poll, currentInterval);
+    if (stateKey) {
+      state[stateKey] = timerId;
+    }
+  };
+
+  poll();
+}
+
+// Poll for OAuth completion (initial auth)
+function pollForOAuthCompletion() {
+  pollOAuth({
+    interval: 2000,
+    isComplete: (result) => result.success && result.config.TWITCH_ACCESS_TOKEN,
+    onSuccess: async (configResult) => {
       state.config = { ...state.config, ...configResult.config };
 
-      // Update UI
+      // Update status
       const statusDiv = document.getElementById('oauthStatus');
-      statusDiv.innerHTML = `
-        <div class="alert alert-success">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-          <span class="auth-status"></span>
-        </div>
-      `;
-      // Use textContent for all dynamic content including translations
-      statusDiv.querySelector('.auth-status').textContent = t('messages.oauth.authSuccess');
+      statusDiv.textContent = '';
+      statusDiv.appendChild(createAlertElement('success', t('messages.oauth.authSuccess')));
 
-      // Show token
       document.getElementById('accessToken').value = state.config.TWITCH_ACCESS_TOKEN;
       document.getElementById('broadcasterId').value = state.config.TWITCH_BROADCASTER_ID;
       document.getElementById('tokenInputGroup').style.display = 'block';
       document.getElementById('broadcasterIdGroup').style.display = 'block';
-
-      // Enable continue button
       document.getElementById('continueFromOAuth').disabled = false;
 
-      // Update button
       const btn = document.getElementById('startOAuthBtn');
       btn.textContent = t('messages.oauth.authComplete');
       btn.disabled = true;
       btn.classList.remove('btn-primary');
       btn.classList.add('btn-success');
 
-      // Stop OAuth server
       await window.electronAPI.stopOAuth();
     }
-  }, 2000);
-
-  // Timeout after configured time
-  setTimeout(() => {
-    clearInterval(interval);
-  }, OAUTH_TIMEOUT_MS);
+  });
 }
 
 // Handle OAuth Message
@@ -563,65 +663,46 @@ function pollForOAuthRefreshCompletion(oldAccessToken) {
     state.oauthRefreshInterval = null;
   }
 
-  const startTime = Date.now();
-  const initialInterval = 1000; // Start with 1 second
-  const maxInterval = 10000; // Cap at 10 seconds
-  let currentInterval = initialInterval;
+  pollOAuth({
+    interval: 1000,
+    useBackoff: true,
+    maxInterval: 10000,
+    stateKey: 'oauthRefreshInterval',
+    isComplete: (result) => {
+      if (!result.success || !result.config.TWITCH_ACCESS_TOKEN) return false;
+      return isTokenUpdated(oldAccessToken, result.config.TWITCH_ACCESS_TOKEN);
+    },
+    onSuccess: async (configResult) => {
+      const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
+      state.config = { ...state.config, ...configResult.config };
 
-  const poll = async () => {
-    // Check if timeout has been reached
-    if (Date.now() - startTime >= OAUTH_TIMEOUT_MS) {
-      state.oauthRefreshInterval = null;
+      // Update settings form if open
+      const settingsPanel = document.getElementById('settingsPanel');
+      if (settingsPanel.style.display === 'block') {
+        document.getElementById('settingsAccessToken').value = state.config.TWITCH_ACCESS_TOKEN;
+        document.getElementById('settingsBroadcasterId').value = state.config.TWITCH_BROADCASTER_ID || '';
+      }
+
+      // Automatically copy new token to clipboard
+      try {
+        await navigator.clipboard.writeText(newToken);
+        alert(t('messages.oauth.refreshSuccessWithCopy'));
+      } catch (err) {
+        console.error('Failed to auto-copy token:', err);
+        alert(t('messages.oauth.refreshSuccess'));
+      }
+
+      await window.electronAPI.stopOAuth();
+    },
+    onTimeout: async () => {
       alert(t('messages.oauth.refreshTimeout'));
       try {
         await window.electronAPI.stopOAuth();
       } catch (e) {
         console.error('Failed to stop OAuth server after timeout:', e);
       }
-      return;
     }
-
-    const configResult = await window.electronAPI.loadConfig();
-    if (configResult.success && configResult.config.TWITCH_ACCESS_TOKEN) {
-      const newToken = configResult.config.TWITCH_ACCESS_TOKEN;
-
-      // Check if token has been updated (initial acquisition or refresh)
-      if (isTokenUpdated(oldAccessToken, newToken)) {
-        // Token successfully obtained - stop polling and update UI
-        state.oauthRefreshInterval = null;
-
-        // Update state
-        state.config = { ...state.config, ...configResult.config };
-
-        // Update settings form if open
-        const settingsPanel = document.getElementById('settingsPanel');
-        if (settingsPanel.style.display === 'block') {
-          document.getElementById('settingsAccessToken').value = state.config.TWITCH_ACCESS_TOKEN;
-          document.getElementById('settingsBroadcasterId').value = state.config.TWITCH_BROADCASTER_ID || '';
-        }
-
-        // Automatically copy new token to clipboard
-        try {
-          await navigator.clipboard.writeText(newToken);
-          alert(t('messages.oauth.refreshSuccessWithCopy'));
-        } catch (err) {
-          console.error('Failed to auto-copy token:', err);
-          alert(t('messages.oauth.refreshSuccess'));
-        }
-
-        // Stop OAuth server
-        await window.electronAPI.stopOAuth();
-        return;
-      }
-    }
-
-    // Schedule next poll with exponential backoff
-    currentInterval = Math.min(currentInterval * 2, maxInterval);
-    state.oauthRefreshInterval = setTimeout(poll, currentInterval);
-  };
-
-  // Start polling immediately
-  poll();
+  });
 }
 
 // Refresh OAuth
@@ -832,7 +913,7 @@ function handleEventSubLog(data) {
       type: data.type || 'info',
       message: data.message
     });
-    
+
     // Implement circular buffer: remove oldest events when exceeding max size
     // This prevents memory leaks during long-running sessions
     if (state.allEvents.length > MAX_EVENTS_IN_MEMORY) {

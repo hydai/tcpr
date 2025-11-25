@@ -246,90 +246,32 @@ class TwitchEventSubClient {
   /**
    * Start periodic token refresh timer
    * Refreshes token every hour to prevent expiration during active sessions
-   * Uses recursive setTimeout to prevent overlapping executions
    */
   startTokenRefreshTimer() {
-    // Only start if we have refresh credentials
     if (!this.refreshToken || !this.clientSecret) {
-      Logger.info('Token refresh timer not started (missing refresh credentials)');
+      Logger.info('Token refresh timer not started (missing refresh token or client secret)');
       return;
     }
 
-    // Clear any existing timer
     this.stopTokenRefreshTimer();
-
-    // Reset consecutive failure counter
     this._consecutiveRefreshFailures = 0;
-
     Logger.info(`Starting token refresh timer (interval: ${TOKEN_REFRESH_INTERVAL_MINUTES} minutes)`);
 
-    // Use recursive setTimeout to prevent overlapping executions
-    // Wrapped in try-catch to ensure timer chain continues even on errors
-    const scheduleNextRefresh = async () => {
+    // Recursive timer function
+    const runRefreshCycle = async () => {
       try {
-        await this.refreshTokenPeriodically();
+        await this._refreshToken();
       } catch (error) {
-        // Log unexpected errors but don't break the timer chain
         Logger.error('Unexpected error in token refresh:', error?.message || String(error));
       }
-      // Schedule next run only after previous completes (always, even on error)
-      // Check if timer was stopped during refresh to avoid rescheduling after stop
+      // Schedule next refresh (if not stopped)
       if (this.tokenRefreshTimer !== null) {
-        this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH.INTERVAL_MS);
+        this._scheduleTimer(runRefreshCycle, TOKEN_REFRESH.INTERVAL_MS);
       }
     };
 
-    // Check if token needs immediate refresh based on expiration time
-    this.checkAndScheduleRefresh(scheduleNextRefresh);
-  }
-
-  /**
-   * Schedule a refresh timer with consistent behavior
-   * @param {Function} callback - Function to call when timer fires
-   * @param {number} delay - Delay in milliseconds
-   */
-  scheduleRefreshTimer(callback, delay) {
-    this.tokenRefreshTimer = setTimeout(callback, delay);
-    // Allow the Node.js process to exit even if the timer is active.
-    // This prevents the timer from keeping the process alive unnecessarily.
-    this.tokenRefreshTimer.unref();
-  }
-
-  /**
-   * Check token expiration and schedule refresh appropriately
-   * @param {Function} scheduleNextRefresh - Function to call for subsequent refreshes
-   */
-  async checkAndScheduleRefresh(scheduleNextRefresh) {
-    try {
-      const tokenData = await TokenValidator.quickCheck(this.accessToken);
-
-      if (tokenData && tokenData.expires_in) {
-        const expiresInMs = tokenData.expires_in * 1000;
-
-        // If token expires within the refresh interval, refresh immediately
-        if (expiresInMs <= TOKEN_REFRESH.INTERVAL_MS) {
-          // Use minutes for short durations (more precise than "0 hours")
-          Logger.info(`Token expires in ${Math.round(tokenData.expires_in / TIME.SECONDS_PER_MINUTE)} minutes, refreshing now...`);
-          // Refresh directly, then schedule next refresh (avoid double scheduling)
-          await this.refreshTokenPeriodically();
-          this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH.INTERVAL_MS);
-        } else {
-          // Use hours for longer durations (more readable)
-          Logger.info(`Token valid for ${Math.round(tokenData.expires_in / TIME.SECONDS_PER_HOUR)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MINUTES} minutes`);
-          this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH.INTERVAL_MS);
-        }
-      } else {
-        // Couldn't check expiration, refresh immediately to be safe
-        Logger.warn('Could not check token expiration, refreshing now...');
-        await this.refreshTokenPeriodically();
-        this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH.INTERVAL_MS);
-      }
-    } catch (error) {
-      // On error, refresh immediately to be safe
-      Logger.warn('Error checking token expiration, refreshing now...');
-      await this.refreshTokenPeriodically();
-      this.scheduleRefreshTimer(scheduleNextRefresh, TOKEN_REFRESH.INTERVAL_MS);
-    }
+    // Check if immediate refresh needed, then start cycle
+    this._initializeRefreshCycle(runRefreshCycle);
   }
 
   /**
@@ -343,17 +285,53 @@ class TwitchEventSubClient {
   }
 
   /**
-   * Perform periodic token refresh
-   * Called by the refresh timer to proactively renew tokens before expiration
-   * Implements retry logic with exponential backoff
+   * Initialize refresh cycle - check expiration and schedule appropriately
    */
-  async refreshTokenPeriodically() {
+  async _initializeRefreshCycle(runRefreshCycle) {
+    let needsImmediateRefresh = false;
+
+    try {
+      const tokenData = await TokenValidator.quickCheck(this.accessToken);
+      if (tokenData?.expires_in) {
+        const expiresInMs = tokenData.expires_in * 1000;
+        if (expiresInMs <= TOKEN_REFRESH.INTERVAL_MS) {
+          Logger.info(`Token expires in ${Math.round(tokenData.expires_in / TIME.SECONDS_PER_MINUTE)} minutes, refreshing now...`);
+          needsImmediateRefresh = true;
+        } else {
+          Logger.info(`Token valid for ${Math.round(tokenData.expires_in / TIME.SECONDS_PER_HOUR)} hours, scheduling refresh in ${TOKEN_REFRESH_INTERVAL_MINUTES} minutes`);
+        }
+      } else {
+        Logger.warn('Could not check token expiration, refreshing now...');
+        needsImmediateRefresh = true;
+      }
+    } catch {
+      Logger.warn('Error checking token expiration, refreshing now...');
+      needsImmediateRefresh = true;
+    }
+
+    if (needsImmediateRefresh) {
+      await this._refreshToken();
+    }
+    this._scheduleTimer(runRefreshCycle, TOKEN_REFRESH.INTERVAL_MS);
+  }
+
+  /**
+   * Schedule timer that doesn't block process exit
+   */
+  _scheduleTimer(callback, delay) {
+    this.tokenRefreshTimer = setTimeout(callback, delay);
+    this.tokenRefreshTimer.unref();
+  }
+
+  /**
+   * Perform token refresh with retry logic
+   */
+  async _refreshToken() {
     Logger.info('Periodic token refresh: checking token...');
 
-    let attempt = 0;
     let lastError = null;
 
-    while (attempt < TOKEN_REFRESH.MAX_ATTEMPTS) {
+    for (let attempt = 0; attempt < TOKEN_REFRESH.MAX_ATTEMPTS; attempt++) {
       try {
         const newTokens = await TokenRefresher.refreshAndSave({
           refreshToken: this.refreshToken,
@@ -361,38 +339,29 @@ class TwitchEventSubClient {
           clientSecret: this.clientSecret
         });
 
-        // Update instance with new tokens
         this.accessToken = newTokens.accessToken;
         this.refreshToken = newTokens.refreshToken;
-
-        // Update the subscriber's token (preserves existing subscriptions)
         this.subscriber.updateToken(this.accessToken);
-
-        // Update environment variables
         TokenRefresher.updateEnvironment(newTokens);
 
         Logger.success('Periodic token refresh completed successfully');
-
-        // Notify parent process (Electron main) about token refresh via IPC
         if (process.send) {
           process.send({ type: 'token:refreshed' });
         }
 
         this._consecutiveRefreshFailures = 0;
-        return; // Success - exit the method
+        return;
       } catch (error) {
         lastError = error;
-        attempt++;
-        if (attempt < TOKEN_REFRESH.MAX_ATTEMPTS) {
-          // Exponential backoff: 1s after 1st failure, 2s after 2nd failure
+        if (attempt + 1 < TOKEN_REFRESH.MAX_ATTEMPTS) {
           const backoffMs = TOKEN_REFRESH.INITIAL_BACKOFF_MS * Math.pow(2, attempt - 1);
-          Logger.warn(`Token refresh attempt ${attempt} failed. Retrying in ${backoffMs / 1000}s...`);
+          Logger.warn(`Token refresh attempt ${attempt + 1} failed. Retrying in ${backoffMs / 1000}s...`);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
         }
       }
     }
 
-    // All attempts exhausted
+    // All retry attempts exhausted
     Logger.error('Periodic token refresh failed after multiple attempts:', lastError?.message || String(lastError));
     const errorInfo = TokenRefresher.formatError(lastError);
     errorInfo.solution.forEach(line => Logger.log(`  ${line}`));
@@ -486,7 +455,7 @@ class TwitchEventSubClient {
 async function main() {
   try {
     // Load and validate configuration
-    const config = Config.loadForClient();
+    const config = Config.load({ required: 'client' });
 
     Logger.log('Starting Twitch EventSub WebSocket Client...');
     Logger.log(`Broadcaster ID: ${config.broadcasterId}`);
