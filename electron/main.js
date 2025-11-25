@@ -231,11 +231,15 @@ function appendToSessionLog(logEntry) {
 
 // Process session log queue sequentially to prevent race conditions
 async function processSessionLogQueue() {
-  if (sessionLogWritePromise) return;
-
   // Create and set promise atomically to prevent race condition
   let resolveWritePromise;
   let rejectWritePromise;
+
+  if (sessionLogWritePromise) {
+    return; // Already processing, exit early
+  }
+
+  // Set promise immediately after check to minimize race window
   sessionLogWritePromise = new Promise((resolve, reject) => {
     resolveWritePromise = resolve;
     rejectWritePromise = reject;
