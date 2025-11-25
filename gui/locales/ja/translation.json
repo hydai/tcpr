@@ -172,7 +172,8 @@
     "openEventLogsFolder": "イベントログフォルダを開く",
     "openConfigFolder": "設定フォルダを開く",
     "deleteAllLogs": "すべてのログを削除",
-    "language": "言語"
+    "language": "言語",
+    "showKeepaliveLogs": "キープアライブログを表示"
   },
   "modal": {
     "tokenError": {

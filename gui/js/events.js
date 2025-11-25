@@ -6,6 +6,37 @@ import { state } from './state.js';
 import { MAX_EVENTS_IN_MEMORY, MAX_EVENTS_DISPLAY } from './utils.js';
 import { t } from './i18n-helper.js';
 
+// Keepalive message detection patterns
+const KEEPALIVE_PATTERNS = [
+  'session_keepalive',
+  'Keepalive received'
+];
+
+// Cached preference for showing keepalive logs
+let showKeepaliveLogsCache = null;
+
+/**
+ * Get the cached preference for showing keepalive logs
+ * @returns {boolean} True if keepalive logs should be shown
+ */
+export function getShowKeepaliveLogs() {
+  if (showKeepaliveLogsCache === null) {
+    const stored = localStorage.getItem('showKeepaliveLogs');
+    // Default to false (hidden) when localStorage key doesn't exist
+    showKeepaliveLogsCache = stored === null ? false : stored === 'true';
+  }
+  return showKeepaliveLogsCache;
+}
+
+/**
+ * Update the cached preference for showing keepalive logs
+ * @param {boolean} value - New preference value
+ */
+export function setShowKeepaliveLogs(value) {
+  showKeepaliveLogsCache = value;
+  localStorage.setItem('showKeepaliveLogs', value);
+}
+
 /**
  * Create an event item element
  * @param {string} typeText - Event type text
@@ -109,6 +140,11 @@ export function displayErrorNotification(message) {
  * @param {Object} data - Log data from EventSub
  */
 export function handleEventSubLog(data) {
+  // Filter keepalive messages if disabled (default: hidden)
+  if (!getShowKeepaliveLogs() && isKeepaliveMessage(data?.message)) {
+    return;
+  }
+
   console.log('EventSub log:', data);
 
   const eventsList = document.getElementById('eventsList');
@@ -167,4 +203,14 @@ export function clearEvents() {
   state.eventCount = 0;
   state.allEvents = [];
   document.getElementById('eventCount').textContent = '0';
+}
+
+/**
+ * Check if a message is a keepalive log
+ * @param {string} message - Log message
+ * @returns {boolean} True if keepalive message
+ */
+function isKeepaliveMessage(message) {
+  if (!message) return false;
+  return KEEPALIVE_PATTERNS.some(pattern => message.includes(pattern));
 }
