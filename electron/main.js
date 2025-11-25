@@ -276,7 +276,8 @@ app.on('window-all-closed', () => {
 });
 
 // Graceful shutdown - ensure session log is finalized before quitting
-// Note: SessionLogger uses synchronous writes, so flushSync() is a no-op.
+// Note: SessionLogger uses synchronous writes, so flushSync() is currently a no-op:
+// it does not close file handles, finalize log entries, or perform any additional cleanup.
 // This handler is kept for explicit shutdown semantics and future extensibility.
 app.on('before-quit', () => {
   sessionLogger.flushSync();
