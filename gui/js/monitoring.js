@@ -37,13 +37,20 @@ export async function startMonitoring() {
 
 /**
  * Stop Monitoring
+ *
+ * Sets userInitiatedStop flag before stopping to prevent error dialog.
+ * UI update is handled by handleEventSubStopped() when process exits.
  */
 export async function stopMonitoring() {
   try {
+    // Set flag to indicate user-initiated stop (before stopping)
+    state.userInitiatedStop = true;
     await window.electronAPI.stopEventSub();
-    handleMonitoringStopped();
+    // Note: handleMonitoringStopped() is called by handleEventSubStopped()
+    // when the process exit event fires, avoiding duplicate calls
   } catch (error) {
     console.error('Stop monitoring error:', error);
+    state.userInitiatedStop = false;
     alert(t('messages.monitoring.stopFailed', { error: error.message }));
   }
 }
@@ -221,8 +228,22 @@ function updateTokenExpiry() {
  */
 export function handleEventSubStopped(code, showTokenErrorModal) {
   console.log('EventSub stopped with code:', code);
+
+  // Check if this was a user-initiated stop
+  const wasUserInitiated = state.userInitiatedStop;
+
   handleMonitoringStopped();
 
+  // Reset flag after cleanup completes to avoid race conditions
+  state.userInitiatedStop = false;
+
+  // Don't show error for user-initiated stops (handles killed process with null/non-zero code)
+  if (wasUserInitiated) {
+    return;
+  }
+
+  // Show error for any abnormal exit: non-zero codes or null (startup failures/signal kills)
+  // code === 0 means normal exit, anything else is unexpected
   if (code !== 0) {
     const lastEvents = state.allEvents.slice(-5);
     const hasTokenError = lastEvents.some(event =>

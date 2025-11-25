@@ -22,7 +22,8 @@ export const state = {
   allEvents: [],
   sessionId: null,
   tokenExpiresAt: null,
-  tokenExpiryInterval: null
+  tokenExpiryInterval: null,
+  userInitiatedStop: false
 };
 
 /**
@@ -31,6 +32,7 @@ export const state = {
 export function resetMonitoringState() {
   state.monitoringActive = false;
   state.startTime = null;
+  state.userInitiatedStop = false;
   if (state.uptimeInterval) {
     clearInterval(state.uptimeInterval);
     state.uptimeInterval = null;
