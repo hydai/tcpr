@@ -29,23 +29,6 @@ const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this ma
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
 
 /**
- * Platform-specific path comparison logic.
- * Returns the relative path from parent to child, handling case sensitivity as needed.
- * @param {string} parent - Normalized parent path
- * @param {string} child - Normalized child path
- * @returns {string} Relative path from parent to child
- */
-function comparePathsForPlatform(parent, child) {
-  if (process.platform === 'win32' || process.platform === 'darwin') {
-    // Case-insensitive comparison for Windows and macOS
-    return path.relative(parent.toLowerCase(), child.toLowerCase());
-  } else {
-    // Case-sensitive comparison for Linux and other platforms
-    return path.relative(parent, child);
-  }
-}
-
-/**
  * Check if a child path is within a parent directory
  * Handles case-insensitive filesystems (Windows/macOS) and prevents path traversal
  * @param {string} parent - Parent directory path
@@ -56,7 +39,16 @@ function isPathWithin(parent, child) {
   const normalizedParent = path.normalize(parent);
   const normalizedChild = path.normalize(child);
 
-  const relative = comparePathsForPlatform(normalizedParent, normalizedChild);
+  // On case-insensitive filesystems (Windows/macOS), normalize case for comparison
+  // This ensures /Users/Foo and /users/foo are treated as the same path
+  let parentForComparison = normalizedParent;
+  let childForComparison = normalizedChild;
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    parentForComparison = normalizedParent.toLowerCase();
+    childForComparison = normalizedChild.toLowerCase();
+  }
+
+  const relative = path.relative(parentForComparison, childForComparison);
 
   // Ensure the relative path doesn't escape the parent (no '..' at start)
   // and isn't an absolute path (which would indicate it's outside the parent)
