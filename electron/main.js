@@ -233,21 +233,23 @@ function appendToSessionLog(logEntry) {
 
 /**
  * Resolve the session log write promise and clear the reference
+ * Clears reference first for atomic state update from caller's perspective
  * @param {Function} resolve - Promise resolve function
  */
 function resolveAndClearWritePromise(resolve) {
-  resolve();
   sessionLogWritePromise = null;
+  resolve();
 }
 
 /**
  * Reject the session log write promise and clear the reference
+ * Clears reference first for atomic state update from caller's perspective
  * @param {Function} reject - Promise reject function
  * @param {Error} error - Error to reject with
  */
 function rejectAndClearWritePromise(reject, error) {
-  reject(error);
   sessionLogWritePromise = null;
+  reject(error);
 }
 
 // Process session log queue sequentially to prevent race conditions
@@ -258,8 +260,9 @@ async function processSessionLogQueue() {
   }
 
   // Create promise and capture resolve/reject handlers
-  // This assignment is synchronous and atomic, ensuring handlers are always defined
-  // before any code that might throw
+  // The Promise executor executes synchronously, so handlers are assigned immediately
+  // before any async code runs. This pattern requires the executor to complete without
+  // throwing, which is guaranteed since assignment is the only operation.
   let resolveWritePromise = null;
   let rejectWritePromise = null;
   sessionLogWritePromise = new Promise((resolve, reject) => {

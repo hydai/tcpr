@@ -16,8 +16,8 @@ export default defineConfig({
       exclude: ['**/node_modules/**', '**/dist/**', '**/gui/**', '**/electron/**']
     },
 
-    // Timeouts
-    testTimeout: 10000,
+    // Timeouts - 5s is sufficient for unit tests; use per-test timeouts for longer tests
+    testTimeout: 5000,
 
     // Global setup
     globals: true
