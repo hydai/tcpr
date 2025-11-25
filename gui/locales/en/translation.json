@@ -172,7 +172,8 @@
     "openEventLogsFolder": "Open Event Logs Folder",
     "openConfigFolder": "Open Config Folder",
     "deleteAllLogs": "Delete All Logs",
-    "language": "Language"
+    "language": "Language",
+    "showKeepaliveLogs": "Show Keepalive Logs"
   },
   "modal": {
     "tokenError": {

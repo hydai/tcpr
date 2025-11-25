@@ -141,6 +141,10 @@ function openSettings() {
 
   const currentLang = getCurrentLanguage();
   document.getElementById('settingsLanguage').value = currentLang;
+
+  // Load keepalive logs preference (default: hidden)
+  const showKeepalive = localStorage.getItem('showKeepaliveLogs') === 'true';
+  document.getElementById('settingsShowKeepalive').checked = showKeepalive;
 }
 
 /**
@@ -160,6 +164,10 @@ async function saveSettings() {
   state.config.TWITCH_BROADCASTER_ID = document.getElementById('settingsBroadcasterId').value.trim();
   state.config.REDIRECT_URI = document.getElementById('settingsRedirectUri').value.trim();
   state.config.PORT = document.getElementById('settingsPort').value.trim();
+
+  // Save keepalive logs preference to localStorage
+  const showKeepalive = document.getElementById('settingsShowKeepalive').checked;
+  localStorage.setItem('showKeepaliveLogs', showKeepalive);
 
   try {
     const result = await window.electronAPI.saveConfig(state.config);

@@ -111,6 +111,12 @@ export function displayErrorNotification(message) {
 export function handleEventSubLog(data) {
   console.log('EventSub log:', data);
 
+  // Filter keepalive messages if disabled (default: hidden)
+  const showKeepalive = localStorage.getItem('showKeepaliveLogs') === 'true';
+  if (!showKeepalive && isKeepaliveMessage(data.message)) {
+    return;
+  }
+
   const eventsList = document.getElementById('eventsList');
 
   const emptyState = eventsList.querySelector('.empty-state');
@@ -167,4 +173,15 @@ export function clearEvents() {
   state.eventCount = 0;
   state.allEvents = [];
   document.getElementById('eventCount').textContent = '0';
+}
+
+/**
+ * Check if a message is a keepalive log
+ * @param {string} message - Log message
+ * @returns {boolean} True if keepalive message
+ */
+function isKeepaliveMessage(message) {
+  if (!message) return false;
+  return message.includes('session_keepalive') ||
+         message.includes('Keepalive received');
 }
