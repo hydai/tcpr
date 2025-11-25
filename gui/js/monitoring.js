@@ -237,14 +237,14 @@ export function handleEventSubStopped(code, showTokenErrorModal) {
   // Reset flag after cleanup completes to avoid race conditions
   state.userInitiatedStop = false;
 
-  // Don't show error for user-initiated stops
+  // Don't show error for user-initiated stops (handles killed process with null/non-zero code)
   if (wasUserInitiated) {
     return;
   }
 
-  // code is null when the process is killed by a signal (e.g., SIGTERM)
-  // Only non-zero, non-null codes indicate an unexpected error
-  if (code !== 0 && code !== null) {
+  // Show error for any abnormal exit: non-zero codes or null (startup failures/signal kills)
+  // code === 0 means normal exit, anything else is unexpected
+  if (code !== 0) {
     const lastEvents = state.allEvents.slice(-5);
     const hasTokenError = lastEvents.some(event =>
       event.type === 'error' &&
