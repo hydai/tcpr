@@ -99,7 +99,7 @@ export function displayErrorNotification(message) {
   state.eventCount++;
   document.getElementById('eventCount').textContent = state.eventCount;
 
-  while (eventsList.children.length > 100) {
+  while (eventsList.children.length > MAX_EVENTS_DISPLAY) {
     eventsList.removeChild(eventsList.lastChild);
   }
 }
@@ -153,10 +153,6 @@ export function handleEventSubLog(data) {
 
   state.eventCount++;
   document.getElementById('eventCount').textContent = state.eventCount;
-
-  while (eventsList.children.length > 100) {
-    eventsList.removeChild(eventsList.lastChild);
-  }
 }
 
 /**
