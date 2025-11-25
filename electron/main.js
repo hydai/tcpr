@@ -310,9 +310,9 @@ async function processSessionLogQueue() {
             });
           }
 
-          // Clear promise reference first, then resolve to prevent race condition
-          sessionLogWritePromise = null;
+          // Resolve promise first, then clear reference to prevent race condition
           resolveWritePromise();
+          sessionLogWritePromise = null;
 
           // Schedule retry with exponential backoff
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
@@ -333,16 +333,13 @@ async function processSessionLogQueue() {
       sessionLogQueueIndex = 0;
     }
 
-    // Clear promise reference first, then resolve to prevent race condition
-    sessionLogWritePromise = null;
+    // Resolve promise first, then clear reference to prevent race condition
     resolveWritePromise();
-  } catch (error) {
-    // Clear promise reference first
     sessionLogWritePromise = null;
-
-    // Reject the promise - handlers are guaranteed to be defined at this point
-    // because promise creation is synchronous and completes before the try block
+  } catch (error) {
+    // Reject promise first, then clear reference to prevent race condition
     rejectWritePromise(error);
+    sessionLogWritePromise = null;
   }
 }
 
