@@ -231,15 +231,15 @@ function appendToSessionLog(logEntry) {
 
 // Process session log queue sequentially to prevent race conditions
 async function processSessionLogQueue() {
-  // Create and set promise atomically to prevent race condition
-  let resolveWritePromise;
-  let rejectWritePromise;
-
+  // Guard against concurrent execution
   if (sessionLogWritePromise) {
     return; // Already processing, exit early
   }
 
-  // Set promise immediately after check to minimize race window
+  // Create promise and capture resolve/reject handlers
+  // This assignment is synchronous and atomic
+  let resolveWritePromise;
+  let rejectWritePromise;
   sessionLogWritePromise = new Promise((resolve, reject) => {
     resolveWritePromise = resolve;
     rejectWritePromise = reject;
@@ -299,9 +299,9 @@ async function processSessionLogQueue() {
             });
           }
 
-          // Resolve current promise to unblock any waiters (like shutdown)
-          resolveWritePromise();
+          // Clear promise reference first, then resolve to prevent race condition
           sessionLogWritePromise = null;
+          resolveWritePromise();
 
           // Schedule retry with exponential backoff
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
@@ -322,13 +322,20 @@ async function processSessionLogQueue() {
       sessionLogQueueIndex = 0;
     }
 
-    // Resolve the promise on successful completion
+    // Clear promise reference first, then resolve to prevent race condition
+    sessionLogWritePromise = null;
     resolveWritePromise();
-    sessionLogWritePromise = null;
   } catch (error) {
-    // Reject the promise on unexpected errors
-    rejectWritePromise(error);
+    // Clear promise reference first
     sessionLogWritePromise = null;
+
+    // Reject the promise if handler exists
+    if (typeof rejectWritePromise === 'function') {
+      rejectWritePromise(error);
+    } else {
+      // Log error if promise wasn't created yet
+      console.error('processSessionLogQueue error before promise creation:', error);
+    }
   }
 }
 
@@ -731,7 +738,25 @@ ipcMain.handle('app:getPath', async (event, name) => {
 ipcMain.handle('eventlog:save', async (event, filePath, content) => {
   try {
     // Resolve to absolute path to prevent path traversal
-    const resolvedPath = path.resolve(filePath);
+    let resolvedPath = path.resolve(filePath);
+
+    // Resolve symlinks to prevent bypass attacks
+    // If parent directory exists, resolve it; otherwise validate the intended path
+    try {
+      const parentDir = path.dirname(resolvedPath);
+      if (fs.existsSync(parentDir)) {
+        // Resolve parent directory symlinks
+        const realParent = fs.realpathSync(parentDir);
+        resolvedPath = path.join(realParent, path.basename(resolvedPath));
+      }
+      // If file already exists, resolve its symlinks too
+      if (fs.existsSync(resolvedPath)) {
+        resolvedPath = fs.realpathSync(resolvedPath);
+      }
+    } catch (error) {
+      // If realpath fails, continue with resolved path
+      // This handles the case where the file doesn't exist yet
+    }
 
     // Define allowed directories for saving files
     const allowedDirs = [
