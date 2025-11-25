@@ -231,15 +231,19 @@ export function handleEventSubStopped(code, showTokenErrorModal) {
 
   // Check if this was a user-initiated stop
   const wasUserInitiated = state.userInitiatedStop;
-  state.userInitiatedStop = false;
 
   handleMonitoringStopped();
+
+  // Reset flag after cleanup completes to avoid race conditions
+  state.userInitiatedStop = false;
 
   // Don't show error for user-initiated stops
   if (wasUserInitiated) {
     return;
   }
 
+  // code is null when the process is killed by a signal (e.g., SIGTERM)
+  // Only non-zero, non-null codes indicate an unexpected error
   if (code !== 0 && code !== null) {
     const lastEvents = state.allEvents.slice(-5);
     const hasTokenError = lastEvents.some(event =>
