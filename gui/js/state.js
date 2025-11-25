@@ -32,6 +32,7 @@ export const state = {
 export function resetMonitoringState() {
   state.monitoringActive = false;
   state.startTime = null;
+  state.userInitiatedStop = false;
   if (state.uptimeInterval) {
     clearInterval(state.uptimeInterval);
     state.uptimeInterval = null;

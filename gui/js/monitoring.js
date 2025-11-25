@@ -37,13 +37,17 @@ export async function startMonitoring() {
 
 /**
  * Stop Monitoring
+ *
+ * Sets userInitiatedStop flag before stopping to prevent error dialog.
+ * UI update is handled by handleEventSubStopped() when process exits.
  */
 export async function stopMonitoring() {
   try {
     // Set flag to indicate user-initiated stop (before stopping)
     state.userInitiatedStop = true;
     await window.electronAPI.stopEventSub();
-    handleMonitoringStopped();
+    // Note: handleMonitoringStopped() is called by handleEventSubStopped()
+    // when the process exit event fires, avoiding duplicate calls
   } catch (error) {
     console.error('Stop monitoring error:', error);
     state.userInitiatedStop = false;
