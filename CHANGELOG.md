@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [1.3.0] - 2025-11-25
+
 ### Changed
 - Extract `parseScopes` and `parsePort` helper functions into `lib/oauth-handler.js` for better code reuse
 - Improve constants consistency and pre-calculate derived values (`TIME` constants, `TOKEN_REFRESH_INTERVAL_MINUTES`)
