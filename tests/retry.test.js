@@ -90,18 +90,10 @@ describe('withHttpRetry', () => {
 });
 
 describe('RetryStrategies', () => {
-  it('should have STANDARD strategy', () => {
+  it('should have STANDARD strategy with correct defaults', () => {
     expect(RetryStrategies.STANDARD).toBeDefined();
     expect(RetryStrategies.STANDARD.maxRetries).toBe(3);
-  });
-
-  it('should have AGGRESSIVE strategy with more retries', () => {
-    expect(RetryStrategies.AGGRESSIVE).toBeDefined();
-    expect(RetryStrategies.AGGRESSIVE.maxRetries).toBeGreaterThan(RetryStrategies.STANDARD.maxRetries);
-  });
-
-  it('should have CONSERVATIVE strategy with fewer retries', () => {
-    expect(RetryStrategies.CONSERVATIVE).toBeDefined();
-    expect(RetryStrategies.CONSERVATIVE.maxRetries).toBeLessThan(RetryStrategies.STANDARD.maxRetries);
+    expect(RetryStrategies.STANDARD.baseDelay).toBe(1000);
+    expect(RetryStrategies.STANDARD.maxDelay).toBe(30000);
   });
 });

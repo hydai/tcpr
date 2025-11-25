@@ -80,19 +80,12 @@ export const TIMEOUTS = {
  */
 export const RETRY = {
   MAX_ATTEMPTS: 5,
-  AGGRESSIVE_MAX_RETRIES: 7,
-  CONSERVATIVE_MAX_RETRIES: 2,
-  STANDARD_MAX_RETRIES: 3,
   INITIAL_BACKOFF_MS: 1000,
   MAX_BACKOFF_MS: 30000,
-  // Strategy-specific base delays
-  AGGRESSIVE_BASE_DELAY_MS: 500,
-  CONSERVATIVE_BASE_DELAY_MS: 2000,
+  // Standard retry strategy
+  STANDARD_MAX_RETRIES: 3,
   STANDARD_BASE_DELAY_MS: 1000,
-  // Strategy-specific max delays for better differentiation
-  AGGRESSIVE_MAX_DELAY_MS: 10000,    // 10 seconds - faster recovery
-  CONSERVATIVE_MAX_DELAY_MS: 60000,  // 60 seconds - more patient
-  STANDARD_MAX_DELAY_MS: 30000       // 30 seconds - balanced
+  STANDARD_MAX_DELAY_MS: 30000
 };
 
 /**

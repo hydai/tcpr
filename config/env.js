@@ -5,19 +5,48 @@
 import { DEFAULTS } from './constants.js';
 
 /**
+ * Predefined required field sets for different use cases
+ * @type {Object.<string, string[]>}
+ * @property {string[]} client - Full client mode: requires credentials to connect to Twitch EventSub
+ * @property {string[]} oauth - OAuth server mode: requires credentials for token generation
+ * @property {string[]} minimal - Minimal validation: only requires client ID for basic operations
+ */
+const REQUIRED_FIELDS = {
+  client: ['clientId', 'accessToken', 'broadcasterId'],
+  oauth: ['clientId', 'clientSecret'],
+  minimal: ['clientId']
+};
+
+/**
  * Configuration class for managing environment variables
  */
 export class Config {
   /**
    * Load and validate environment configuration
+   *
    * @param {Object} options - Options for config loading
-   * @param {boolean} options.requireClientSecret - Whether client secret is required
-   * @returns {Object} Validated configuration object
-   * @throws {Error} If required variables are missing
+   * @param {string|string[]} options.required - Required fields preset ('client', 'oauth', 'minimal') or array of field names
+   * @param {boolean} options.returnValidationResult - If true, returns { valid, config, missing } instead of throwing
+   * @returns {Object} Validated configuration object or validation result
+   * @throws {Error} If required variables are missing (unless returnValidationResult is true)
+   *
+   * @example
+   * // For main client
+   * const config = Config.load({ required: 'client' });
+   *
+   * @example
+   * // For OAuth server
+   * const config = Config.load({ required: 'oauth' });
+   *
+   * @example
+   * // For validation (returns result object)
+   * const result = Config.load({ required: 'client', returnValidationResult: true });
+   * if (!result.valid) console.log('Missing:', result.missing);
    */
   static load(options = {}) {
-    const { requireClientSecret = false } = options;
+    const { required = 'minimal', returnValidationResult = false } = options;
 
+    // Build config object from environment
     const config = {
       clientId: process.env.TWITCH_CLIENT_ID,
       clientSecret: process.env.TWITCH_CLIENT_SECRET,
@@ -28,108 +57,38 @@ export class Config {
       port: process.env.PORT ? parseInt(process.env.PORT, 10) : DEFAULTS.PORT
     };
 
-    // Validate required fields based on context
-    const requiredFields = ['clientId'];
+    // Resolve required fields
+    const requiredFields = Array.isArray(required)
+      ? required
+      : (REQUIRED_FIELDS[required] || REQUIRED_FIELDS.minimal);
 
-    if (requireClientSecret) {
-      requiredFields.push('clientSecret');
+    // Find missing fields
+    const missing = requiredFields.filter(key => !config[key]);
+
+    // Validate port
+    if (config.port && (isNaN(config.port) || config.port < 1 || config.port > 65535)) {
+      if (returnValidationResult) {
+        return { valid: false, config, missing, error: 'Invalid PORT' };
+      }
+      throw new Error('PORT must be a valid number between 1 and 65535');
     }
 
-    Config.validate(config, requiredFields);
+    // Return validation result if requested
+    if (returnValidationResult) {
+      return { valid: missing.length === 0, config, missing };
+    }
 
-    return config;
-  }
-
-  /**
-   * Load configuration for main EventSub client
-   * @returns {Object} Validated configuration
-   */
-  static loadForClient() {
-    const config = Config.load();
-
-    // For the main client, we need all three core fields
-    const required = ['clientId', 'accessToken', 'broadcasterId'];
-    const missing = required.filter(key => !config[key]);
-
+    // Throw if missing required fields
     if (missing.length > 0) {
       const errorMsg = [
         'Error: Missing required configuration',
         'Please ensure the following are set in your config.json file:',
-        ...missing.map(key => {
-          const envName = Config.getEnvName(key);
-          return `  - ${envName}`;
-        })
+        ...missing.map(key => `  - ${Config.getEnvName(key)}`)
       ].join('\n');
-
       throw new Error(errorMsg);
     }
 
     return config;
-  }
-
-  /**
-   * Load configuration for OAuth server
-   * @returns {Object} Validated configuration
-   */
-  static loadForOAuth() {
-    const config = Config.load({ requireClientSecret: true });
-
-    // OAuth server needs client ID and secret at minimum
-    const required = ['clientId', 'clientSecret'];
-    const missing = required.filter(key => !config[key]);
-
-    if (missing.length > 0) {
-      const errorMsg = [
-        'Server configuration error:',
-        ...missing.map(key => {
-          const envName = Config.getEnvName(key);
-          return `Missing ${envName} in config.json file`;
-        })
-      ].join(' ');
-
-      throw new Error(errorMsg);
-    }
-
-    return config;
-  }
-
-  /**
-   * Load configuration for validation utility
-   * @returns {Object} Validated configuration
-   */
-  static loadForValidation() {
-    const config = Config.load();
-
-    // Validation needs these three fields
-    const required = ['clientId', 'accessToken', 'broadcasterId'];
-    const missing = required.filter(key => !config[key]);
-
-    if (missing.length > 0) {
-      return { valid: false, missing, config };
-    }
-
-    return { valid: true, config };
-  }
-
-  /**
-   * Validate configuration object
-   * @param {Object} config - Configuration object to validate
-   * @param {string[]} requiredFields - List of required field names
-   * @throws {Error} If validation fails
-   */
-  static validate(config, requiredFields = []) {
-    const missing = requiredFields.filter(field => !config[field]);
-
-    if (missing.length > 0) {
-      throw new Error(
-        `Missing required configuration: ${missing.map(Config.getEnvName).join(', ')}`
-      );
-    }
-
-    // Validate port is a valid number
-    if (config.port && (isNaN(config.port) || config.port < 1 || config.port > 65535)) {
-      throw new Error('PORT must be a valid number between 1 and 65535');
-    }
   }
 
   /**
@@ -149,31 +108,5 @@ export class Config {
     };
 
     return mapping[key] || key.toUpperCase();
-  }
-
-  /**
-   * Check if configuration is complete for a specific use case
-   * @param {'client' | 'oauth' | 'validation'} type - Use case type
-   * @returns {Object} Status object with isComplete and missing fields
-   */
-  static checkComplete(type = 'client') {
-    try {
-      switch (type) {
-        case 'client':
-          Config.loadForClient();
-          return { isComplete: true, missing: [] };
-        case 'oauth':
-          Config.loadForOAuth();
-          return { isComplete: true, missing: [] };
-        case 'validation':
-          const result = Config.loadForValidation();
-          return { isComplete: result.valid, missing: result.missing || [] };
-        default:
-          throw new Error(`Unknown config type: ${type}`);
-      }
-    } catch (error) {
-      // Parse missing fields from error message
-      return { isComplete: false, missing: [], error: error.message };
-    }
   }
 }

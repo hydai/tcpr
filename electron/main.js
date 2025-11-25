@@ -16,16 +16,243 @@ let oauthServerProcess = null;
 // Path to config.json file
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
-// Session management
-let sessionId = null;
-let sessionLogPath = null;
-let sessionLogQueue = [];
-let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
-let sessionLogWritePromise = null; // Promise that resolves when current write operation completes
-let sessionLogRetryCount = 0;
-const MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
-const MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
-const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
+/**
+ * SessionLogger - Manages session log writing with queuing and retry logic
+ *
+ * Responsibilities:
+ * - Creates and manages unique session IDs for each app run
+ * - Writes event logs to NDJSON files in the user data directory
+ * - Queues log entries to prevent race conditions during concurrent writes
+ * - Implements retry logic with exponential backoff for failed writes
+ * - Sends UI notifications to the renderer process
+ *
+ * Key methods:
+ * - initialize() - Creates session file and generates unique ID
+ * - append(logEntry) - Queues a log entry for writing
+ * - flushSync() - Synchronously writes remaining entries (for shutdown)
+ * - setMainWindow(window) - Sets renderer window for notifications
+ */
+class SessionLogger {
+  /** @type {number} Maximum retry attempts for failed writes */
+  static MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
+  /** @type {number} Maximum backoff delay in milliseconds */
+  static MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
+  /** @type {number} Queue index threshold before cleanup */
+  static QUEUE_CLEANUP_THRESHOLD = 100;
+
+  /**
+   * @property {string|null} sessionId - Unique UUID for this session
+   * @property {string|null} logPath - Full path to the session log file
+   * @property {Array} queue - Pending log entries awaiting write
+   * @property {number} queueIndex - Current position in the queue
+   * @property {Promise|null} writePromise - Active write operation promise
+   * @property {number} retryCount - Current retry attempt for failed writes
+   * @property {BrowserWindow|null} mainWindow - Reference to renderer window
+   * @property {Array} pendingNotifications - Notifications queued before window ready
+   */
+  constructor() {
+    this.sessionId = null;
+    this.logPath = null;
+    this.queue = [];
+    this.queueIndex = 0;
+    this.writePromise = null;
+    this.retryCount = 0;
+    this.mainWindow = null;
+    this.pendingNotifications = [];
+  }
+
+  /**
+   * Initialize session with unique ID and log file
+   */
+  initialize() {
+    this.sessionId = randomUUID();
+
+    const userDataDir = app.getPath('userData');
+    if (!fs.existsSync(userDataDir)) {
+      fs.mkdirSync(userDataDir, { recursive: true });
+    }
+
+    const logsDir = path.join(userDataDir, 'logs');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
+
+    this.logPath = path.join(logsDir, `session-${this.sessionId}.jsonl`);
+
+    try {
+      fs.writeFileSync(this.logPath, '', 'utf-8');
+      console.log(`Session initialized: ${this.sessionId}`);
+      console.log(`Session log file: ${this.logPath}`);
+    } catch (error) {
+      console.error('Failed to initialize session log file:', error);
+    }
+  }
+
+  /**
+   * Set the main window reference for sending notifications
+   * Flushes any notifications that were queued before window was ready
+   */
+  setMainWindow(window) {
+    this.mainWindow = window;
+
+    // Flush pending notifications
+    if (this.mainWindow && this.pendingNotifications.length > 0) {
+      for (const notification of this.pendingNotifications) {
+        this.mainWindow.webContents.send('eventsub:log', notification);
+      }
+      this.pendingNotifications = [];
+    }
+  }
+
+  /**
+   * Append log entry to session file (queued to prevent race conditions)
+   */
+  append(logEntry) {
+    if (!this.logPath) {
+      console.error('Session log path not initialized');
+      return;
+    }
+
+    this.queue.push(logEntry);
+
+    if (!this.writePromise) {
+      this._processQueue().catch(error => {
+        console.error('Critical error in session log processing:', error);
+      });
+    }
+  }
+
+  /**
+   * Check if there are pending entries to write
+   */
+  hasPendingEntries() {
+    return this.queueIndex < this.queue.length;
+  }
+
+  /**
+   * Wait for any in-progress writes to complete
+   */
+  async waitForPendingWrites() {
+    if (this.writePromise) {
+      await this.writePromise;
+    }
+  }
+
+  /**
+   * Flush remaining entries synchronously (for shutdown)
+   */
+  flushSync() {
+    while (this.queueIndex < this.queue.length) {
+      const logEntry = this.queue[this.queueIndex];
+      if (!logEntry.internal) {
+        try {
+          fs.appendFileSync(this.logPath, JSON.stringify(logEntry) + '\n', 'utf-8');
+        } catch (error) {
+          console.error('Failed to flush log entry during shutdown:', error);
+        }
+      }
+      this.queueIndex++;
+    }
+  }
+
+  /**
+   * Send notification to renderer process
+   * Queues notification if mainWindow is not yet ready
+   */
+  _notify(type, message) {
+    const notification = {
+      type,
+      message,
+      timestamp: new Date().toISOString(),
+      internal: true
+    };
+
+    if (this.mainWindow) {
+      this.mainWindow.webContents.send('eventsub:log', notification);
+    } else {
+      // Queue notification for when mainWindow becomes available
+      this.pendingNotifications.push(notification);
+    }
+  }
+
+  /**
+   * Process session log queue sequentially with retry logic
+   */
+  async _processQueue() {
+    if (this.writePromise) return;
+
+    let resolvePromise = null;
+    let rejectPromise = null;
+    this.writePromise = new Promise((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
+
+    try {
+      while (this.queueIndex < this.queue.length) {
+        const logEntry = this.queue[this.queueIndex];
+
+        if (logEntry.internal) {
+          this.queueIndex++;
+          continue;
+        }
+
+        try {
+          await fs.promises.appendFile(
+            this.logPath,
+            JSON.stringify(logEntry) + '\n',
+            'utf-8'
+          );
+          this.queueIndex++;
+          this.retryCount = 0;
+        } catch (error) {
+          this.retryCount++;
+          console.error(`Failed to append to session log (attempt ${this.retryCount}/${SessionLogger.MAX_RETRY_ATTEMPTS}):`, error);
+
+          if (this.retryCount >= SessionLogger.MAX_RETRY_ATTEMPTS) {
+            console.error('Max retry attempts reached. Discarding log entry:', logEntry);
+            this._notify('error', `Critical: Session log write failed after ${SessionLogger.MAX_RETRY_ATTEMPTS} attempts. Some logs may be lost.`);
+            this.queueIndex++;
+            this.retryCount = 0;
+          } else {
+            this._notify('error', `Warning: Failed to save log to session file (will retry): ${error.message}`);
+            this.writePromise = null;
+            resolvePromise();
+
+            const backoffDelay = Math.min(1000 * Math.pow(2, this.retryCount), SessionLogger.MAX_BACKOFF_DELAY_MS);
+            setTimeout(() => {
+              this._processQueue().catch(err => {
+                console.error('Critical error in session log retry:', err);
+              });
+            }, backoffDelay);
+            return;
+          }
+        }
+      }
+
+      // Clean up processed entries periodically
+      if (this.queueIndex > SessionLogger.QUEUE_CLEANUP_THRESHOLD) {
+        this.queue = this.queue.slice(this.queueIndex);
+        this.queueIndex = 0;
+      }
+    } catch (error) {
+      this.writePromise = null;
+      rejectPromise(error);
+      return;
+    }
+
+    this.writePromise = null;
+    resolvePromise();
+  }
+
+  // Getters for external access
+  get id() { return this.sessionId; }
+  get path() { return this.logPath; }
+  get initialized() { return !!(this.sessionId && this.logPath); }
+}
+
+// Global session logger instance
+const sessionLogger = new SessionLogger();
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
 
 /**
@@ -78,6 +305,7 @@ function createWindow() {
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    sessionLogger.setMainWindow(mainWindow);
   });
 
   // Open DevTools in development
@@ -185,180 +413,9 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// Initialize session with unique ID and log file
-function initializeSession() {
-  // Generate unique session ID
-  sessionId = randomUUID();
-
-  // Create session log file path in logs subdirectory
-  const userDataDir = app.getPath('userData');
-  if (!fs.existsSync(userDataDir)) {
-    fs.mkdirSync(userDataDir, { recursive: true });
-  }
-
-  // Create logs directory if it doesn't exist
-  const logsDir = path.join(userDataDir, 'logs');
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
-  }
-
-  sessionLogPath = path.join(logsDir, `session-${sessionId}.jsonl`);
-
-  // Initialize log file as empty (NDJSON format)
-  try {
-    fs.writeFileSync(sessionLogPath, '', 'utf-8');
-    console.log(`Session initialized: ${sessionId}`);
-    console.log(`Session log file: ${sessionLogPath}`);
-  } catch (error) {
-    console.error('Failed to initialize session log file:', error);
-  }
-}
-
-// Append log entry to session file (queued to prevent race conditions)
-function appendToSessionLog(logEntry) {
-  if (!sessionLogPath) {
-    console.error('Session log path not initialized');
-    return;
-  }
-
-  sessionLogQueue.push(logEntry);
-
-  // Start processing if not already running
-  if (!sessionLogWritePromise) {
-    processSessionLogQueue().catch(error => {
-      console.error('Critical error in session log processing:', error);
-    });
-  }
-}
-
-/**
- * Resolve the session log write promise and clear the reference
- * Clears reference first for atomic state update from caller's perspective
- * @param {Function} resolve - Promise resolve function
- */
-function resolveAndClearWritePromise(resolve) {
-  sessionLogWritePromise = null;
-  resolve();
-}
-
-/**
- * Reject the session log write promise and clear the reference
- * Clears reference first for atomic state update from caller's perspective
- * @param {Function} reject - Promise reject function
- * @param {Error} error - Error to reject with
- */
-function rejectAndClearWritePromise(reject, error) {
-  sessionLogWritePromise = null;
-  reject(error);
-}
-
-// Process session log queue sequentially to prevent race conditions
-async function processSessionLogQueue() {
-  // Guard against concurrent execution
-  if (sessionLogWritePromise) {
-    return; // Already processing, exit early
-  }
-
-  // Create promise and capture resolve/reject handlers
-  // The Promise executor executes synchronously, so handlers are assigned immediately
-  // before any async code runs. This pattern requires the executor to complete without
-  // throwing, which is guaranteed since assignment is the only operation.
-  let resolveWritePromise = null;
-  let rejectWritePromise = null;
-  sessionLogWritePromise = new Promise((resolve, reject) => {
-    resolveWritePromise = resolve;
-    rejectWritePromise = reject;
-  });
-
-  try {
-    while (sessionLogQueueIndex < sessionLogQueue.length) {
-      const logEntry = sessionLogQueue[sessionLogQueueIndex]; // Peek using index
-
-      // Skip internal error logs to prevent infinite loops
-      if (logEntry.internal) {
-        sessionLogQueueIndex++;
-        continue;
-      }
-
-      try {
-        // Append as NDJSON (newline-delimited JSON) - much more efficient
-        await fs.promises.appendFile(
-          sessionLogPath,
-          JSON.stringify(logEntry) + '\n',
-          'utf-8'
-        );
-
-        // Successfully written - move to next entry and reset retry count
-        sessionLogQueueIndex++;
-        sessionLogRetryCount = 0;
-      } catch (error) {
-        sessionLogRetryCount++;
-
-        console.error(`Failed to append to session log (attempt ${sessionLogRetryCount}/${MAX_RETRY_ATTEMPTS}):`, error);
-
-        // Check if we've exceeded retry limit
-        if (sessionLogRetryCount >= MAX_RETRY_ATTEMPTS) {
-          console.error('Max retry attempts reached. Discarding log entry:', logEntry);
-
-          // Notify user about permanent failure
-          if (mainWindow) {
-            mainWindow.webContents.send('eventsub:log', {
-              type: 'error',
-              message: `Critical: Session log write failed after ${MAX_RETRY_ATTEMPTS} attempts. Some logs may be lost.`,
-              timestamp: new Date().toISOString(),
-              internal: true
-            });
-          }
-
-          // Skip this entry to prevent blocking the queue forever
-          sessionLogQueueIndex++;
-          sessionLogRetryCount = 0;
-        } else {
-          // Notify about retry
-          if (mainWindow) {
-            mainWindow.webContents.send('eventsub:log', {
-              type: 'error',
-              message: `Warning: Failed to save log to session file (will retry): ${error.message}`,
-              timestamp: new Date().toISOString(),
-              internal: true
-            });
-          }
-
-          // Resolve promise and clear reference to prevent race condition
-          resolveAndClearWritePromise(resolveWritePromise);
-
-          // Schedule retry with exponential backoff
-          const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
-          setTimeout(() => {
-            processSessionLogQueue().catch(err => {
-              console.error('Critical error in session log retry:', err);
-            });
-          }, backoffDelay);
-
-          return; // Exit after scheduling retry
-        }
-      }
-    }
-
-    // Clean up processed entries periodically to prevent unbounded memory growth
-    if (sessionLogQueueIndex > QUEUE_CLEANUP_THRESHOLD) {
-      sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
-      sessionLogQueueIndex = 0;
-    }
-  } catch (error) {
-    // Reject promise and clear reference to prevent race condition
-    rejectAndClearWritePromise(rejectWritePromise, error);
-    return;
-  }
-
-  // Resolve promise and clear reference to prevent race condition
-  // Only reached if try block completes successfully
-  resolveAndClearWritePromise(resolveWritePromise);
-}
-
 // App ready
 app.whenReady().then(() => {
-  initializeSession();
+  sessionLogger.initialize();
   createMenu();
   createWindow();
 
@@ -379,34 +436,19 @@ app.on('window-all-closed', () => {
 // Graceful shutdown - ensure session log queue is flushed before quitting
 let isQuitting = false;
 app.on('before-quit', (event) => {
-  // Prevent re-entry if we're already in the quitting process
-  if (isQuitting) {
-    return;
-  }
+  if (isQuitting) return;
 
-  // Check if there are pending log entries to write
-  if (sessionLogQueueIndex < sessionLogQueue.length) {
+  if (sessionLogger.hasPendingEntries()) {
     event.preventDefault();
     isQuitting = true;
 
-    // Use Promise to handle async operations explicitly
-    // This is more reliable than async event handlers in Electron
     (async () => {
       try {
-        // Wait for any in-progress writes to complete
-        if (sessionLogWritePromise) {
-          await sessionLogWritePromise;
-        }
-
-        // Process any remaining entries in the queue
-        if (sessionLogQueueIndex < sessionLogQueue.length) {
-          await processSessionLogQueue();
-        }
+        await sessionLogger.waitForPendingWrites();
+        sessionLogger.flushSync();
       } catch (error) {
         console.error('Error flushing session log queue during shutdown:', error);
       }
-
-      // Now quit - must use app.exit() to bypass event loop
       app.exit(0);
     })();
   }
@@ -632,7 +674,7 @@ ipcMain.handle('eventsub:start', async () => {
       }
 
       // Auto-save to session log
-      appendToSessionLog(logEntry);
+      sessionLogger.append(logEntry);
 
       eventSubProcess = null;
     });
@@ -649,7 +691,7 @@ ipcMain.handle('eventsub:start', async () => {
       }
 
       // Auto-save to session log
-      appendToSessionLog(logEntry);
+      sessionLogger.append(logEntry);
     });
 
     // Handle structured IPC messages from child process
@@ -671,7 +713,7 @@ ipcMain.handle('eventsub:start', async () => {
       }
 
       // Auto-save to session log
-      appendToSessionLog(logEntry);
+      sessionLogger.append(logEntry);
     });
 
     eventSubProcess.on('exit', (code) => {
@@ -813,22 +855,22 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
 
 // Get session ID
 ipcMain.handle('session:getId', async () => {
-  return { success: true, sessionId };
+  return { success: true, sessionId: sessionLogger.id };
 });
 
 // Get session log file path
 ipcMain.handle('session:getLogPath', async () => {
-  return { success: true, path: sessionLogPath };
+  return { success: true, path: sessionLogger.path };
 });
 
 // Read session log for validation
 ipcMain.handle('session:readLog', async () => {
   try {
-    if (!sessionLogPath || !fs.existsSync(sessionLogPath)) {
+    if (!sessionLogger.path || !fs.existsSync(sessionLogger.path)) {
       return { success: false, error: 'Session log file not found' };
     }
 
-    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+    const content = await fs.promises.readFile(sessionLogger.path, 'utf-8');
 
     // Parse NDJSON format (newline-delimited JSON)
     const logs = content
@@ -859,7 +901,7 @@ ipcMain.handle('logs:deleteAll', async () => {
 
     for (const file of files) {
       // Skip the current session log file to avoid breaking active logging
-      if (sessionLogPath && path.join(logsDir, file) === sessionLogPath) {
+      if (sessionLogger.path && path.join(logsDir, file) === sessionLogger.path) {
         continue;
       }
 
@@ -893,7 +935,7 @@ ipcMain.handle('logs:deleteAll', async () => {
 // Validate logs in main process to prevent UI blocking
 ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
   try {
-    if (!sessionLogPath || !fs.existsSync(sessionLogPath)) {
+    if (!sessionLogger.path || !fs.existsSync(sessionLogger.path)) {
       return {
         success: true,
         valid: false,
@@ -902,7 +944,7 @@ ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
       };
     }
 
-    const content = await fs.promises.readFile(sessionLogPath, 'utf-8');
+    const content = await fs.promises.readFile(sessionLogger.path, 'utf-8');
 
     // Parse NDJSON format
     const sessionLogs = content

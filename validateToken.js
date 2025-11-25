@@ -12,7 +12,7 @@ loadConfig();
  */
 async function validateToken() {
   // Load configuration
-  const result = Config.loadForValidation();
+  const result = Config.load({ required: 'client', returnValidationResult: true });
 
   if (!result.valid) {
     Logger.error('Missing required config.json fields');

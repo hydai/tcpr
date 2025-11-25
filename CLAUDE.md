@@ -120,19 +120,18 @@ chore(deps): upgrade electron to 39.2.3
 ```javascript
 // Load config.json into process.env
 loadConfig();
-// Get validated config for specific context
-const config = Config.loadForClient();
+// Get validated config with presets: 'client', 'oauth', or 'minimal'
+const config = Config.load({ required: 'client' });
+// Or with validation result instead of throwing
+const result = Config.load({ required: 'client', returnValidationResult: true });
 ```
 
 ### 2. Error Hierarchy
 ```
 Error
-├── TwitchError
-│   ├── TwitchApiError
-│   ├── TokenValidationError (TokenOwnershipError, TokenScopeError)
-│   ├── SubscriptionError
-│   └── WebSocketError
-├── ConfigurationError
+├── TokenValidationError (with reason codes: ownership_mismatch, missing_scope, invalid_token, etc.)
+├── SubscriptionError
+├── WebSocketError
 └── TokenRefreshError
 ```
 

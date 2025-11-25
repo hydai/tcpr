@@ -26,11 +26,11 @@ const app = express();
 // Load configuration
 let config;
 try {
-  config = Config.loadForOAuth();
+  config = Config.load({ required: 'oauth' });
 } catch (error) {
   Logger.error('Configuration error:', error);
   Logger.warn('Server will start but OAuth flow will not work until configuration is fixed');
-  config = Config.load(); // Load what we can
+  config = Config.load({ required: 'minimal' });
 }
 
 const PORT = config.port;
