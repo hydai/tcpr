@@ -79,14 +79,6 @@ class SessionLogger {
     }
   }
 
-  /**
-   * Flush remaining entries synchronously
-   * Called from app 'before-quit' handler for shutdown compatibility.
-   * No-op since append() uses sync writes, but kept for explicit shutdown semantics.
-   */
-  flushSync() {
-  }
-
   // Getters for external access
   get id() { return this.sessionId; }
   get path() { return this.logPath; }
@@ -272,27 +264,6 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
-  }
-});
-
-// Graceful shutdown - ensure session log queue is flushed before quitting
-let isQuitting = false;
-app.on('before-quit', (event) => {
-  if (isQuitting) return;
-
-  if (sessionLogger.hasPendingEntries()) {
-    event.preventDefault();
-    isQuitting = true;
-
-    (async () => {
-      try {
-        await sessionLogger.waitForPendingWrites();
-        sessionLogger.flushSync();
-      } catch (error) {
-        console.error('Error flushing session log queue during shutdown:', error);
-      }
-      app.exit(0);
-    })();
   }
 });
 
