@@ -22,7 +22,8 @@ export const state = {
   allEvents: [],
   sessionId: null,
   tokenExpiresAt: null,
-  tokenExpiryInterval: null
+  tokenExpiryInterval: null,
+  userInitiatedStop: false
 };
 
 /**

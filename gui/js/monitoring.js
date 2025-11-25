@@ -40,10 +40,13 @@ export async function startMonitoring() {
  */
 export async function stopMonitoring() {
   try {
+    // Set flag to indicate user-initiated stop (before stopping)
+    state.userInitiatedStop = true;
     await window.electronAPI.stopEventSub();
     handleMonitoringStopped();
   } catch (error) {
     console.error('Stop monitoring error:', error);
+    state.userInitiatedStop = false;
     alert(t('messages.monitoring.stopFailed', { error: error.message }));
   }
 }
@@ -221,9 +224,19 @@ function updateTokenExpiry() {
  */
 export function handleEventSubStopped(code, showTokenErrorModal) {
   console.log('EventSub stopped with code:', code);
+
+  // Check if this was a user-initiated stop
+  const wasUserInitiated = state.userInitiatedStop;
+  state.userInitiatedStop = false;
+
   handleMonitoringStopped();
 
-  if (code !== 0) {
+  // Don't show error for user-initiated stops
+  if (wasUserInitiated) {
+    return;
+  }
+
+  if (code !== 0 && code !== null) {
     const lastEvents = state.allEvents.slice(-5);
     const hasTokenError = lastEvents.some(event =>
       event.type === 'error' &&
