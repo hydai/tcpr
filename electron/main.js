@@ -29,6 +29,23 @@ const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this ma
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
 
 /**
+ * Platform-specific path comparison logic.
+ * Returns the relative path from parent to child, handling case sensitivity as needed.
+ * @param {string} parent - Normalized parent path
+ * @param {string} child - Normalized child path
+ * @returns {string} Relative path from parent to child
+ */
+function comparePathsForPlatform(parent, child) {
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    // Case-insensitive comparison for Windows and macOS
+    return path.relative(parent.toLowerCase(), child.toLowerCase());
+  } else {
+    // Case-sensitive comparison for Linux and other platforms
+    return path.relative(parent, child);
+  }
+}
+
+/**
  * Check if a child path is within a parent directory
  * Handles case-insensitive filesystems (Windows/macOS) and prevents path traversal
  * @param {string} parent - Parent directory path
@@ -39,14 +56,7 @@ function isPathWithin(parent, child) {
   const normalizedParent = path.normalize(parent);
   const normalizedChild = path.normalize(child);
 
-  let relative;
-  if (process.platform === 'win32' || process.platform === 'darwin') {
-    // Case-insensitive comparison for Windows and macOS
-    relative = path.relative(normalizedParent.toLowerCase(), normalizedChild.toLowerCase());
-  } else {
-    // Case-sensitive comparison for Linux and other platforms
-    relative = path.relative(normalizedParent, normalizedChild);
-  }
+  const relative = comparePathsForPlatform(normalizedParent, normalizedChild);
 
   // Ensure the relative path doesn't escape the parent (no '..' at start)
   // and isn't an absolute path (which would indicate it's outside the parent)
@@ -237,7 +247,8 @@ async function processSessionLogQueue() {
   }
 
   // Create promise and capture resolve/reject handlers
-  // This assignment is synchronous and atomic
+  // This assignment is synchronous and atomic, ensuring handlers are always defined
+  // before any code that might throw
   let resolveWritePromise;
   let rejectWritePromise;
   sessionLogWritePromise = new Promise((resolve, reject) => {
@@ -329,13 +340,9 @@ async function processSessionLogQueue() {
     // Clear promise reference first
     sessionLogWritePromise = null;
 
-    // Reject the promise if handler exists
-    if (typeof rejectWritePromise === 'function') {
-      rejectWritePromise(error);
-    } else {
-      // Log error if promise wasn't created yet
-      console.error('processSessionLogQueue error before promise creation:', error);
-    }
+    // Reject the promise - handlers are guaranteed to be defined at this point
+    // because promise creation is synchronous and completes before the try block
+    rejectWritePromise(error);
   }
 }
 
