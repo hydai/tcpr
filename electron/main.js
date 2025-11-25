@@ -79,14 +79,6 @@ class SessionLogger {
     }
   }
 
-  /**
-   * Flush remaining entries synchronously
-   * Called from app 'before-quit' handler for shutdown compatibility.
-   * No-op since append() uses sync writes, but kept for explicit shutdown semantics.
-   */
-  flushSync() {
-  }
-
   // Getters for external access
   get id() { return this.sessionId; }
   get path() { return this.logPath; }
@@ -273,14 +265,6 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
-});
-
-// Graceful shutdown - ensure session log is finalized before quitting
-// Note: SessionLogger uses synchronous writes, so flushSync() is currently a no-op:
-// it does not close file handles, finalize log entries, or perform any additional cleanup.
-// This handler is kept for explicit shutdown semantics and future extensibility.
-app.on('before-quit', () => {
-  sessionLogger.flushSync();
 });
 
 // IPC Handlers
