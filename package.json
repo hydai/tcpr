@@ -3,7 +3,11 @@
   "version": "1.2.0",
   "description": "Simple WebSocket client to subscribe to Twitch channel points redemption events",
   "main": "electron/main.js",
+  "types": "types/index.d.ts",
   "type": "module",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "scripts": {
     "start": "node index.js",
     "validate": "node validateToken.js",
@@ -17,7 +21,10 @@
     "dist": "electron-builder",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"**/*.{js,json,md}\""
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "build": {
     "appId": "com.twitch.channelpoints.monitor",
@@ -120,6 +127,7 @@
     "electron": "^39.2.3",
     "electron-builder": "^24.13.3",
     "eslint": "^8.57.0",
-    "prettier": "^3.2.5"
+    "prettier": "^3.2.5",
+    "vitest": "^2.0.0"
   }
 }

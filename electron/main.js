@@ -21,12 +21,39 @@ let sessionId = null;
 let sessionLogPath = null;
 let sessionLogQueue = [];
 let sessionLogQueueIndex = 0; // Track read position to avoid shift() overhead
-let sessionLogWriting = false;
+let sessionLogWritePromise = null; // Promise that resolves when current write operation completes
 let sessionLogRetryCount = 0;
 const MAX_RETRY_ATTEMPTS = RETRY.MAX_ATTEMPTS;
 const MAX_BACKOFF_DELAY_MS = RETRY.MAX_BACKOFF_MS;
 const QUEUE_CLEANUP_THRESHOLD = 100; // Clean up processed entries after this many
 const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
+
+/**
+ * Check if a child path is within a parent directory
+ * Handles case-insensitive filesystems (Windows/macOS) and prevents path traversal
+ * @param {string} parent - Parent directory path
+ * @param {string} child - Child path to validate
+ * @returns {boolean} True if child is within parent
+ */
+function isPathWithin(parent, child) {
+  const normalizedParent = path.normalize(parent);
+  const normalizedChild = path.normalize(child);
+
+  // On case-insensitive filesystems (Windows/macOS), normalize case for comparison
+  // This ensures /Users/Foo and /users/foo are treated as the same path
+  let parentForComparison = normalizedParent;
+  let childForComparison = normalizedChild;
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    parentForComparison = normalizedParent.toLowerCase();
+    childForComparison = normalizedChild.toLowerCase();
+  }
+
+  const relative = path.relative(parentForComparison, childForComparison);
+
+  // Ensure the relative path doesn't escape the parent (no '..' at start)
+  // and isn't an absolute path (which would indicate it's outside the parent)
+  return relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
 
 // Create main window
 function createWindow() {
@@ -197,17 +224,51 @@ function appendToSessionLog(logEntry) {
   sessionLogQueue.push(logEntry);
 
   // Start processing if not already running
-  if (!sessionLogWriting) {
+  if (!sessionLogWritePromise) {
     processSessionLogQueue().catch(error => {
       console.error('Critical error in session log processing:', error);
     });
   }
 }
 
+/**
+ * Resolve the session log write promise and clear the reference
+ * Clears reference first for atomic state update from caller's perspective
+ * @param {Function} resolve - Promise resolve function
+ */
+function resolveAndClearWritePromise(resolve) {
+  sessionLogWritePromise = null;
+  resolve();
+}
+
+/**
+ * Reject the session log write promise and clear the reference
+ * Clears reference first for atomic state update from caller's perspective
+ * @param {Function} reject - Promise reject function
+ * @param {Error} error - Error to reject with
+ */
+function rejectAndClearWritePromise(reject, error) {
+  sessionLogWritePromise = null;
+  reject(error);
+}
+
 // Process session log queue sequentially to prevent race conditions
 async function processSessionLogQueue() {
-  if (sessionLogWriting) return;
-  sessionLogWriting = true;
+  // Guard against concurrent execution
+  if (sessionLogWritePromise) {
+    return; // Already processing, exit early
+  }
+
+  // Create promise and capture resolve/reject handlers
+  // The Promise executor executes synchronously, so handlers are assigned immediately
+  // before any async code runs. This pattern requires the executor to complete without
+  // throwing, which is guaranteed since assignment is the only operation.
+  let resolveWritePromise = null;
+  let rejectWritePromise = null;
+  sessionLogWritePromise = new Promise((resolve, reject) => {
+    resolveWritePromise = resolve;
+    rejectWritePromise = reject;
+  });
 
   try {
     while (sessionLogQueueIndex < sessionLogQueue.length) {
@@ -263,17 +324,18 @@ async function processSessionLogQueue() {
             });
           }
 
-          // Exit loop to retry later with exponential backoff
-          // Keep sessionLogWriting = true to prevent concurrent retries
+          // Resolve promise and clear reference to prevent race condition
+          resolveAndClearWritePromise(resolveWritePromise);
+
+          // Schedule retry with exponential backoff
           const backoffDelay = Math.min(1000 * Math.pow(2, sessionLogRetryCount), MAX_BACKOFF_DELAY_MS);
           setTimeout(() => {
-            sessionLogWriting = false; // Reset before retry
             processSessionLogQueue().catch(err => {
               console.error('Critical error in session log retry:', err);
             });
           }, backoffDelay);
 
-          return; // Exit without setting sessionLogWriting = false
+          return; // Exit after scheduling retry
         }
       }
     }
@@ -283,11 +345,15 @@ async function processSessionLogQueue() {
       sessionLogQueue = sessionLogQueue.slice(sessionLogQueueIndex);
       sessionLogQueueIndex = 0;
     }
-  } finally {
-    // Only reset if we're not scheduling a retry
-    // (return statement above will skip this)
-    sessionLogWriting = false;
+  } catch (error) {
+    // Reject promise and clear reference to prevent race condition
+    rejectAndClearWritePromise(rejectWritePromise, error);
+    return;
   }
+
+  // Resolve promise and clear reference to prevent race condition
+  // Only reached if try block completes successfully
+  resolveAndClearWritePromise(resolveWritePromise);
 }
 
 // App ready
@@ -307,6 +373,42 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// Graceful shutdown - ensure session log queue is flushed before quitting
+let isQuitting = false;
+app.on('before-quit', (event) => {
+  // Prevent re-entry if we're already in the quitting process
+  if (isQuitting) {
+    return;
+  }
+
+  // Check if there are pending log entries to write
+  if (sessionLogQueueIndex < sessionLogQueue.length) {
+    event.preventDefault();
+    isQuitting = true;
+
+    // Use Promise to handle async operations explicitly
+    // This is more reliable than async event handlers in Electron
+    (async () => {
+      try {
+        // Wait for any in-progress writes to complete
+        if (sessionLogWritePromise) {
+          await sessionLogWritePromise;
+        }
+
+        // Process any remaining entries in the queue
+        if (sessionLogQueueIndex < sessionLogQueue.length) {
+          await processSessionLogQueue();
+        }
+      } catch (error) {
+        console.error('Error flushing session log queue during shutdown:', error);
+      }
+
+      // Now quit - must use app.exit() to bypass event loop
+      app.exit(0);
+    })();
   }
 });
 
@@ -653,9 +755,56 @@ ipcMain.handle('app:getPath', async (event, name) => {
 });
 
 // Save event log
+// Security: Validate that the file path is within allowed directories
 ipcMain.handle('eventlog:save', async (event, filePath, content) => {
   try {
-    await fs.promises.writeFile(filePath, content, 'utf-8');
+    // Resolve to absolute path to prevent path traversal
+    let resolvedPath = path.resolve(filePath);
+
+    // Resolve symlinks to prevent bypass attacks
+    // If parent directory exists, resolve it; validation occurs later via isAllowedPath check
+    try {
+      const parentDir = path.dirname(resolvedPath);
+      if (fs.existsSync(parentDir)) {
+        // Resolve parent directory symlinks
+        const realParent = fs.realpathSync(parentDir);
+        resolvedPath = path.join(realParent, path.basename(resolvedPath));
+      }
+      // If file already exists, resolve its symlinks too
+      if (fs.existsSync(resolvedPath)) {
+        resolvedPath = fs.realpathSync(resolvedPath);
+      }
+    } catch (error) {
+      // If realpath fails, continue with resolved path
+      // This handles the case where the file doesn't exist yet
+    }
+
+    // Define allowed directories for saving files, resolving symlinks
+    const allowedDirs = [
+      app.getPath('downloads'),
+      app.getPath('documents'),
+      app.getPath('desktop'),
+      app.getPath('userData')
+    ].map(dir => {
+      try {
+        return fs.realpathSync(dir);
+      } catch (e) {
+        // If directory doesn't exist or can't be resolved, use original path
+        return dir;
+      }
+    });
+
+    // Check if the resolved path is within any allowed directory
+    const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
+
+    if (!isAllowedPath) {
+      return {
+        success: false,
+        error: 'File path must be within Downloads, Documents, Desktop, or app data directory'
+      };
+    }
+
+    await fs.promises.writeFile(resolvedPath, content, 'utf-8');
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
