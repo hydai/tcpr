@@ -160,12 +160,4 @@ export class WebSocketManager {
       readyState: this.ws ? this.ws.readyState : null
     };
   }
-
-  /**
-   * Check if WebSocket is ready
-   * @returns {boolean} True if ready to send messages
-   */
-  isReady() {
-    return this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN;
-  }
 }

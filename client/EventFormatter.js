@@ -155,22 +155,6 @@ export class EventFormatter {
   }
 
   /**
-   * Format subscription info
-   * @param {Object} subscription - Subscription data
-   */
-  static formatSubscriptionInfo(subscription) {
-    Logger.success('Subscription created successfully');
-    Logger.log(`  Type: ${subscription.type}`);
-    Logger.log(`  ID: ${subscription.id}`);
-    Logger.log(`  Status: ${subscription.status}`);
-    Logger.log(`  Cost: ${subscription.cost || 0}`);
-
-    if (subscription.created_at) {
-      Logger.log(`  Created: ${subscription.created_at}`);
-    }
-  }
-
-  /**
    * Format revocation message
    * @param {Object} subscription - Subscription data from revocation
    */

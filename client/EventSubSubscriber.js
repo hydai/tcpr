@@ -28,7 +28,6 @@ export class EventSubSubscriber {
   constructor(clientId, accessToken) {
     this.clientId = clientId;
     this.accessToken = accessToken;
-    this.subscriptions = new Map();
   }
 
   /**
@@ -80,12 +79,6 @@ export class EventSubSubscriber {
         );
 
         const subscription = response.data.data[0];
-
-        // Store subscription
-        this.subscriptions.set(subscription.id, {
-          ...subscription,
-          config
-        });
 
         Logger.success('Subscription successful!');
         Logger.log(`Subscription ID: ${subscription.id}`);
@@ -148,7 +141,6 @@ export class EventSubSubscriber {
         }
       );
 
-      this.subscriptions.delete(subscriptionId);
       Logger.success(`Unsubscribed from ${subscriptionId}`);
     } catch (error) {
       Logger.error(`Failed to unsubscribe from ${subscriptionId}:`, error);
@@ -180,51 +172,11 @@ export class EventSubSubscriber {
   }
 
   /**
-   * Delete all subscriptions
-   * @returns {Promise<void>}
-   */
-  async deleteAll() {
-    const subscriptions = await this.getSubscriptions();
-
-    for (const sub of subscriptions) {
-      await this.unsubscribe(sub.id);
-    }
-
-    Logger.success('All subscriptions deleted');
-  }
-
-  /**
    * Handle subscription revocation
    * @param {string} subscriptionId - Revoked subscription ID
    * @param {string} reason - Revocation reason
    */
   handleRevocation(subscriptionId, reason) {
     Logger.warn(`Subscription ${subscriptionId} revoked: ${reason}`);
-    this.subscriptions.delete(subscriptionId);
-  }
-
-  /**
-   * Get subscription by ID
-   * @param {string} subscriptionId - Subscription ID
-   * @returns {Object|null} Subscription data or null
-   */
-  getSubscription(subscriptionId) {
-    return this.subscriptions.get(subscriptionId) || null;
-  }
-
-  /**
-   * Get all stored subscriptions
-   * @returns {Array} Array of subscriptions
-   */
-  getAllSubscriptions() {
-    return Array.from(this.subscriptions.values());
-  }
-
-  /**
-   * Get subscription count
-   * @returns {number} Number of active subscriptions
-   */
-  getSubscriptionCount() {
-    return this.subscriptions.size;
   }
 }
