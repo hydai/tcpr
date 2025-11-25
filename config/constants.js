@@ -27,8 +27,7 @@ export const EVENT_TYPES = {
  * Required OAuth scopes for channel points
  */
 export const SCOPES = {
-  READ_REDEMPTIONS: 'channel:read:redemptions',
-  MANAGE_REDEMPTIONS: 'channel:manage:redemptions'
+  READ_REDEMPTIONS: 'channel:read:redemptions'
 };
 
 /**

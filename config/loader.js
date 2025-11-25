@@ -28,9 +28,6 @@ const CONFIG_MAPPING = [
   { key: 'PORT', env: 'PORT' }
 ];
 
-// Store which config source was actually loaded
-let loadedSource = null;
-
 /**
  * Load configuration from config.json
  * @returns {Object} Configuration object with environment variables set
@@ -50,14 +47,12 @@ export function loadConfig() {
         }
       }
 
-      loadedSource = 'config.json';
       return {
         source: 'config.json',
         loaded: true
       };
     } catch (error) {
       Logger.error('Error loading config.json:', error.message);
-      loadedSource = null;
       return {
         source: 'none',
         loaded: false
@@ -66,22 +61,8 @@ export function loadConfig() {
   }
 
   // No config file found
-  loadedSource = null;
   return {
     source: 'none',
     loaded: false
   };
-}
-
-/**
- * Get the configuration file being used
- * @returns {string} Path to config file or description
- */
-export function getConfigSource() {
-  // Return the source that was actually loaded
-  if (loadedSource === 'config.json') {
-    return 'config.json';
-  }
-
-  return 'No config file found';
 }
