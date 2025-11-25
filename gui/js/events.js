@@ -6,6 +6,35 @@ import { state } from './state.js';
 import { MAX_EVENTS_IN_MEMORY, MAX_EVENTS_DISPLAY } from './utils.js';
 import { t } from './i18n-helper.js';
 
+// Keepalive message detection patterns
+const KEEPALIVE_PATTERNS = [
+  'session_keepalive',
+  'Keepalive received'
+];
+
+// Cached preference for showing keepalive logs
+let showKeepaliveLogsCache = null;
+
+/**
+ * Get the cached preference for showing keepalive logs
+ * @returns {boolean} True if keepalive logs should be shown
+ */
+export function getShowKeepaliveLogs() {
+  if (showKeepaliveLogsCache === null) {
+    showKeepaliveLogsCache = localStorage.getItem('showKeepaliveLogs') === 'true';
+  }
+  return showKeepaliveLogsCache;
+}
+
+/**
+ * Update the cached preference for showing keepalive logs
+ * @param {boolean} value - New preference value
+ */
+export function setShowKeepaliveLogs(value) {
+  showKeepaliveLogsCache = value;
+  localStorage.setItem('showKeepaliveLogs', value);
+}
+
 /**
  * Create an event item element
  * @param {string} typeText - Event type text
@@ -112,8 +141,7 @@ export function handleEventSubLog(data) {
   console.log('EventSub log:', data);
 
   // Filter keepalive messages if disabled (default: hidden)
-  const showKeepalive = localStorage.getItem('showKeepaliveLogs') === 'true';
-  if (!showKeepalive && isKeepaliveMessage(data.message)) {
+  if (!getShowKeepaliveLogs() && isKeepaliveMessage(data.message)) {
     return;
   }
 
@@ -182,6 +210,5 @@ export function clearEvents() {
  */
 function isKeepaliveMessage(message) {
   if (!message) return false;
-  return message.includes('session_keepalive') ||
-         message.includes('Keepalive received');
+  return KEEPALIVE_PATTERNS.some(pattern => message.includes(pattern));
 }

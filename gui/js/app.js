@@ -7,7 +7,7 @@
 // Import modules
 import { state } from './state.js';
 import { t, getCurrentLanguage, changeLanguage } from './i18n-helper.js';
-import { handleEventSubLog, clearEvents } from './events.js';
+import { handleEventSubLog, clearEvents, getShowKeepaliveLogs, setShowKeepaliveLogs } from './events.js';
 import {
   wizardNext, wizardPrev, toggleSecretVisibility, saveAndContinue,
   completeSetup, showWizard
@@ -143,8 +143,7 @@ function openSettings() {
   document.getElementById('settingsLanguage').value = currentLang;
 
   // Load keepalive logs preference (default: hidden)
-  const showKeepalive = localStorage.getItem('showKeepaliveLogs') === 'true';
-  document.getElementById('settingsShowKeepalive').checked = showKeepalive;
+  document.getElementById('settingsShowKeepalive').checked = getShowKeepaliveLogs();
 }
 
 /**
@@ -165,9 +164,8 @@ async function saveSettings() {
   state.config.REDIRECT_URI = document.getElementById('settingsRedirectUri').value.trim();
   state.config.PORT = document.getElementById('settingsPort').value.trim();
 
-  // Save keepalive logs preference to localStorage
-  const showKeepalive = document.getElementById('settingsShowKeepalive').checked;
-  localStorage.setItem('showKeepaliveLogs', showKeepalive);
+  // Save keepalive logs preference
+  setShowKeepaliveLogs(document.getElementById('settingsShowKeepalive').checked);
 
   try {
     const result = await window.electronAPI.saveConfig(state.config);
