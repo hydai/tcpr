@@ -161,13 +161,8 @@ export function handleEventSubLog(data) {
 export function clearEvents() {
   const eventsList = document.getElementById('eventsList');
 
-  // Clear all children
-  while (eventsList.firstChild) {
-    eventsList.removeChild(eventsList.firstChild);
-  }
-
-  // Add empty state
-  eventsList.appendChild(createEmptyState());
+  // Clear all children and add empty state
+  eventsList.replaceChildren(createEmptyState());
 
   state.eventCount = 0;
   state.allEvents = [];

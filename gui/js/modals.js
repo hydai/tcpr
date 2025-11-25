@@ -75,19 +75,15 @@ export function showNotification(type, title, message) {
   const config = getIconConfig(type);
   iconElement.setAttribute('stroke', config.color);
 
-  // Clear existing children
-  while (iconElement.firstChild) {
-    iconElement.removeChild(iconElement.firstChild);
-  }
-
-  // Add new SVG elements
-  for (const el of config.elements) {
+  // Replace existing children with new SVG elements
+  const svgElements = config.elements.map(el => {
     const svgEl = document.createElementNS('http://www.w3.org/2000/svg', el.tag);
     for (const [attr, value] of Object.entries(el.attrs)) {
       svgEl.setAttribute(attr, value);
     }
-    iconElement.appendChild(svgEl);
-  }
+    return svgEl;
+  });
+  iconElement.replaceChildren(...svgElements);
 
   modal.style.display = 'flex';
 }

@@ -36,7 +36,11 @@ class SessionLogger {
     this.sessionId = randomUUID();
 
     const logsDir = path.join(app.getPath('userData'), 'logs');
-    fs.mkdirSync(logsDir, { recursive: true });
+    try {
+      fs.mkdirSync(logsDir, { recursive: true });
+    } catch (error) {
+      console.error('Failed to create logs directory:', error);
+    }
 
     this.logPath = path.join(logsDir, `session-${this.sessionId}.jsonl`);
 
