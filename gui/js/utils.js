@@ -11,6 +11,15 @@ export const MINUTE_MS = 60000;
 export const SECOND_MS = 1000;
 export const TOKEN_WARNING_THRESHOLD_MS = 10 * MINUTE_MS;
 
+/**
+ * Format current date as YYYYMMDD string for filenames
+ * @param {Date} [date] - Date to format (defaults to now)
+ * @returns {string} Formatted date string
+ */
+export function formatDateForFilename(date = new Date()) {
+  return date.toISOString().split('T')[0].replace(/-/g, '');
+}
+
 // SVG icon definitions for alert messages
 const ALERT_ICONS = {
   success: {
@@ -178,17 +187,63 @@ export const CredentialErrors = {
 };
 
 /**
+ * Extract JSON object from a string by tracking brace depth
+ * This avoids greedy regex matching issues when multiple JSON objects exist
+ * @param {string} str - String potentially containing JSON
+ * @returns {string|null} Extracted JSON string or null
+ */
+function extractJsonObject(str) {
+  const startIndex = str.indexOf('{');
+  if (startIndex === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = startIndex; i < str.length; i++) {
+    const char = str[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') depth++;
+      else if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          return str.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Parse redemption event data from message string
  * @param {string} message - Event message containing embedded JSON
  * @returns {Object|null} Parsed redemption data or null
  */
 export function parseRedemptionFromMessage(message) {
-  // Look for JSON object in message (starts with { and contains reward)
-  const jsonMatch = message.match(/\{[\s\S]*"reward"[\s\S]*\}/);
-  if (!jsonMatch) return null;
+  // Extract JSON object using brace-depth tracking to avoid greedy matching
+  const jsonStr = extractJsonObject(message);
+  if (!jsonStr || !jsonStr.includes('"reward"')) return null;
 
   try {
-    return JSON.parse(jsonMatch[0]);
+    return JSON.parse(jsonStr);
   } catch {
     return null;
   }

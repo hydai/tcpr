@@ -695,7 +695,12 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
         resolvedPath = fs.realpathSync(resolvedPath);
       }
     } catch (error) {
-      // If realpath fails, continue with resolved path
+      // Log the error and reject the operation for security
+      console.error('Symlink resolution failed:', error.message);
+      return {
+        success: false,
+        error: 'Failed to resolve file path. Please ensure the destination directory exists and is accessible.'
+      };
     }
 
     // Define allowed directories for saving files
@@ -723,6 +728,9 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     }
 
     // Helper function to convert UTC to JST (Asia/Tokyo) using Intl.DateTimeFormat
+    // NOTE: This function is duplicated in gui/js/utils.js due to Electron architecture.
+    // The main process cannot import ES modules from the renderer process without a bundler.
+    // Keep both implementations in sync when making changes.
     const formatToJST = (isoString) => {
       const date = new Date(isoString);
       const formatter = new Intl.DateTimeFormat('ja-JP', {

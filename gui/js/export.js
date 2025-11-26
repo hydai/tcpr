@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { convertToCSV, filterRedemptionEvents } from './utils.js';
+import { convertToCSV, filterRedemptionEvents, formatDateForFilename } from './utils.js';
 import { t } from './i18n-helper.js';
 
 const DAILY_OMIKUJI_TITLE = 'Dailyおみくじ';
@@ -64,10 +64,7 @@ export async function exportEvents() {
       }
     }
 
-    const now = new Date();
-    const dateStr = now.getFullYear().toString() +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      String(now.getDate()).padStart(2, '0');
+    const dateStr = formatDateForFilename();
     const result = await window.electronAPI.showSaveDialog({
       title: 'Export Events',
       defaultPath: `twitch-events-${dateStr}`,
@@ -138,10 +135,7 @@ export async function exportAsExcel(events) {
 
   try {
     // Save via Electron - Excel generation happens in main process
-    const now = new Date();
-    const dateStr = now.getFullYear().toString() +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      String(now.getDate()).padStart(2, '0');
+    const dateStr = formatDateForFilename();
 
     const result = await window.electronAPI.showSaveDialog({
       title: t('export.saveTitle'),
