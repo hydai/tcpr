@@ -11,17 +11,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.3.0] - 2025-11-25
+## [1.3.0] - 2025-11-26
+
+### Added
+- Setting to show/hide keepalive logs in GUI settings panel
+- Testing infrastructure with Vitest for unit testing
+- Claude Code Review and PR Assistant GitHub Actions workflows
 
 ### Changed
+- Modularize GUI into separate ES modules for better maintainability
+- Simplify Electron code and remove unused IPC handlers
+- Remove unused code from `config/`, `client/`, and `lib/` modules
+- Extract keepalive preference into cached utility function
+- Replace polling with event-driven promise for graceful shutdown
+- Improve path validation and code maintainability
+- Extract promise cleanup helpers and clarify comments
+- Initialize promise handlers to null for defensive programming
 - Extract `parseScopes` and `parsePort` helper functions into `lib/oauth-handler.js` for better code reuse
 - Improve constants consistency and pre-calculate derived values (`TIME` constants, `TOKEN_REFRESH_INTERVAL_MINUTES`)
-- Enhance `parsePort` JSDoc documentation with usage examples
+- Replace magic number with `MAX_EVENTS_DISPLAY` constant
+- Improve error handling and use modern DOM APIs
 
 ### Fixed
+- Prevent false error dialog when user manually stops monitoring
+- Add null safety for keepalive message check
+- Improve keepalive filter logic for edge cases
+- Remove calls to non-existent SessionLogger methods
+- Correct promise resolution order to prevent race conditions
+- Prevent concurrent retry race condition
+- Resolve promise race condition and hanging waiters
+- Correct path comparison to preserve case in relative paths
 - Add TCP port range validation (0-65535) to `parsePort` function
 - Use nullish coalescing for port parsing to properly support port 0
 - Add null checks for scope and port fallback values
+
+### Security
+- Improve path validation to handle symlinks and case-insensitive filesystems
+- Resolve symlink bypass vulnerability in path validation
+
+### CI/CD
+- Add Claude Code Review workflow for automated PR reviews
+- Add Claude PR Assistant workflow for PR management
+- Prevent duplicate CI builds on PRs from claude branches
+- Add concurrency control to prevent duplicate PR reviews
 
 ---
 
