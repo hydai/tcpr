@@ -4,10 +4,10 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
-// SECURITY NOTE: xlsx has known vulnerabilities (Prototype Pollution, ReDoS) that affect parsing.
-// We only use xlsx for writing Excel files from trusted internal data, not reading arbitrary files.
-// This significantly reduces attack surface. Monitor for updates if read functionality is added.
-// See: GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9
+// SECURITY NOTE: xlsx@0.18.5 - Prototype Pollution (GHSA-4r6h-8v6p-xvw6) is patched in this version.
+// ReDoS vulnerability (GHSA-5pgg-2g8v-p4x9) affects parsing only; we use xlsx for writing only.
+// All data comes from trusted internal EventSub events, significantly reducing attack surface.
+// Monitor for updates if read functionality is added in the future.
 import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -839,16 +839,16 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     };
 
     // Convert redemptions to Excel rows with Japanese headers
-    // User-provided fields are sanitized to prevent Excel formula injection
+    // All fields are sanitized to prevent Excel formula injection (defense-in-depth)
     const rows = redemptions.map(r => ({
       '引き換え時間 (UTC+9)': formatToJST(r.redeemed_at),
       '報酬名': sanitizeExcelField(r.reward_title),
       'ユーザー名': sanitizeExcelField(r.user_name),
-      'ユーザーID': r.user_id,
+      'ユーザーID': sanitizeExcelField(r.user_id),
       'ログイン名': sanitizeExcelField(r.user_login),
       'ユーザー入力': sanitizeExcelField(r.user_input),
-      'ステータス': r.status,
-      '引き換えID': r.redemption_id
+      'ステータス': sanitizeExcelField(r.status),
+      '引き換えID': sanitizeExcelField(r.redemption_id)
     }));
 
     // Create workbook and worksheet

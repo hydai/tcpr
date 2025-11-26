@@ -213,8 +213,8 @@ export async function convertJsonToExcel() {
       return;
     }
 
-    // Validate that all events have the expected format
-    if (events.length > 0 && !events.every(e => e && e.message)) {
+    // Validate that all events have the expected format (message must be a string)
+    if (events.length > 0 && !events.every(e => e && typeof e.message === 'string')) {
       alert(t('messages.export.invalidEventFormat'));
       return;
     }
