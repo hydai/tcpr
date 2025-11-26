@@ -6,6 +6,10 @@ import { state } from './state.js';
 import { convertToCSV, filterRedemptionEvents, formatDateForFilename } from './utils.js';
 import { t } from './i18n-helper.js';
 
+// Reward title for filtering redemptions
+// NOTE: Kept in renderer code rather than config/constants.js because the renderer
+// cannot import Node.js modules without bundling. Consider making configurable in UI
+// if support for multiple reward types is needed in the future.
 const DAILY_OMIKUJI_TITLE = 'Dailyおみくじ';
 
 /**

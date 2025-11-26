@@ -646,6 +646,16 @@ ipcMain.handle('file:read', async (event, filePath) => {
       };
     }
 
+    // Check file size to prevent memory exhaustion (50MB limit)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+    const stats = await fs.promises.stat(resolvedPath);
+    if (stats.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File too large: ${Math.round(stats.size / (1024 * 1024))}MB exceeds 50MB limit`
+      };
+    }
+
     const content = await fs.promises.readFile(resolvedPath, 'utf-8');
     return { success: true, content };
   } catch (error) {
@@ -816,14 +826,28 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
       return `${y}-${m}-${d} ${h}:${min}:${s}`;
     };
 
+    /**
+     * Sanitize field for Excel to prevent formula injection
+     * Prefixes with single quote if value starts with formula characters (=, +, -, @)
+     * @see https://owasp.org/www-community/attacks/CSV_Injection
+     */
+    const sanitizeExcelField = (value) => {
+      const str = String(value ?? '');
+      if (/^[=+\-@]/.test(str)) {
+        return "'" + str;
+      }
+      return str;
+    };
+
     // Convert redemptions to Excel rows with Japanese headers
+    // User-provided fields are sanitized to prevent Excel formula injection
     const rows = redemptions.map(r => ({
       '引き換え時間 (UTC+9)': formatToJST(r.redeemed_at),
-      '報酬名': r.reward_title,
-      'ユーザー名': r.user_name,
+      '報酬名': sanitizeExcelField(r.reward_title),
+      'ユーザー名': sanitizeExcelField(r.user_name),
       'ユーザーID': r.user_id,
-      'ログイン名': r.user_login,
-      'ユーザー入力': r.user_input,
+      'ログイン名': sanitizeExcelField(r.user_login),
+      'ユーザー入力': sanitizeExcelField(r.user_input),
       'ステータス': r.status,
       '引き換えID': r.redemption_id
     }));

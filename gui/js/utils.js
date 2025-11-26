@@ -298,15 +298,20 @@ export function filterRedemptionEvents(events, rewardTitle) {
 
   for (const event of events) {
     const data = parseRedemptionFromMessage(event.message);
-    if (data && data.reward?.title === rewardTitle) {
+    // Validate required fields to prevent incomplete data export
+    if (data &&
+        data.reward?.title === rewardTitle &&
+        data.redeemed_at &&
+        data.user_name &&
+        data.id) {
       redemptions.push({
         redeemed_at: data.redeemed_at,
         reward_title: data.reward.title,
         user_name: data.user_name,
-        user_id: data.user_id,
-        user_login: data.user_login,
-        user_input: data.user_input || '',
-        status: data.status,
+        user_id: data.user_id ?? '',
+        user_login: data.user_login ?? '',
+        user_input: data.user_input ?? '',
+        status: data.status ?? '',
         redemption_id: data.id
       });
     }
