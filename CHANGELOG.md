@@ -11,6 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2025-11-27
+
+### Added
+- Excel export functionality for Dailyおみくじ redemptions
+- Dedicated modal for invalid client credentials handling
+
+### Security
+- Excel formula injection protection with file size limits
+- Path validation for file:read IPC handler
+
+### Changed
+- Improved credential validation with better error detection
+- Enhanced memoization for performance optimization
+- Better cache eviction with null safety in formatToJST
+
+### Fixed
+- Modal message reset on close
+- Various null safety improvements
+- Code duplication reduction across modules
+
+---
+
 ## [1.3.0] - 2025-11-26
 
 ### Added
