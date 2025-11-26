@@ -253,7 +253,9 @@
       "success": "{{count}}件のイベントを{{path}}に正常にエクスポートしました",
       "failed": "イベントのエクスポートに失敗しました：{{error}}",
       "noRedemptions": "Dailyおみくじの交換履歴がありません。",
-      "invalidJson": "選択したファイルは有効なJSON配列ではありません。"
+      "invalidJson": "選択したファイルは有効なJSON配列ではありません。",
+      "invalidJsonSyntax": "選択したファイルのJSON構文が無効です。正しい形式のJSONファイルを選択してください。",
+      "invalidEventFormat": "選択したファイルには有効なイベントデータが含まれていません。'message'プロパティを持つイベントが必要です。"
     },
     "folder": {
       "openFailed": "{{type}}フォルダを開けませんでした：{{error}}",

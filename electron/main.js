@@ -4,6 +4,10 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
+// SECURITY NOTE: xlsx has known vulnerabilities (Prototype Pollution, ReDoS) that affect parsing.
+// We only use xlsx for writing Excel files from trusted internal data, not reading arbitrary files.
+// This significantly reduces attack surface. Monitor for updates if read functionality is added.
+// See: GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9
 import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -666,7 +670,7 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     if (!isAllowedPath) {
       return {
         success: false,
-        error: 'File path must be within Downloads, Documents, Desktop, or app data directory'
+        error: 'For security, files can only be saved to:\n• Downloads\n• Documents\n• Desktop\n• App Data'
       };
     }
 
@@ -681,6 +685,23 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
 // Security: Validate that the file path is within allowed directories
 ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
   try {
+    // Validate input: redemptions must be an array
+    if (!Array.isArray(redemptions)) {
+      return { success: false, error: 'Invalid data: redemptions must be an array' };
+    }
+
+    // Validate each redemption has required fields
+    const requiredFields = ['redeemed_at', 'reward_title', 'user_name', 'user_id', 'user_login', 'status', 'redemption_id'];
+    for (const r of redemptions) {
+      if (!r || typeof r !== 'object') {
+        return { success: false, error: 'Invalid redemption data: each item must be an object' };
+      }
+      const missingFields = requiredFields.filter(field => !(field in r));
+      if (missingFields.length > 0) {
+        return { success: false, error: `Invalid redemption data: missing fields: ${missingFields.join(', ')}` };
+      }
+    }
+
     // Resolve to absolute path to prevent path traversal
     let resolvedPath = path.resolve(filePath);
 
@@ -723,14 +744,17 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     if (!isAllowedPath) {
       return {
         success: false,
-        error: 'File path must be within Downloads, Documents, Desktop, or app data directory'
+        error: 'For security, files can only be saved to:\n• Downloads\n• Documents\n• Desktop\n• App Data'
       };
     }
 
-    // Helper function to convert UTC to JST (Asia/Tokyo) using Intl.DateTimeFormat
-    // NOTE: This function is duplicated in gui/js/utils.js due to Electron architecture.
-    // The main process cannot import ES modules from the renderer process without a bundler.
-    // Keep both implementations in sync when making changes.
+    /**
+     * Convert UTC timestamp to JST (Asia/Tokyo) using Intl.DateTimeFormat
+     * NOTE: This function is duplicated in gui/js/utils.js due to Electron architecture.
+     * The main process cannot import ES modules from the renderer process without a bundler.
+     * Keep both implementations in sync when making changes.
+     * @see gui/js/utils.js#formatToJST
+     */
     const formatToJST = (isoString) => {
       const date = new Date(isoString);
       const formatter = new Intl.DateTimeFormat('ja-JP', {

@@ -238,9 +238,12 @@ function extractJsonObject(str) {
  * @returns {Object|null} Parsed redemption data or null
  */
 export function parseRedemptionFromMessage(message) {
+  // Early exit: skip expensive parsing if message doesn't contain "reward"
+  if (!message || !message.includes('"reward"')) return null;
+
   // Extract JSON object using brace-depth tracking to avoid greedy matching
   const jsonStr = extractJsonObject(message);
-  if (!jsonStr || !jsonStr.includes('"reward"')) return null;
+  if (!jsonStr) return null;
 
   try {
     return JSON.parse(jsonStr);
@@ -252,6 +255,9 @@ export function parseRedemptionFromMessage(message) {
 /**
  * Convert UTC timestamp to JST (Asia/Tokyo) formatted string
  * Uses Intl.DateTimeFormat for proper timezone handling
+ * NOTE: This function is duplicated in electron/main.js due to Electron architecture.
+ * Keep both implementations in sync when making changes.
+ * @see electron/main.js#formatToJST
  * @param {string} isoString - ISO 8601 timestamp
  * @returns {string} Formatted datetime in JST (YYYY-MM-DD HH:mm:ss)
  */

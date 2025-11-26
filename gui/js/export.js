@@ -195,10 +195,23 @@ export async function convertJsonToExcel() {
 
     // Read and parse JSON file
     const content = await window.electronAPI.readFile(result.filePaths[0]);
-    const events = JSON.parse(content);
+
+    let events;
+    try {
+      events = JSON.parse(content);
+    } catch (parseError) {
+      alert(t('messages.export.invalidJsonSyntax'));
+      return;
+    }
 
     if (!Array.isArray(events)) {
       alert(t('messages.export.invalidJson'));
+      return;
+    }
+
+    // Validate that events have the expected format
+    if (events.length > 0 && !events[0].message) {
+      alert(t('messages.export.invalidEventFormat'));
       return;
     }
 
