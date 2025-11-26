@@ -252,18 +252,15 @@ export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCred
     const lastEvents = state.allEvents.slice(-ERROR_LOOKBACK_COUNT);
 
     // Check for invalid client credentials (client ID or secret is wrong)
+    // This mirrors the detection logic in lib/errors.js CredentialErrors.isInvalidCredentials()
+    // to ensure consistent behavior between backend and frontend error detection
     const hasInvalidCredentialsError = lastEvents.some(event => {
       if (event.type !== 'error') return false;
       const msgLower = event.message.toLowerCase();
-      // Match the same error messages that TokenRefresher detects:
-      // - "invalid client secret" (wrong Client Secret)
-      // - "invalid client id" (from our own error messages)
-      // - "invalid client" but NOT "invalid client secret" (generic Twitch error for wrong Client ID)
-      return (
-        msgLower.includes('invalid client secret') ||
-        msgLower.includes('invalid client id') ||
-        (msgLower.includes('invalid client') && !msgLower.includes('invalid client secret'))
-      );
+      const isInvalidSecret = msgLower.includes('invalid client secret');
+      const isInvalidClientId = msgLower.includes('invalid client id');
+      const isGenericInvalidClient = msgLower.includes('invalid client') && !isInvalidSecret;
+      return isInvalidSecret || isInvalidClientId || isGenericInvalidClient;
     });
 
     if (hasInvalidCredentialsError) {
