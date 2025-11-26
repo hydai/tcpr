@@ -139,5 +139,10 @@ export function showInvalidCredentialsModal(message = null) {
  */
 export function closeInvalidCredentialsModal() {
   const modal = document.getElementById('invalidCredentialsModal');
+  const messageElement = document.getElementById('invalidCredentialsMessage');
+
+  // Reset message to default translation to prevent stale custom messages
+  messageElement.textContent = t('modal.invalidCredentials.message');
+
   modal.style.display = 'none';
 }
