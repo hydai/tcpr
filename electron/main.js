@@ -605,9 +605,48 @@ ipcMain.handle('dialog:showOpen', async (event, options) => {
 });
 
 // Read file content
+// Security: Validate that the file path is within allowed directories
 ipcMain.handle('file:read', async (event, filePath) => {
   try {
-    const content = await fs.promises.readFile(filePath, 'utf-8');
+    // Resolve to absolute path to prevent path traversal
+    let resolvedPath = path.resolve(filePath);
+
+    // Resolve symlinks if file exists
+    if (fs.existsSync(resolvedPath)) {
+      try {
+        resolvedPath = fs.realpathSync(resolvedPath);
+      } catch (error) {
+        console.error('Symlink resolution failed:', error.message);
+        return { success: false, error: 'Failed to resolve file path' };
+      }
+    }
+
+    // Define allowed directories for reading files
+    const allowedDirs = [
+      app.getPath('downloads'),
+      app.getPath('documents'),
+      app.getPath('desktop'),
+      app.getPath('userData'),
+      app.getPath('temp')
+    ].map(dir => {
+      try {
+        return fs.realpathSync(dir);
+      } catch (e) {
+        return dir;
+      }
+    });
+
+    // Check if the resolved path is within any allowed directory
+    const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
+
+    if (!isAllowedPath) {
+      return {
+        success: false,
+        error: 'File access denied: path not in allowed directories'
+      };
+    }
+
+    const content = await fs.promises.readFile(resolvedPath, 'utf-8');
     return { success: true, content };
   } catch (error) {
     return { success: false, error: error.message };

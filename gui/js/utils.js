@@ -189,6 +189,10 @@ export const CredentialErrors = {
 /**
  * Extract JSON object from a string by tracking brace depth
  * This avoids greedy regex matching issues when multiple JSON objects exist
+ *
+ * Note on Unicode escapes: Sequences like \uXXXX are handled correctly because
+ * we skip the character after any backslash. The \uXXXX in JSON source is NOT
+ * a literal character - it's an escape sequence that JSON.parse() converts later.
  * @param {string} str - String potentially containing JSON
  * @returns {string|null} Extracted JSON string or null
  */
