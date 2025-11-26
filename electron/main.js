@@ -98,13 +98,22 @@ const sessionLogger = new SessionLogger();
 
 /**
  * Check if a message is a keepalive message
+ * Filters out WebSocket keepalive messages from EventSub stream to reduce UI clutter
+ * and prevent session log pollution.
+ *
  * @param {string} message - Message to check
  * @returns {boolean} True if keepalive message
+ * @example
+ * isKeepaliveMessage('Received session_keepalive') // true
+ * isKeepaliveMessage('Keepalive received from WebSocket') // true
+ * isKeepaliveMessage('Channel point redemption event') // false
  */
 function isKeepaliveMessage(message) {
   if (!message) return false;
-  return message.includes('session_keepalive') ||
-         message.includes('Keepalive received');
+  const lowerMessage = message.toLowerCase();
+  return lowerMessage.includes('session_keepalive') ||
+         lowerMessage.includes('keepalive received') ||
+         lowerMessage.includes('keepalive');
 }
 
 /**
