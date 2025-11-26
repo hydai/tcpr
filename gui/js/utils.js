@@ -195,14 +195,31 @@ export function parseRedemptionFromMessage(message) {
 }
 
 /**
- * Convert UTC timestamp to UTC+9 (JST) formatted string
+ * Convert UTC timestamp to JST (Asia/Tokyo) formatted string
+ * Uses Intl.DateTimeFormat for proper timezone handling
  * @param {string} isoString - ISO 8601 timestamp
- * @returns {string} Formatted datetime in JST
+ * @returns {string} Formatted datetime in JST (YYYY-MM-DD HH:mm:ss)
  */
 export function formatToJST(isoString) {
   const date = new Date(isoString);
-  const jst = new Date(date.getTime() + (9 * 60 * 60 * 1000));
-  return jst.toISOString().replace('T', ' ').replace('Z', '').slice(0, 19);
+  const formatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(date);
+  const y = parts.find(p => p.type === 'year').value;
+  const m = parts.find(p => p.type === 'month').value;
+  const d = parts.find(p => p.type === 'day').value;
+  const h = parts.find(p => p.type === 'hour').value;
+  const min = parts.find(p => p.type === 'minute').value;
+  const s = parts.find(p => p.type === 'second').value;
+  return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 
 /**
