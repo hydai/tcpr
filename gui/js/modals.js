@@ -116,6 +116,11 @@ export function showTokenErrorModal(message) {
  */
 export function closeTokenErrorModal() {
   const modal = document.getElementById('tokenErrorModal');
+  const messageElement = document.getElementById('tokenErrorMessage');
+
+  // Reset message to default translation to prevent stale custom messages
+  messageElement.textContent = t('modal.tokenError.message');
+
   modal.style.display = 'none';
 }
 

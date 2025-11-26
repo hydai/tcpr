@@ -3,7 +3,7 @@
  */
 
 import { state, resetMonitoringState, resetTokenExpiryState } from './state.js';
-import { HOUR_MS, MINUTE_MS, SECOND_MS, TOKEN_WARNING_THRESHOLD_MS } from './utils.js';
+import { HOUR_MS, MINUTE_MS, SECOND_MS, TOKEN_WARNING_THRESHOLD_MS, CredentialErrors } from './utils.js';
 import { t } from './i18n-helper.js';
 
 // Number of recent events to check for error detection when monitoring stops
@@ -252,17 +252,10 @@ export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCred
     const lastEvents = state.allEvents.slice(-ERROR_LOOKBACK_COUNT);
 
     // Check for invalid client credentials (client ID or secret is wrong)
-    // This mirrors the detection logic in lib/errors.js CredentialErrors.isInvalidCredentials()
-    // to ensure consistent behavior between backend and frontend error detection
-    // Note: Cannot import lib/errors.js directly as it's in the main process, not renderer
-    const hasInvalidCredentialsError = lastEvents.some(event => {
-      if (event.type !== 'error') return false;
-      const msgLower = (event.message || '').toLowerCase();
-      const isInvalidSecret = msgLower.includes('invalid client secret');
-      const isInvalidClientId = msgLower.includes('invalid client id');
-      const isGenericInvalidClient = msgLower.includes('invalid client') && !isInvalidSecret;
-      return isInvalidSecret || isInvalidClientId || isGenericInvalidClient;
-    });
+    // Uses CredentialErrors from utils.js (mirrored from lib/errors.js)
+    const hasInvalidCredentialsError = lastEvents.some(event =>
+      event.type === 'error' && CredentialErrors.isInvalidCredentials(event.message)
+    );
 
     if (hasInvalidCredentialsError) {
       console.error('Invalid credentials detected:', lastEvents.filter(e => e.type === 'error'));
