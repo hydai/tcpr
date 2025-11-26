@@ -225,8 +225,9 @@ function updateTokenExpiry() {
  * Handle EventSub Stopped
  * @param {number} code - Exit code
  * @param {Function} showTokenErrorModal - Function to show token error modal
+ * @param {Function} showInvalidCredentialsModal - Function to show invalid credentials modal
  */
-export function handleEventSubStopped(code, showTokenErrorModal) {
+export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCredentialsModal) {
   console.log('EventSub stopped with code:', code);
 
   // Check if this was a user-initiated stop
@@ -246,6 +247,22 @@ export function handleEventSubStopped(code, showTokenErrorModal) {
   // code === 0 means normal exit, anything else is unexpected
   if (code !== 0) {
     const lastEvents = state.allEvents.slice(-5);
+
+    // Check for invalid client credentials (client ID or secret is wrong)
+    const hasInvalidCredentialsError = lastEvents.some(event =>
+      event.type === 'error' &&
+      (event.message.toLowerCase().includes('invalid client secret') ||
+       event.message.toLowerCase().includes('invalid client id') ||
+       (event.message.toLowerCase().includes('invalid client') &&
+        !event.message.toLowerCase().includes('invalid client credentials')))
+    );
+
+    if (hasInvalidCredentialsError) {
+      showInvalidCredentialsModal(t('modal.invalidCredentials.message'));
+      return;
+    }
+
+    // Check for general token errors
     const hasTokenError = lastEvents.some(event =>
       event.type === 'error' &&
       (event.message.includes('Token validation failed') ||

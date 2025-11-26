@@ -20,7 +20,7 @@ import {
 import { exportEvents, openExternal, openFolder, confirmDeleteLogs } from './export.js';
 import {
   showDeleteLogsModal, closeDeleteLogsModal, showNotification, closeNotificationModal,
-  showTokenErrorModal, closeTokenErrorModal
+  showTokenErrorModal, closeTokenErrorModal, showInvalidCredentialsModal, closeInvalidCredentialsModal
 } from './modals.js';
 
 // Initialize app on load
@@ -96,7 +96,7 @@ function setupEventListeners() {
   });
 
   window.electronAPI.onEventSubStopped((code) => {
-    handleEventSubStopped(code, showTokenErrorModal);
+    handleEventSubStopped(code, showTokenErrorModal, showInvalidCredentialsModal);
   });
 
   // OAuth listeners
@@ -246,6 +246,22 @@ async function refreshOAuthFromModal() {
   }
 }
 
+/**
+ * Open Twitch Developer Console
+ */
+async function openTwitchDevConsole() {
+  closeInvalidCredentialsModal();
+  await window.electronAPI.openExternal('https://dev.twitch.tv/console/apps');
+}
+
+/**
+ * Go to Settings from Invalid Credentials Modal
+ */
+function goToSettingsFromCredentialsModal() {
+  closeInvalidCredentialsModal();
+  openSettings();
+}
+
 // Export functions to global scope for HTML onclick handlers
 window.wizardNext = wizardNext;
 window.wizardPrev = wizardPrev;
@@ -274,3 +290,7 @@ window.closeDeleteLogsModal = closeDeleteLogsModal;
 window.confirmDeleteLogs = handleConfirmDeleteLogs;
 window.showNotification = showNotification;
 window.closeNotificationModal = closeNotificationModal;
+window.showInvalidCredentialsModal = showInvalidCredentialsModal;
+window.closeInvalidCredentialsModal = closeInvalidCredentialsModal;
+window.openTwitchDevConsole = openTwitchDevConsole;
+window.goToSettingsFromCredentialsModal = goToSettingsFromCredentialsModal;

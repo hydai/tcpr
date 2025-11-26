@@ -182,6 +182,19 @@
       "refreshButton": "Refresh OAuth",
       "close": "Close"
     },
+    "invalidCredentials": {
+      "title": "Invalid Application Credentials",
+      "message": "Your Twitch application Client ID or Client Secret is invalid. Token refresh cannot work until you update these credentials.",
+      "instructions": "To fix this:",
+      "step1": "Go to the Twitch Developer Console",
+      "step2": "Find your application and click \"Manage\"",
+      "step3": "Generate a new Client Secret",
+      "step4": "Update your settings with the new credentials",
+      "step5": "Run OAuth again to get new tokens",
+      "openConsole": "Open Twitch Developer Console",
+      "openSettings": "Open Settings",
+      "close": "Close"
+    },
     "deleteLogs": {
       "title": "Delete All Logs",
       "message": "Are you sure you want to delete all log files? This will free up disk space but cannot be undone.",

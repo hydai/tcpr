@@ -496,6 +496,46 @@
       </div>
     </div>
 
+    <!-- Invalid Credentials Modal -->
+    <div id="invalidCredentialsModal" class="modal" style="display: none;">
+      <div class="modal-overlay" onclick="closeInvalidCredentialsModal()"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <h2 data-i18n="modal.invalidCredentials.title">Invalid Application Credentials</h2>
+        </div>
+        <div class="modal-body">
+          <p id="invalidCredentialsMessage" data-i18n="modal.invalidCredentials.message">Your Twitch application Client ID or Client Secret is invalid. Token refresh cannot work until you update these credentials.</p>
+          <div class="modal-instructions">
+            <p data-i18n="modal.invalidCredentials.instructions">To fix this:</p>
+            <ol>
+              <li data-i18n="modal.invalidCredentials.step1">Go to the Twitch Developer Console</li>
+              <li data-i18n="modal.invalidCredentials.step2">Find your application and click "Manage"</li>
+              <li data-i18n="modal.invalidCredentials.step3">Generate a new Client Secret</li>
+              <li data-i18n="modal.invalidCredentials.step4">Update your settings with the new credentials</li>
+              <li data-i18n="modal.invalidCredentials.step5">Run OAuth again to get new tokens</li>
+            </ol>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" onclick="openTwitchDevConsole()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            <span data-i18n="modal.invalidCredentials.openConsole">Open Twitch Developer Console</span>
+          </button>
+          <button class="btn btn-secondary" onclick="goToSettingsFromCredentialsModal()" data-i18n="modal.invalidCredentials.openSettings">Open Settings</button>
+          <button class="btn btn-secondary" onclick="closeInvalidCredentialsModal()" data-i18n="modal.invalidCredentials.close">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Logs Confirmation Modal -->
     <div id="deleteLogsModal" class="modal" style="display: none;">
       <div class="modal-overlay" onclick="closeDeleteLogsModal()"></div>

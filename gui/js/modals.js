@@ -118,3 +118,26 @@ export function closeTokenErrorModal() {
   const modal = document.getElementById('tokenErrorModal');
   modal.style.display = 'none';
 }
+
+/**
+ * Show Invalid Credentials Modal
+ * @param {string} message - Optional custom error message
+ */
+export function showInvalidCredentialsModal(message) {
+  const modal = document.getElementById('invalidCredentialsModal');
+  const messageElement = document.getElementById('invalidCredentialsMessage');
+
+  if (message) {
+    messageElement.textContent = message;
+  }
+
+  modal.style.display = 'flex';
+}
+
+/**
+ * Close Invalid Credentials Modal
+ */
+export function closeInvalidCredentialsModal() {
+  const modal = document.getElementById('invalidCredentialsModal');
+  modal.style.display = 'none';
+}
