@@ -3,8 +3,11 @@
  */
 
 import { state, resetMonitoringState, resetTokenExpiryState } from './state.js';
-import { HOUR_MS, MINUTE_MS, SECOND_MS, TOKEN_WARNING_THRESHOLD_MS } from './utils.js';
+import { HOUR_MS, MINUTE_MS, SECOND_MS, TOKEN_WARNING_THRESHOLD_MS, CredentialErrors } from './utils.js';
 import { t } from './i18n-helper.js';
+
+// Number of recent events to check for error detection when monitoring stops
+const ERROR_LOOKBACK_COUNT = 5;
 
 /**
  * Start Monitoring
@@ -225,8 +228,9 @@ function updateTokenExpiry() {
  * Handle EventSub Stopped
  * @param {number} code - Exit code
  * @param {Function} showTokenErrorModal - Function to show token error modal
+ * @param {Function} showInvalidCredentialsModal - Function to show invalid credentials modal
  */
-export function handleEventSubStopped(code, showTokenErrorModal) {
+export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCredentialsModal) {
   console.log('EventSub stopped with code:', code);
 
   // Check if this was a user-initiated stop
@@ -245,7 +249,21 @@ export function handleEventSubStopped(code, showTokenErrorModal) {
   // Show error for any abnormal exit: non-zero codes or null (startup failures/signal kills)
   // code === 0 means normal exit, anything else is unexpected
   if (code !== 0) {
-    const lastEvents = state.allEvents.slice(-5);
+    const lastEvents = state.allEvents.slice(-ERROR_LOOKBACK_COUNT);
+
+    // Check for invalid client credentials (client ID or secret is wrong)
+    // Uses CredentialErrors from utils.js (mirrored from lib/errors.js)
+    const hasInvalidCredentialsError = lastEvents.some(event =>
+      event.type === 'error' && CredentialErrors.isInvalidCredentials(event.message)
+    );
+
+    if (hasInvalidCredentialsError) {
+      console.error('Invalid credentials detected:', lastEvents.filter(e => e.type === 'error'));
+      showInvalidCredentialsModal(t('modal.invalidCredentials.message'));
+      return;
+    }
+
+    // Check for general token errors
     const hasTokenError = lastEvents.some(event =>
       event.type === 'error' &&
       (event.message.includes('Token validation failed') ||

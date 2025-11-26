@@ -116,5 +116,38 @@ export function showTokenErrorModal(message) {
  */
 export function closeTokenErrorModal() {
   const modal = document.getElementById('tokenErrorModal');
+  const messageElement = document.getElementById('tokenErrorMessage');
+
+  // Reset message to default translation to prevent stale custom messages
+  messageElement.textContent = t('modal.tokenError.message');
+
+  modal.style.display = 'none';
+}
+
+/**
+ * Show Invalid Credentials Modal
+ * @param {string} [message] - Optional custom error message to override default
+ */
+export function showInvalidCredentialsModal(message = null) {
+  const modal = document.getElementById('invalidCredentialsModal');
+  const messageElement = document.getElementById('invalidCredentialsMessage');
+
+  if (message) {
+    messageElement.textContent = message;
+  }
+
+  modal.style.display = 'flex';
+}
+
+/**
+ * Close Invalid Credentials Modal
+ */
+export function closeInvalidCredentialsModal() {
+  const modal = document.getElementById('invalidCredentialsModal');
+  const messageElement = document.getElementById('invalidCredentialsMessage');
+
+  // Reset message to default translation to prevent stale custom messages
+  messageElement.textContent = t('modal.invalidCredentials.message');
+
   modal.style.display = 'none';
 }

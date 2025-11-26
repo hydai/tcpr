@@ -124,3 +124,55 @@ export function convertToCSV(events) {
 
   return rows.join('\r\n');
 }
+
+/**
+ * Credential error detection utilities for the renderer process
+ *
+ * NOTE: This is a copy of CredentialErrors from lib/errors.js for use in the
+ * renderer process. Keep these in sync! The canonical implementation is in
+ * lib/errors.js - any changes should be made there first, then mirrored here.
+ *
+ * Twitch OAuth token endpoint returns HTTP 400 with these error messages
+ * (empirically observed behavior - Twitch API docs don't specify exact messages):
+ * - "invalid client" when Client ID is wrong or doesn't exist
+ * - "invalid client secret" when Client Secret is wrong or has been regenerated
+ */
+export const CredentialErrors = {
+  /**
+   * Check if error message indicates invalid client secret
+   * @param {string} message - Error message to check
+   * @returns {boolean}
+   */
+  isInvalidClientSecret(message) {
+    return (message || '').toLowerCase().includes('invalid client secret');
+  },
+
+  /**
+   * Check if error message indicates invalid client ID
+   * Matches:
+   * - "invalid client" (Twitch's error for wrong Client ID)
+   * - "invalid client id" (our own error message format)
+   * Excludes: "invalid client secret" (handled separately)
+   * @param {string} message - Error message to check
+   * @returns {boolean}
+   */
+  isInvalidClientId(message) {
+    const msgLower = (message || '').toLowerCase();
+    return msgLower.includes('invalid client') && !msgLower.includes('invalid client secret');
+  },
+
+  /**
+   * Check if error message indicates any invalid credential error
+   * (client ID or client secret)
+   * @param {string} message - Error message to check
+   * @returns {boolean}
+   */
+  isInvalidCredentials(message) {
+    const msgLower = (message || '').toLowerCase();
+    return (
+      msgLower.includes('invalid client secret') ||
+      msgLower.includes('invalid client id') ||
+      (msgLower.includes('invalid client') && !msgLower.includes('invalid client secret'))
+    );
+  }
+};
