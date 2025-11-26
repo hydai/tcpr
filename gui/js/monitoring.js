@@ -6,6 +6,9 @@ import { state, resetMonitoringState, resetTokenExpiryState } from './state.js';
 import { HOUR_MS, MINUTE_MS, SECOND_MS, TOKEN_WARNING_THRESHOLD_MS } from './utils.js';
 import { t } from './i18n-helper.js';
 
+// Number of recent events to check for error detection when monitoring stops
+const ERROR_LOOKBACK_COUNT = 5;
+
 /**
  * Start Monitoring
  */
@@ -246,7 +249,7 @@ export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCred
   // Show error for any abnormal exit: non-zero codes or null (startup failures/signal kills)
   // code === 0 means normal exit, anything else is unexpected
   if (code !== 0) {
-    const lastEvents = state.allEvents.slice(-5);
+    const lastEvents = state.allEvents.slice(-ERROR_LOOKBACK_COUNT);
 
     // Check for invalid client credentials (client ID or secret is wrong)
     const hasInvalidCredentialsError = lastEvents.some(event => {
