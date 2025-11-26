@@ -20,6 +20,9 @@ let oauthServerProcess = null;
 // Path to config.json file
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
+// Error message for file save path validation (used in multiple IPC handlers)
+const FILE_SAVE_PATH_ERROR = 'For security, files can only be saved to:\n• Downloads\n• Documents\n• Desktop\n• App Data';
+
 /**
  * SessionLogger - Manages session log writing
  *
@@ -717,10 +720,7 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
 
     if (!isAllowedPath) {
-      return {
-        success: false,
-        error: 'For security, files can only be saved to:\n• Downloads\n• Documents\n• Desktop\n• App Data'
-      };
+      return { success: false, error: FILE_SAVE_PATH_ERROR };
     }
 
     await fs.promises.writeFile(resolvedPath, content, 'utf-8');
@@ -740,7 +740,8 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     }
 
     // Validate each redemption has required fields
-    const requiredFields = ['redeemed_at', 'reward_title', 'user_name', 'user_id', 'user_login', 'status', 'redemption_id'];
+    // Note: user_id, user_login, user_input, and status are optional (use ?? '' in utils.js)
+    const requiredFields = ['redeemed_at', 'reward_title', 'user_name', 'redemption_id'];
     for (const r of redemptions) {
       if (!r || typeof r !== 'object') {
         return { success: false, error: 'Invalid redemption data: each item must be an object' };
@@ -791,10 +792,7 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
 
     if (!isAllowedPath) {
-      return {
-        success: false,
-        error: 'For security, files can only be saved to:\n• Downloads\n• Documents\n• Desktop\n• App Data'
-      };
+      return { success: false, error: FILE_SAVE_PATH_ERROR };
     }
 
     /**

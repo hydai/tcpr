@@ -268,9 +268,12 @@ export function parseRedemptionFromMessage(message) {
     // Cache the result (with size limit to prevent memory issues)
     if (parseCache.size >= PARSE_CACHE_MAX_SIZE) {
       // Batch eviction: remove oldest 10% of entries for better performance
-      const keysToDelete = Array.from(parseCache.keys()).slice(0, PARSE_CACHE_EVICT_COUNT);
-      for (const key of keysToDelete) {
-        parseCache.delete(key);
+      // Use iterator directly to avoid creating full array of 10,000 keys
+      const keyIter = parseCache.keys();
+      for (let i = 0; i < PARSE_CACHE_EVICT_COUNT; i++) {
+        const next = keyIter.next();
+        if (next.done) break;
+        parseCache.delete(next.value);
       }
     }
     parseCache.set(message, result);
