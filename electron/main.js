@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
+import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -593,6 +594,22 @@ ipcMain.handle('dialog:showSave', async (event, options) => {
   return result;
 });
 
+// Show open dialog
+ipcMain.handle('dialog:showOpen', async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, options);
+  return result;
+});
+
+// Read file content
+ipcMain.handle('file:read', async (event, filePath) => {
+  try {
+    const content = await fs.promises.readFile(filePath, 'utf-8');
+    return { success: true, content };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Get app version
 ipcMain.handle('app:getVersion', async () => {
   return app.getVersion();
@@ -654,6 +671,83 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     }
 
     await fs.promises.writeFile(resolvedPath, content, 'utf-8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Export to Excel - generates Excel file from redemption data
+// Security: Validate that the file path is within allowed directories
+ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
+  try {
+    // Resolve to absolute path to prevent path traversal
+    let resolvedPath = path.resolve(filePath);
+
+    // Resolve symlinks to prevent bypass attacks
+    try {
+      const parentDir = path.dirname(resolvedPath);
+      if (fs.existsSync(parentDir)) {
+        const realParent = fs.realpathSync(parentDir);
+        resolvedPath = path.join(realParent, path.basename(resolvedPath));
+      }
+      if (fs.existsSync(resolvedPath)) {
+        resolvedPath = fs.realpathSync(resolvedPath);
+      }
+    } catch (error) {
+      // If realpath fails, continue with resolved path
+    }
+
+    // Define allowed directories for saving files
+    const allowedDirs = [
+      app.getPath('downloads'),
+      app.getPath('documents'),
+      app.getPath('desktop'),
+      app.getPath('userData')
+    ].map(dir => {
+      try {
+        return fs.realpathSync(dir);
+      } catch (e) {
+        return dir;
+      }
+    });
+
+    // Check if the resolved path is within any allowed directory
+    const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
+
+    if (!isAllowedPath) {
+      return {
+        success: false,
+        error: 'File path must be within Downloads, Documents, Desktop, or app data directory'
+      };
+    }
+
+    // Helper function to convert UTC to JST (UTC+9)
+    const formatToJST = (isoString) => {
+      const date = new Date(isoString);
+      const jst = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+      return jst.toISOString().replace('T', ' ').replace('Z', '').slice(0, 19);
+    };
+
+    // Convert redemptions to Excel rows with Japanese headers
+    const rows = redemptions.map(r => ({
+      '引き換え時間 (UTC+9)': formatToJST(r.redeemed_at),
+      '報酬名': r.reward_title,
+      'ユーザー名': r.user_name,
+      'ユーザーID': r.user_id,
+      'ログイン名': r.user_login,
+      'ユーザー入力': r.user_input,
+      'ステータス': r.status,
+      '引き換えID': r.redemption_id
+    }));
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Dailyおみくじ');
+
+    // Write to file
+    XLSX.writeFile(workbook, resolvedPath);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

@@ -17,7 +17,7 @@ import {
   startMonitoring, stopMonitoring, handleMonitoringStopped, checkMonitoringStatus,
   handleEventSubStopped, fetchAndStartTokenExpiryTimer
 } from './monitoring.js';
-import { exportEvents, openExternal, openFolder, confirmDeleteLogs } from './export.js';
+import { exportEvents, exportSessionAsExcel, convertJsonToExcel, openExternal, openFolder, confirmDeleteLogs } from './export.js';
 import {
   showDeleteLogsModal, closeDeleteLogsModal, showNotification, closeNotificationModal,
   showTokenErrorModal, closeTokenErrorModal, showInvalidCredentialsModal, closeInvalidCredentialsModal
@@ -111,6 +111,7 @@ function setupEventListeners() {
       fetchAndStartTokenExpiryTimer();
     }
   });
+
 }
 
 /**
@@ -278,6 +279,8 @@ window.startMonitoring = startMonitoring;
 window.stopMonitoring = stopMonitoring;
 window.clearEvents = clearEvents;
 window.exportEvents = exportEvents;
+window.exportSessionAsExcel = exportSessionAsExcel;
+window.convertJsonToExcel = convertJsonToExcel;
 window.openExternal = openExternal;
 window.openFolder = openFolder;
 window.toggleLanguage = toggleLanguage;

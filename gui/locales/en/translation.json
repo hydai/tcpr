@@ -145,12 +145,19 @@
     "tokenExpiryUnknown": "Unknown",
     "eventLog": "Event Log",
     "export": "Export",
+    "convertJson": "Convert JSON",
     "clear": "Clear",
     "emptyState": "No events yet. Start monitoring to see events appear here.",
     "eventTypes": {
       "error": "Error",
       "event": "Event"
     }
+  },
+  "export": {
+    "asJson": "Export JSON",
+    "asExcel": "Export Excel",
+    "selectJson": "Select JSON File",
+    "saveTitle": "Save Excel File"
   },
   "settings": {
     "title": "Settings",
@@ -244,7 +251,9 @@
     "export": {
       "validationWarning": "Warning: Log validation failed!\n\n{{message}}\n\nSession log events: {{sessionCount}}\nIn-memory events: {{memoryCount}}\n\nDo you want to continue with the export anyway?",
       "success": "Successfully exported {{count}} events to {{path}}",
-      "failed": "Failed to export events: {{error}}"
+      "failed": "Failed to export events: {{error}}",
+      "noRedemptions": "No Dailyおみくじ redemptions found in the events.",
+      "invalidJson": "The selected file is not a valid JSON array."
     },
     "folder": {
       "openFailed": "Failed to open {{type}} folder: {{error}}",

@@ -3,8 +3,10 @@
  */
 
 import { state } from './state.js';
-import { convertToCSV } from './utils.js';
+import { convertToCSV, filterRedemptionEvents } from './utils.js';
 import { t } from './i18n-helper.js';
+
+const DAILY_OMIKUJI_TITLE = 'Dailyおみくじ';
 
 /**
  * Validate logs against session file
@@ -118,6 +120,98 @@ export async function exportEvents() {
     }
   } catch (error) {
     console.error('Export error:', error);
+    alert(t('messages.export.failed', { error: error.message }));
+  }
+}
+
+/**
+ * Export filtered events as Excel (Dailyおみくじ only)
+ * @param {Array} events - Events array to export
+ */
+export async function exportAsExcel(events) {
+  const redemptions = filterRedemptionEvents(events, DAILY_OMIKUJI_TITLE);
+
+  if (redemptions.length === 0) {
+    alert(t('messages.export.noRedemptions'));
+    return;
+  }
+
+  try {
+    // Save via Electron - Excel generation happens in main process
+    const now = new Date();
+    const dateStr = now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0');
+
+    const result = await window.electronAPI.showSaveDialog({
+      title: t('export.saveTitle'),
+      defaultPath: `daily-omikuji-${dateStr}.xlsx`,
+      filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return;
+    }
+
+    let filePath = result.filePath;
+    if (!filePath.toLowerCase().endsWith('.xlsx')) {
+      filePath += '.xlsx';
+    }
+
+    // Send redemptions to main process for Excel generation
+    const saveResult = await window.electronAPI.exportToExcel(filePath, redemptions);
+
+    if (saveResult.success) {
+      alert(t('messages.export.success', { count: redemptions.length, path: filePath }));
+    } else {
+      alert(t('messages.export.failed', { error: saveResult.error }));
+    }
+  } catch (error) {
+    console.error('Excel export error:', error);
+    alert(t('messages.export.failed', { error: error.message }));
+  }
+}
+
+/**
+ * Export current session events as Excel
+ */
+export async function exportSessionAsExcel() {
+  if (state.allEvents.length === 0) {
+    alert(t('messages.validation.noEvents'));
+    return;
+  }
+  await exportAsExcel(state.allEvents);
+}
+
+/**
+ * Load JSON file and convert to Excel
+ */
+export async function convertJsonToExcel() {
+  try {
+    // Open file dialog to select JSON
+    const result = await window.electronAPI.showOpenDialog({
+      title: t('export.selectJson'),
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || !result.filePaths?.length) {
+      return;
+    }
+
+    // Read and parse JSON file
+    const content = await window.electronAPI.readFile(result.filePaths[0]);
+    const events = JSON.parse(content);
+
+    if (!Array.isArray(events)) {
+      alert(t('messages.export.invalidJson'));
+      return;
+    }
+
+    // Export as Excel
+    await exportAsExcel(events);
+  } catch (error) {
+    console.error('JSON to Excel conversion error:', error);
     alert(t('messages.export.failed', { error: error.message }));
   }
 }

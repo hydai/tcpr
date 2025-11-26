@@ -145,12 +145,19 @@
     "tokenExpiryUnknown": "不明",
     "eventLog": "イベントログ",
     "export": "エクスポート",
+    "convertJson": "JSON変換",
     "clear": "クリア",
     "emptyState": "まだイベントがありません。監視を開始すると、ここにイベントが表示されます。",
     "eventTypes": {
       "error": "エラー",
       "event": "イベント"
     }
+  },
+  "export": {
+    "asJson": "JSON出力",
+    "asExcel": "Excel出力",
+    "selectJson": "JSONファイルを選択",
+    "saveTitle": "Excelファイルを保存"
   },
   "settings": {
     "title": "設定",
@@ -244,7 +251,9 @@
     "export": {
       "validationWarning": "警告：ログ検証に失敗しました！\n\n{{message}}\n\nセッションログイベント：{{sessionCount}}\nメモリ内イベント：{{memoryCount}}\n\nそれでもエクスポートを続行しますか？",
       "success": "{{count}}件のイベントを{{path}}に正常にエクスポートしました",
-      "failed": "イベントのエクスポートに失敗しました：{{error}}"
+      "failed": "イベントのエクスポートに失敗しました：{{error}}",
+      "noRedemptions": "Dailyおみくじの交換履歴がありません。",
+      "invalidJson": "選択したファイルは有効なJSON配列ではありません。"
     },
     "folder": {
       "openFailed": "{{type}}フォルダを開けませんでした：{{error}}",

@@ -176,3 +176,59 @@ export const CredentialErrors = {
     );
   }
 };
+
+/**
+ * Parse redemption event data from message string
+ * @param {string} message - Event message containing embedded JSON
+ * @returns {Object|null} Parsed redemption data or null
+ */
+export function parseRedemptionFromMessage(message) {
+  // Look for JSON object in message (starts with { and contains reward)
+  const jsonMatch = message.match(/\{[\s\S]*"reward"[\s\S]*\}/);
+  if (!jsonMatch) return null;
+
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert UTC timestamp to UTC+9 (JST) formatted string
+ * @param {string} isoString - ISO 8601 timestamp
+ * @returns {string} Formatted datetime in JST
+ */
+export function formatToJST(isoString) {
+  const date = new Date(isoString);
+  const jst = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+  return jst.toISOString().replace('T', ' ').replace('Z', '').slice(0, 19);
+}
+
+/**
+ * Filter events for specific reward title
+ * @param {Array} events - Events array
+ * @param {string} rewardTitle - Reward title to filter
+ * @returns {Array} Filtered redemption data with all fields separated
+ */
+export function filterRedemptionEvents(events, rewardTitle) {
+  const redemptions = [];
+
+  for (const event of events) {
+    const data = parseRedemptionFromMessage(event.message);
+    if (data && data.reward?.title === rewardTitle) {
+      redemptions.push({
+        redeemed_at: data.redeemed_at,
+        reward_title: data.reward.title,
+        user_name: data.user_name,
+        user_id: data.user_id,
+        user_login: data.user_login,
+        user_input: data.user_input || '',
+        status: data.status,
+        redemption_id: data.id
+      });
+    }
+  }
+
+  return redemptions;
+}
