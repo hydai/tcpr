@@ -249,13 +249,15 @@ export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCred
     const lastEvents = state.allEvents.slice(-5);
 
     // Check for invalid client credentials (client ID or secret is wrong)
-    const hasInvalidCredentialsError = lastEvents.some(event =>
-      event.type === 'error' &&
-      (event.message.toLowerCase().includes('invalid client secret') ||
-       event.message.toLowerCase().includes('invalid client id') ||
-       (event.message.toLowerCase().includes('invalid client') &&
-        !event.message.toLowerCase().includes('invalid client credentials')))
-    );
+    const hasInvalidCredentialsError = lastEvents.some(event => {
+      if (event.type !== 'error') return false;
+      const msgLower = event.message.toLowerCase();
+      return (
+        msgLower.includes('invalid client secret') ||
+        msgLower.includes('invalid client id') ||
+        (msgLower.includes('invalid client') && !msgLower.includes('invalid client credentials'))
+      );
+    });
 
     if (hasInvalidCredentialsError) {
       showInvalidCredentialsModal(t('modal.invalidCredentials.message'));
