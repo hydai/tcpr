@@ -329,6 +329,13 @@ body {
   font-size: 12px;
 }
 
+/* Export Actions */
+.export-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* Wizard Actions */
 .wizard-actions {
   display: flex;

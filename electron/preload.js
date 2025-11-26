@@ -52,9 +52,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Dialogs
   showSaveDialog: (options) => ipcRenderer.invoke('dialog:showSave', options),
+  showOpenDialog: (options) => ipcRenderer.invoke('dialog:showOpen', options),
+
+  // File operations
+  readFile: async (filePath) => {
+    const result = await ipcRenderer.invoke('file:read', filePath);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return result.content;
+  },
 
   // Event log export
   saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content),
+  exportToExcel: (filePath, redemptions) => ipcRenderer.invoke('export:excel', filePath, redemptions),
 
   // Session management
   getSessionId: () => ipcRenderer.invoke('session:getId'),

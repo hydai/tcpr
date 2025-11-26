@@ -11,6 +11,15 @@ export const MINUTE_MS = 60000;
 export const SECOND_MS = 1000;
 export const TOKEN_WARNING_THRESHOLD_MS = 10 * MINUTE_MS;
 
+/**
+ * Format current date as YYYYMMDD string for filenames
+ * @param {Date} [date] - Date to format (defaults to now)
+ * @returns {string} Formatted date string
+ */
+export function formatDateForFilename(date = new Date()) {
+  return date.toISOString().split('T')[0].replace(/-/g, '');
+}
+
 // SVG icon definitions for alert messages
 const ALERT_ICONS = {
   success: {
@@ -176,3 +185,167 @@ export const CredentialErrors = {
     );
   }
 };
+
+/**
+ * Extract JSON object from a string by tracking brace depth
+ * This avoids greedy regex matching issues when multiple JSON objects exist
+ *
+ * Note on Unicode escapes: Sequences like \uXXXX are handled correctly because
+ * we skip the character after any backslash. The \uXXXX in JSON source is NOT
+ * a literal character - it's an escape sequence that JSON.parse() converts later.
+ * @param {string} str - String potentially containing JSON
+ * @returns {string|null} Extracted JSON string or null
+ */
+function extractJsonObject(str) {
+  if (typeof str !== 'string') return null;
+  const startIndex = str.indexOf('{');
+  if (startIndex === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = startIndex; i < str.length; i++) {
+    const char = str[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') depth++;
+      else if (char === '}') {
+        depth--;
+        if (depth === 0) {
+          return str.substring(startIndex, i + 1);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+// Memoization cache for parseRedemptionFromMessage to improve performance
+// with large event datasets (avoids re-parsing identical messages)
+const parseCache = new Map();
+const PARSE_CACHE_MAX_SIZE = 10000;
+// Evict 10% of cache entries when full for better performance than single-entry eviction
+const PARSE_CACHE_EVICT_COUNT = Math.floor(PARSE_CACHE_MAX_SIZE * 0.1);
+
+/**
+ * Parse redemption event data from message string
+ * Results are memoized to improve performance for large datasets
+ * @param {string} message - Event message containing embedded JSON
+ * @returns {Object|null} Parsed redemption data or null
+ */
+export function parseRedemptionFromMessage(message) {
+  // Early exit: skip expensive parsing if message doesn't contain "reward"
+  if (!message || !message.includes('"reward"')) return null;
+
+  // Check cache first
+  if (parseCache.has(message)) {
+    return parseCache.get(message);
+  }
+
+  // Extract JSON object using brace-depth tracking to avoid greedy matching
+  const jsonStr = extractJsonObject(message);
+  if (!jsonStr) return null;
+
+  try {
+    const result = JSON.parse(jsonStr);
+    // Cache the result (with size limit to prevent memory issues)
+    if (parseCache.size >= PARSE_CACHE_MAX_SIZE) {
+      // Batch eviction: remove oldest 10% of entries for better performance
+      // Use iterator directly to avoid creating full array of 10,000 keys
+      const keyIter = parseCache.keys();
+      for (let i = 0; i < PARSE_CACHE_EVICT_COUNT; i++) {
+        const next = keyIter.next();
+        if (next.done) break;
+        parseCache.delete(next.value);
+      }
+    }
+    parseCache.set(message, result);
+    return result;
+  } catch (error) {
+    // Log parse errors at debug level for troubleshooting without noise
+    console.debug('JSON parse failed for redemption message:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Convert UTC timestamp to JST (Asia/Tokyo) formatted string
+ * Uses Intl.DateTimeFormat for proper timezone handling
+ * NOTE: This function is duplicated in electron/main.js due to Electron architecture.
+ * Keep both implementations in sync when making changes.
+ * @see electron/main.js#formatToJST
+ * @param {string} isoString - ISO 8601 timestamp
+ * @returns {string} Formatted datetime in JST (YYYY-MM-DD HH:mm:ss)
+ */
+export function formatToJST(isoString) {
+  const date = new Date(isoString);
+  const formatter = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(date);
+  // Use optional chaining with fallbacks for defensive programming
+  const y = parts.find(p => p.type === 'year')?.value ?? '0000';
+  const m = parts.find(p => p.type === 'month')?.value ?? '00';
+  const d = parts.find(p => p.type === 'day')?.value ?? '00';
+  const h = parts.find(p => p.type === 'hour')?.value ?? '00';
+  const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+  const s = parts.find(p => p.type === 'second')?.value ?? '00';
+  return `${y}-${m}-${d} ${h}:${min}:${s}`;
+}
+
+/**
+ * Filter events for specific reward title
+ * @param {Array} events - Events array
+ * @param {string} rewardTitle - Reward title to filter
+ * @returns {Array} Filtered redemption data with all fields separated
+ */
+export function filterRedemptionEvents(events, rewardTitle) {
+  const redemptions = [];
+
+  for (const event of events) {
+    const data = parseRedemptionFromMessage(event.message);
+    // Validate required fields to prevent incomplete data export
+    if (data &&
+        data.reward?.title === rewardTitle &&
+        data.redeemed_at &&
+        data.user_name &&
+        data.id) {
+      redemptions.push({
+        redeemed_at: data.redeemed_at,
+        reward_title: data.reward.title,
+        user_name: data.user_name,
+        user_id: data.user_id ?? '',
+        user_login: data.user_login ?? '',
+        user_input: data.user_input ?? '',
+        status: data.status ?? '',
+        redemption_id: data.id
+      });
+    }
+  }
+
+  return redemptions;
+}

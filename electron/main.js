@@ -4,6 +4,11 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
+// SECURITY NOTE: xlsx@0.18.5 - Prototype Pollution (GHSA-4r6h-8v6p-xvw6) is patched in this version.
+// ReDoS vulnerability (GHSA-5pgg-2g8v-p4x9) affects parsing only; we use xlsx for writing only.
+// All data comes from trusted internal EventSub events, significantly reducing attack surface.
+// Monitor for updates if read functionality is added in the future.
+import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +19,9 @@ let oauthServerProcess = null;
 
 // Path to config.json file
 const configPath = path.join(app.getPath('userData'), 'config.json');
+
+// Error message for file save path validation (used in multiple IPC handlers)
+const FILE_SAVE_PATH_ERROR = 'For security, files can only be saved to:\n• Downloads\n• Documents\n• Desktop\n• App Data';
 
 /**
  * SessionLogger - Manages session log writing
@@ -593,6 +601,71 @@ ipcMain.handle('dialog:showSave', async (event, options) => {
   return result;
 });
 
+// Show open dialog
+ipcMain.handle('dialog:showOpen', async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, options);
+  return result;
+});
+
+// Read file content
+// Security: Validate that the file path is within allowed directories
+ipcMain.handle('file:read', async (event, filePath) => {
+  try {
+    // Resolve to absolute path to prevent path traversal
+    let resolvedPath = path.resolve(filePath);
+
+    // Resolve symlinks if file exists
+    if (fs.existsSync(resolvedPath)) {
+      try {
+        resolvedPath = fs.realpathSync(resolvedPath);
+      } catch (error) {
+        console.error('Symlink resolution failed:', error.message);
+        return { success: false, error: 'Failed to resolve file path' };
+      }
+    }
+
+    // Define allowed directories for reading files
+    const allowedDirs = [
+      app.getPath('downloads'),
+      app.getPath('documents'),
+      app.getPath('desktop'),
+      app.getPath('userData'),
+      app.getPath('temp')
+    ].map(dir => {
+      try {
+        return fs.realpathSync(dir);
+      } catch (e) {
+        return dir;
+      }
+    });
+
+    // Check if the resolved path is within any allowed directory
+    const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
+
+    if (!isAllowedPath) {
+      return {
+        success: false,
+        error: 'File access denied: path not in allowed directories'
+      };
+    }
+
+    // Check file size to prevent memory exhaustion (50MB limit)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024;
+    const stats = await fs.promises.stat(resolvedPath);
+    if (stats.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File too large: ${Math.round(stats.size / (1024 * 1024))}MB exceeds 50MB limit`
+      };
+    }
+
+    const content = await fs.promises.readFile(resolvedPath, 'utf-8');
+    return { success: true, content };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Get app version
 ipcMain.handle('app:getVersion', async () => {
   return app.getVersion();
@@ -647,16 +720,151 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
     const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
 
     if (!isAllowedPath) {
-      return {
-        success: false,
-        error: 'File path must be within Downloads, Documents, Desktop, or app data directory'
-      };
+      return { success: false, error: FILE_SAVE_PATH_ERROR };
     }
 
     await fs.promises.writeFile(resolvedPath, content, 'utf-8');
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+// Export to Excel - generates Excel file from redemption data
+// Security: Validate that the file path is within allowed directories
+ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
+  try {
+    // Validate input: redemptions must be an array
+    if (!Array.isArray(redemptions)) {
+      return { success: false, error: 'Invalid data: redemptions must be an array' };
+    }
+
+    // Validate each redemption has required fields
+    // Note: user_id, user_login, user_input, and status are optional (use ?? '' in utils.js)
+    const requiredFields = ['redeemed_at', 'reward_title', 'user_name', 'redemption_id'];
+    for (const r of redemptions) {
+      if (!r || typeof r !== 'object') {
+        return { success: false, error: 'Invalid redemption data: each item must be an object' };
+      }
+      const missingFields = requiredFields.filter(field => !(field in r));
+      if (missingFields.length > 0) {
+        return { success: false, error: `Invalid redemption data: missing fields: ${missingFields.join(', ')}` };
+      }
+    }
+
+    // Resolve to absolute path to prevent path traversal
+    let resolvedPath = path.resolve(filePath);
+
+    // Resolve symlinks to prevent bypass attacks
+    try {
+      const parentDir = path.dirname(resolvedPath);
+      if (fs.existsSync(parentDir)) {
+        const realParent = fs.realpathSync(parentDir);
+        resolvedPath = path.join(realParent, path.basename(resolvedPath));
+      }
+      if (fs.existsSync(resolvedPath)) {
+        resolvedPath = fs.realpathSync(resolvedPath);
+      }
+    } catch (error) {
+      // Log the error and reject the operation for security
+      console.error('Symlink resolution failed:', error.message);
+      return {
+        success: false,
+        error: 'Failed to resolve file path. Please ensure the destination directory exists and is accessible.'
+      };
+    }
+
+    // Define allowed directories for saving files
+    const allowedDirs = [
+      app.getPath('downloads'),
+      app.getPath('documents'),
+      app.getPath('desktop'),
+      app.getPath('userData')
+    ].map(dir => {
+      try {
+        return fs.realpathSync(dir);
+      } catch (e) {
+        return dir;
+      }
+    });
+
+    // Check if the resolved path is within any allowed directory
+    const isAllowedPath = allowedDirs.some(dir => isPathWithin(dir, resolvedPath));
+
+    if (!isAllowedPath) {
+      return { success: false, error: FILE_SAVE_PATH_ERROR };
+    }
+
+    /**
+     * Convert UTC timestamp to JST (Asia/Tokyo) using Intl.DateTimeFormat
+     * NOTE: This function is duplicated in gui/js/utils.js due to Electron architecture.
+     * The main process cannot import ES modules from the renderer process without a bundler.
+     * Keep both implementations in sync when making changes.
+     * @see gui/js/utils.js#formatToJST
+     */
+    const formatToJST = (isoString) => {
+      const date = new Date(isoString);
+      const formatter = new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(date);
+      // Use optional chaining with fallbacks for defensive programming
+      const y = parts.find(p => p.type === 'year')?.value ?? '0000';
+      const m = parts.find(p => p.type === 'month')?.value ?? '00';
+      const d = parts.find(p => p.type === 'day')?.value ?? '00';
+      const h = parts.find(p => p.type === 'hour')?.value ?? '00';
+      const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+      const s = parts.find(p => p.type === 'second')?.value ?? '00';
+      return `${y}-${m}-${d} ${h}:${min}:${s}`;
+    };
+
+    /**
+     * Sanitize field for Excel to prevent formula injection
+     * Prefixes with single quote if value starts with formula characters (=, +, -, @)
+     * @see https://owasp.org/www-community/attacks/CSV_Injection
+     */
+    const sanitizeExcelField = (value) => {
+      const str = String(value ?? '');
+      if (/^[=+\-@]/.test(str)) {
+        return "'" + str;
+      }
+      return str;
+    };
+
+    // Convert redemptions to Excel rows with Japanese headers
+    // All fields are sanitized to prevent Excel formula injection (defense-in-depth)
+    const rows = redemptions.map(r => ({
+      '引き換え時間 (UTC+9)': formatToJST(r.redeemed_at),
+      '報酬名': sanitizeExcelField(r.reward_title),
+      'ユーザー名': sanitizeExcelField(r.user_name),
+      'ユーザーID': sanitizeExcelField(r.user_id),
+      'ログイン名': sanitizeExcelField(r.user_login),
+      'ユーザー入力': sanitizeExcelField(r.user_input),
+      'ステータス': sanitizeExcelField(r.status),
+      '引き換えID': sanitizeExcelField(r.redemption_id)
+    }));
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Dailyおみくじ');
+
+    // Write to file
+    XLSX.writeFile(workbook, resolvedPath);
+    return { success: true };
+  } catch (error) {
+    console.error('Excel export failed:', error);
+    return {
+      success: false,
+      error: `Failed to create Excel file: ${error.message}`
+    };
   }
 });
 
