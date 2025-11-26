@@ -241,6 +241,8 @@ function extractJsonObject(str) {
 // with large event datasets (avoids re-parsing identical messages)
 const parseCache = new Map();
 const PARSE_CACHE_MAX_SIZE = 10000;
+// Evict 10% of cache entries when full for better performance than single-entry eviction
+const PARSE_CACHE_EVICT_COUNT = Math.floor(PARSE_CACHE_MAX_SIZE * 0.1);
 
 /**
  * Parse redemption event data from message string
@@ -265,13 +267,17 @@ export function parseRedemptionFromMessage(message) {
     const result = JSON.parse(jsonStr);
     // Cache the result (with size limit to prevent memory issues)
     if (parseCache.size >= PARSE_CACHE_MAX_SIZE) {
-      // Clear oldest entries when cache is full
-      const firstKey = parseCache.keys().next().value;
-      parseCache.delete(firstKey);
+      // Batch eviction: remove oldest 10% of entries for better performance
+      const keysToDelete = Array.from(parseCache.keys()).slice(0, PARSE_CACHE_EVICT_COUNT);
+      for (const key of keysToDelete) {
+        parseCache.delete(key);
+      }
     }
     parseCache.set(message, result);
     return result;
-  } catch {
+  } catch (error) {
+    // Log parse errors at debug level for troubleshooting without noise
+    console.debug('JSON parse failed for redemption message:', error.message);
     return null;
   }
 }
@@ -298,12 +304,13 @@ export function formatToJST(isoString) {
     hour12: false
   });
   const parts = formatter.formatToParts(date);
-  const y = parts.find(p => p.type === 'year').value;
-  const m = parts.find(p => p.type === 'month').value;
-  const d = parts.find(p => p.type === 'day').value;
-  const h = parts.find(p => p.type === 'hour').value;
-  const min = parts.find(p => p.type === 'minute').value;
-  const s = parts.find(p => p.type === 'second').value;
+  // Use optional chaining with fallbacks for defensive programming
+  const y = parts.find(p => p.type === 'year')?.value ?? '0000';
+  const m = parts.find(p => p.type === 'month')?.value ?? '00';
+  const d = parts.find(p => p.type === 'day')?.value ?? '00';
+  const h = parts.find(p => p.type === 'hour')?.value ?? '00';
+  const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+  const s = parts.find(p => p.type === 'second')?.value ?? '00';
   return `${y}-${m}-${d} ${h}:${min}:${s}`;
 }
 

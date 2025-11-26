@@ -817,12 +817,13 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
         hour12: false
       });
       const parts = formatter.formatToParts(date);
-      const y = parts.find(p => p.type === 'year').value;
-      const m = parts.find(p => p.type === 'month').value;
-      const d = parts.find(p => p.type === 'day').value;
-      const h = parts.find(p => p.type === 'hour').value;
-      const min = parts.find(p => p.type === 'minute').value;
-      const s = parts.find(p => p.type === 'second').value;
+      // Use optional chaining with fallbacks for defensive programming
+      const y = parts.find(p => p.type === 'year')?.value ?? '0000';
+      const m = parts.find(p => p.type === 'month')?.value ?? '00';
+      const d = parts.find(p => p.type === 'day')?.value ?? '00';
+      const h = parts.find(p => p.type === 'hour')?.value ?? '00';
+      const min = parts.find(p => p.type === 'minute')?.value ?? '00';
+      const s = parts.find(p => p.type === 'second')?.value ?? '00';
       return `${y}-${m}-${d} ${h}:${min}:${s}`;
     };
 
