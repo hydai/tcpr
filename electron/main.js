@@ -549,10 +549,17 @@ ipcMain.handle('eventsub:start', async () => {
     });
 
     eventSubProcess.stderr.on('data', (data) => {
+      const message = data.toString();
+
+      // Filter out keepalive messages for consistency with stdout
+      if (isKeepaliveMessage(message)) {
+        return;
+      }
+
       const logEntry = {
         timestamp: new Date().toISOString(),
         type: 'error',
-        message: data.toString()
+        message: message
       };
 
       if (mainWindow) {
