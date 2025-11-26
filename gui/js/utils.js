@@ -197,6 +197,7 @@ export const CredentialErrors = {
  * @returns {string|null} Extracted JSON string or null
  */
 function extractJsonObject(str) {
+  if (typeof str !== 'string') return null;
   const startIndex = str.indexOf('{');
   if (startIndex === -1) return null;
 
@@ -236,8 +237,14 @@ function extractJsonObject(str) {
   return null;
 }
 
+// Memoization cache for parseRedemptionFromMessage to improve performance
+// with large event datasets (avoids re-parsing identical messages)
+const parseCache = new Map();
+const PARSE_CACHE_MAX_SIZE = 10000;
+
 /**
  * Parse redemption event data from message string
+ * Results are memoized to improve performance for large datasets
  * @param {string} message - Event message containing embedded JSON
  * @returns {Object|null} Parsed redemption data or null
  */
@@ -245,12 +252,25 @@ export function parseRedemptionFromMessage(message) {
   // Early exit: skip expensive parsing if message doesn't contain "reward"
   if (!message || !message.includes('"reward"')) return null;
 
+  // Check cache first
+  if (parseCache.has(message)) {
+    return parseCache.get(message);
+  }
+
   // Extract JSON object using brace-depth tracking to avoid greedy matching
   const jsonStr = extractJsonObject(message);
   if (!jsonStr) return null;
 
   try {
-    return JSON.parse(jsonStr);
+    const result = JSON.parse(jsonStr);
+    // Cache the result (with size limit to prevent memory issues)
+    if (parseCache.size >= PARSE_CACHE_MAX_SIZE) {
+      // Clear oldest entries when cache is full
+      const firstKey = parseCache.keys().next().value;
+      parseCache.delete(firstKey);
+    }
+    parseCache.set(message, result);
+    return result;
   } catch {
     return null;
   }

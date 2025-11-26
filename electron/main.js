@@ -861,7 +861,11 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     XLSX.writeFile(workbook, resolvedPath);
     return { success: true };
   } catch (error) {
-    return { success: false, error: error.message };
+    console.error('Excel export failed:', error);
+    return {
+      success: false,
+      error: `Failed to create Excel file: ${error.message}`
+    };
   }
 });
 
