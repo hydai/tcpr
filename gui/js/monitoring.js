@@ -254,9 +254,10 @@ export function handleEventSubStopped(code, showTokenErrorModal, showInvalidCred
     // Check for invalid client credentials (client ID or secret is wrong)
     // This mirrors the detection logic in lib/errors.js CredentialErrors.isInvalidCredentials()
     // to ensure consistent behavior between backend and frontend error detection
+    // Note: Cannot import lib/errors.js directly as it's in the main process, not renderer
     const hasInvalidCredentialsError = lastEvents.some(event => {
       if (event.type !== 'error') return false;
-      const msgLower = event.message.toLowerCase();
+      const msgLower = (event.message || '').toLowerCase();
       const isInvalidSecret = msgLower.includes('invalid client secret');
       const isInvalidClientId = msgLower.includes('invalid client id');
       const isGenericInvalidClient = msgLower.includes('invalid client') && !isInvalidSecret;
