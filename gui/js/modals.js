@@ -121,9 +121,9 @@ export function closeTokenErrorModal() {
 
 /**
  * Show Invalid Credentials Modal
- * @param {string} message - Optional custom error message
+ * @param {string} [message] - Optional custom error message to override default
  */
-export function showInvalidCredentialsModal(message) {
+export function showInvalidCredentialsModal(message = null) {
   const modal = document.getElementById('invalidCredentialsModal');
   const messageElement = document.getElementById('invalidCredentialsMessage');
 
