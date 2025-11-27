@@ -319,9 +319,11 @@ export function formatToJST(isoString) {
 
 /**
  * Format user name for display
- * Returns user_login if it matches user_name (case-insensitive comparison avoided,
- * uses exact match since Twitch names can be case-sensitive in display)
- * Otherwise returns "user_name (user_login)" format
+ * Uses exact match comparison (user_name === user_login).
+ * Note: Twitch login names are case-insensitive and always lowercase,
+ * but display names preserve user-specified casing.
+ * Returns user_login if it matches user_name exactly;
+ * otherwise returns "user_name (user_login)" format.
  * @param {string} user_name - Display name
  * @param {string} user_login - Login name
  * @returns {string} Formatted user name

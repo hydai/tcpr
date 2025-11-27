@@ -759,14 +759,15 @@ ipcMain.handle('export:csv', async (event, filePath, redemptions) => {
     }
 
     // Validate each redemption has required fields for single-column user format
+    // Check both field existence AND non-empty values to prevent malformed output
     const requiredFields = ['user_name', 'user_login'];
     for (const r of redemptions) {
       if (!r || typeof r !== 'object') {
         return { success: false, error: 'Invalid redemption data: each item must be an object' };
       }
-      const missingFields = requiredFields.filter(field => !(field in r));
+      const missingFields = requiredFields.filter(field => !(field in r) || r[field] === '');
       if (missingFields.length > 0) {
-        return { success: false, error: `Invalid redemption data: missing fields: ${missingFields.join(', ')}` };
+        return { success: false, error: `Invalid redemption data: missing or empty fields: ${missingFields.join(', ')}` };
       }
     }
 
@@ -825,7 +826,11 @@ ipcMain.handle('export:csv', async (event, filePath, redemptions) => {
 
     /**
      * Escape field for CSV according to RFC 4180
-     * Wraps in quotes and escapes internal quotes by doubling them
+     * Always wraps in quotes and escapes internal quotes by doubling them.
+     * Note: While RFC 4180 only requires quoting for fields containing special
+     * characters, we always quote for safety since Twitch display names may
+     * contain unexpected characters. This is valid per RFC 4180 and ensures
+     * consistent parsing across all CSV readers.
      */
     const escapeCSVField = (value) => {
       const str = String(value ?? '');
@@ -911,4 +916,3 @@ ipcMain.handle('logs:deleteAll', async () => {
     return { success: false, error: error.message };
   }
 });
-
