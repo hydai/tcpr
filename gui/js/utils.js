@@ -318,6 +318,22 @@ export function formatToJST(isoString) {
 }
 
 /**
+ * Format user name for display
+ * Returns user_login if it matches user_name (case-insensitive comparison avoided,
+ * uses exact match since Twitch names can be case-sensitive in display)
+ * Otherwise returns "user_name (user_login)" format
+ * @param {string} user_name - Display name
+ * @param {string} user_login - Login name
+ * @returns {string} Formatted user name
+ */
+export function formatUserName(user_name, user_login) {
+  if (user_name === user_login) {
+    return user_login;
+  }
+  return `${user_name} (${user_login})`;
+}
+
+/**
  * Filter events for specific reward title
  * @param {Array} events - Events array
  * @param {string} rewardTitle - Reward title to filter

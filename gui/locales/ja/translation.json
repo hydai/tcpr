@@ -155,9 +155,9 @@
   },
   "export": {
     "asJson": "JSON出力",
-    "asExcel": "Excel出力",
+    "asCSV": "CSV出力",
     "selectJson": "JSONファイルを選択",
-    "saveTitle": "Excelファイルを保存"
+    "saveTitle": "CSVファイルを保存"
   },
   "settings": {
     "title": "設定",

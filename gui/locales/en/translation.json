@@ -155,9 +155,9 @@
   },
   "export": {
     "asJson": "Export JSON",
-    "asExcel": "Export Excel",
+    "asCSV": "Export CSV",
     "selectJson": "Select JSON File",
-    "saveTitle": "Save Excel File"
+    "saveTitle": "Save CSV File"
   },
   "settings": {
     "title": "Settings",
