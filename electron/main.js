@@ -758,9 +758,9 @@ ipcMain.handle('export:csv', async (event, filePath, redemptions) => {
       return { success: false, error: 'Invalid data: redemptions must be an array' };
     }
 
-    // Validate each redemption has required fields for single-column user format
-    // Check both field existence AND non-empty values to prevent malformed output
-    const requiredFields = ['user_name', 'user_login'];
+    // Validate each redemption has required fields for CSV export
+    // Note: user_login can be empty (used as fallback via ?? operator in filterRedemptionEvents)
+    const requiredFields = ['user_name'];
     for (const r of redemptions) {
       if (!r || typeof r !== 'object') {
         return { success: false, error: 'Invalid redemption data: each item must be an object' };
