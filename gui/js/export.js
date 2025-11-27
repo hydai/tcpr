@@ -13,38 +13,6 @@ import { t } from './i18n-helper.js';
 const DAILY_OMIKUJI_TITLE = 'Dailyおみくじ';
 
 /**
- * Validate logs against session file
- * @returns {Promise<Object>} Validation result
- */
-async function validateLogsWithSessionFile() {
-  try {
-    const logsToValidate = state.allEvents;
-
-    const result = await window.electronAPI.validateSessionLogs(logsToValidate);
-
-    if (!result.success) {
-      return {
-        valid: false,
-        message: `Validation error: ${result.error}`,
-        sessionLogCount: 0
-      };
-    }
-
-    return {
-      valid: result.valid,
-      message: result.message,
-      sessionLogCount: result.sessionLogCount
-    };
-  } catch (error) {
-    return {
-      valid: false,
-      message: `Validation error: ${error.message}`,
-      sessionLogCount: 0
-    };
-  }
-}
-
-/**
  * Export Events
  */
 export async function exportEvents() {
@@ -54,20 +22,6 @@ export async function exportEvents() {
   }
 
   try {
-    const validationResult = await validateLogsWithSessionFile();
-    if (!validationResult.valid) {
-      const proceed = confirm(
-        t('messages.export.validationWarning', {
-          message: validationResult.message,
-          sessionCount: validationResult.sessionLogCount,
-          memoryCount: state.allEvents.length
-        })
-      );
-      if (!proceed) {
-        return;
-      }
-    }
-
     const dateStr = formatDateForFilename();
     const result = await window.electronAPI.showSaveDialog({
       title: 'Export Events',

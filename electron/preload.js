@@ -69,7 +69,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Session management
   getSessionId: () => ipcRenderer.invoke('session:getId'),
-  validateSessionLogs: (inMemoryLogs) => ipcRenderer.invoke('session:validateLogs', inMemoryLogs),
 
   // Logs management
   deleteAllLogs: () => ipcRenderer.invoke('logs:deleteAll')

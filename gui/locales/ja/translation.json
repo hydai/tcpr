@@ -179,8 +179,7 @@
     "openEventLogsFolder": "イベントログフォルダを開く",
     "openConfigFolder": "設定フォルダを開く",
     "deleteAllLogs": "すべてのログを削除",
-    "language": "言語",
-    "showKeepaliveLogs": "キープアライブログを表示"
+    "language": "言語"
   },
   "modal": {
     "tokenError": {
@@ -249,7 +248,6 @@
       "stoppedUnexpectedly": "監視が予期せず停止しました。詳細についてはイベントログを確認してください。"
     },
     "export": {
-      "validationWarning": "警告：ログ検証に失敗しました！\n\n{{message}}\n\nセッションログイベント：{{sessionCount}}\nメモリ内イベント：{{memoryCount}}\n\nそれでもエクスポートを続行しますか？",
       "success": "{{count}}件のイベントを{{path}}に正常にエクスポートしました",
       "failed": "イベントのエクスポートに失敗しました：{{error}}",
       "noRedemptions": "Dailyおみくじの交換履歴がありません。",

@@ -95,7 +95,57 @@ class SessionLogger {
 
 // Global session logger instance
 const sessionLogger = new SessionLogger();
-const VALIDATION_SAMPLE_SIZE = 100; // Number of entries to sample for large datasets
+
+/**
+ * Check if a message is a keepalive message
+ * Filters out WebSocket keepalive messages from EventSub stream to reduce UI clutter
+ * and prevent session log pollution.
+ *
+ * Uses word boundaries to avoid false positives on unrelated messages.
+ * Matching is case-insensitive.
+ *
+ * @param {string} message - Message to check
+ * @returns {boolean} True if keepalive message
+ * @example
+ * isKeepaliveMessage('Received session_keepalive') // true
+ * isKeepaliveMessage('Keepalive received from WebSocket') // true (case-insensitive)
+ * isKeepaliveMessage('Channel point redemption event') // false
+ */
+const KEEPALIVE_REGEX = /\b(session_keepalive|keepalive received)\b/i;
+
+function isKeepaliveMessage(message) {
+  if (!message) return false;
+  return KEEPALIVE_REGEX.test(message);
+}
+
+/**
+ * Handle process log output from EventSub child process
+ * Filters keepalive messages and sends to UI and session log
+ *
+ * @param {string} type - Log type ('info' or 'error')
+ * @param {Buffer|string} data - Raw data from process stream
+ */
+function handleProcessLog(type, data) {
+  const message = data.toString();
+
+  // Filter out keepalive messages
+  if (isKeepaliveMessage(message)) {
+    return;
+  }
+
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    type: type,
+    message: message
+  };
+
+  if (mainWindow) {
+    mainWindow.webContents.send('eventsub:log', logEntry);
+  }
+
+  // Auto-save to session log
+  sessionLogger.append(logEntry);
+}
 
 /**
  * Check if a child path is within a parent directory
@@ -500,20 +550,7 @@ ipcMain.handle('eventsub:start', async () => {
       eventSubProcess = null;
     });
 
-    eventSubProcess.stdout.on('data', (data) => {
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        type: 'info',
-        message: data.toString()
-      };
-
-      if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', logEntry);
-      }
-
-      // Auto-save to session log
-      sessionLogger.append(logEntry);
-    });
+    eventSubProcess.stdout.on('data', (data) => handleProcessLog('info', data));
 
     // Handle structured IPC messages from child process
     eventSubProcess.on('message', (message) => {
@@ -522,20 +559,7 @@ ipcMain.handle('eventsub:start', async () => {
       }
     });
 
-    eventSubProcess.stderr.on('data', (data) => {
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        type: 'error',
-        message: data.toString()
-      };
-
-      if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', logEntry);
-      }
-
-      // Auto-save to session log
-      sessionLogger.append(logEntry);
-    });
+    eventSubProcess.stderr.on('data', (data) => handleProcessLog('error', data));
 
     eventSubProcess.on('exit', (code) => {
       eventSubProcess = null;
@@ -926,109 +950,3 @@ ipcMain.handle('logs:deleteAll', async () => {
   }
 });
 
-// Validate logs in main process to prevent UI blocking
-ipcMain.handle('session:validateLogs', async (event, inMemoryLogs) => {
-  try {
-    if (!sessionLogger.path || !fs.existsSync(sessionLogger.path)) {
-      return {
-        success: true,
-        valid: false,
-        message: 'Session log file not found.',
-        sessionLogCount: 0
-      };
-    }
-
-    const content = await fs.promises.readFile(sessionLogger.path, 'utf-8');
-
-    // Parse NDJSON format
-    const sessionLogs = content
-      .split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => JSON.parse(line));
-
-    // Check if counts match
-    if (sessionLogs.length !== inMemoryLogs.length) {
-      return {
-        success: true,
-        valid: false,
-        message: 'Event count mismatch between session file and in-memory logs.',
-        sessionLogCount: sessionLogs.length
-      };
-    }
-
-    // Optimize validation for large datasets using sampling
-    const totalLogs = sessionLogs.length;
-    let indicesToCheck = [];
-
-    if (totalLogs <= VALIDATION_SAMPLE_SIZE * 2) {
-      // Small dataset: validate all entries
-      indicesToCheck = Array.from({ length: totalLogs }, (_, i) => i);
-    } else {
-      // Large dataset: use sampling strategy
-      // - First VALIDATION_SAMPLE_SIZE/2 entries
-      // - Last VALIDATION_SAMPLE_SIZE/2 entries
-      // - Random sample from middle
-      const halfSample = Math.floor(VALIDATION_SAMPLE_SIZE / 2);
-
-      // First entries
-      for (let i = 0; i < halfSample; i++) {
-        indicesToCheck.push(i);
-      }
-
-      // Last entries
-      for (let i = totalLogs - halfSample; i < totalLogs; i++) {
-        indicesToCheck.push(i);
-      }
-
-      // Random middle samples using Set for O(n) complexity instead of O(n²)
-      const middleStart = halfSample;
-      const middleEnd = totalLogs - halfSample;
-      const middleRange = middleEnd - middleStart;
-      const numMiddleSamples = Math.min(VALIDATION_SAMPLE_SIZE, middleRange);
-
-      const indicesSet = new Set(indicesToCheck);
-      let added = 0;
-      while (added < numMiddleSamples) {
-        const randomIndex = middleStart + Math.floor(Math.random() * middleRange);
-        if (!indicesSet.has(randomIndex)) {
-          indicesToCheck.push(randomIndex);
-          indicesSet.add(randomIndex);
-          added++;
-        }
-      }
-
-      // Sort indices for efficient access
-      indicesToCheck.sort((a, b) => a - b);
-    }
-
-    // Validate sampled entries
-    for (const i of indicesToCheck) {
-      const sessionLog = sessionLogs[i];
-      const memoryLog = inMemoryLogs[i];
-
-      if (sessionLog.timestamp !== memoryLog.timestamp ||
-          sessionLog.message !== memoryLog.message ||
-          sessionLog.type !== memoryLog.type) {
-        return {
-          success: true,
-          valid: false,
-          message: `Event mismatch at index ${i}. Session log and in-memory logs differ.${totalLogs > VALIDATION_SAMPLE_SIZE * 2 ? ' (Sampled validation)' : ''}`,
-          sessionLogCount: sessionLogs.length
-        };
-      }
-    }
-
-    // All checks passed
-    return {
-      success: true,
-      valid: true,
-      message: `Logs validated successfully.${totalLogs > VALIDATION_SAMPLE_SIZE * 2 ? ` (Sampled ${indicesToCheck.length} of ${totalLogs} entries)` : ''}`,
-      sessionLogCount: sessionLogs.length
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-});
