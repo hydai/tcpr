@@ -102,12 +102,13 @@ const sessionLogger = new SessionLogger();
  * and prevent session log pollution.
  *
  * Uses word boundaries to avoid false positives on unrelated messages.
+ * Matching is case-insensitive.
  *
  * @param {string} message - Message to check
  * @returns {boolean} True if keepalive message
  * @example
  * isKeepaliveMessage('Received session_keepalive') // true
- * isKeepaliveMessage('Keepalive received from WebSocket') // true
+ * isKeepaliveMessage('Keepalive received from WebSocket') // true (case-insensitive)
  * isKeepaliveMessage('Channel point redemption event') // false
  */
 const KEEPALIVE_REGEX = /\b(session_keepalive|keepalive received)\b/i;
