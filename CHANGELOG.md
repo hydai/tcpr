@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2025-11-27
+
+### Changed
+- Replace Excel export with simplified CSV format for event exports
+
+### Fixed
+- Handle empty user_login in formatUserName
+
+### Refactored
+- Use regex for keepalive detection and extract shared handler
+- Remove redundant keepalive pattern from regex
+
+---
+
 ## [1.4.0] - 2025-11-27
 
 ### Added
