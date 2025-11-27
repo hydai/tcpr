@@ -110,7 +110,7 @@ const sessionLogger = new SessionLogger();
  * isKeepaliveMessage('Keepalive received from WebSocket') // true
  * isKeepaliveMessage('Channel point redemption event') // false
  */
-const KEEPALIVE_REGEX = /\b(session_keepalive|keepalive received|keepalive)\b/i;
+const KEEPALIVE_REGEX = /\b(session_keepalive|keepalive received)\b/i;
 
 function isKeepaliveMessage(message) {
   if (!message) return false;
