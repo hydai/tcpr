@@ -815,11 +815,12 @@ ipcMain.handle('export:csv', async (event, filePath, redemptions) => {
 
     /**
      * Format user name for display
-     * Returns user_login if it matches user_name, otherwise "user_name (user_login)"
+     * Returns user_name if user_login is empty or matches user_name,
+     * otherwise "user_name (user_login)"
      */
     const formatUserName = (user_name, user_login) => {
-      if (user_name === user_login) {
-        return user_login;
+      if (!user_login || user_name === user_login) {
+        return user_name;
       }
       return `${user_name} (${user_login})`;
     };
