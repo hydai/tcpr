@@ -325,12 +325,12 @@ export function formatToJST(isoString) {
  * (e.g., "UserName" vs "username"), showing both helps identify users
  * who customized their display name.
  * @param {string} user_name - Display name (user-specified casing)
- * @param {string} user_login - Login name (always lowercase)
- * @returns {string} user_login if exact match, otherwise "user_name (user_login)"
+ * @param {string} user_login - Login name (always lowercase, may be empty)
+ * @returns {string} user_name if user_login is empty or exact match, otherwise "user_name (user_login)"
  */
 export function formatUserName(user_name, user_login) {
-  if (user_name === user_login) {
-    return user_login;
+  if (!user_login || user_name === user_login) {
+    return user_name;
   }
   return `${user_name} (${user_login})`;
 }
