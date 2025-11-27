@@ -17,7 +17,7 @@ import {
   startMonitoring, stopMonitoring, handleMonitoringStopped, checkMonitoringStatus,
   handleEventSubStopped, fetchAndStartTokenExpiryTimer
 } from './monitoring.js';
-import { exportEvents, exportSessionAsExcel, convertJsonToExcel, openExternal, openFolder, confirmDeleteLogs } from './export.js';
+import { exportEvents, exportSessionAsCSV, convertJsonToCSV, openExternal, openFolder, confirmDeleteLogs } from './export.js';
 import {
   showDeleteLogsModal, closeDeleteLogsModal, showNotification, closeNotificationModal,
   showTokenErrorModal, closeTokenErrorModal, showInvalidCredentialsModal, closeInvalidCredentialsModal
@@ -273,8 +273,8 @@ window.startMonitoring = startMonitoring;
 window.stopMonitoring = stopMonitoring;
 window.clearEvents = clearEvents;
 window.exportEvents = exportEvents;
-window.exportSessionAsExcel = exportSessionAsExcel;
-window.convertJsonToExcel = convertJsonToExcel;
+window.exportSessionAsCSV = exportSessionAsCSV;
+window.convertJsonToCSV = convertJsonToCSV;
 window.openExternal = openExternal;
 window.openFolder = openFolder;
 window.toggleLanguage = toggleLanguage;

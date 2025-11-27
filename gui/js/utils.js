@@ -318,6 +318,24 @@ export function formatToJST(isoString) {
 }
 
 /**
+ * Format user name for display
+ * Uses exact match comparison to preserve user's display name preference.
+ * Twitch user_login is always lowercase from the API, while user_name
+ * preserves user-specified casing. When names differ only by case
+ * (e.g., "UserName" vs "username"), showing both helps identify users
+ * who customized their display name.
+ * @param {string} user_name - Display name (user-specified casing)
+ * @param {string} user_login - Login name (always lowercase, may be empty)
+ * @returns {string} user_name if user_login is empty or exact match, otherwise "user_name (user_login)"
+ */
+export function formatUserName(user_name, user_login) {
+  if (!user_login || user_name === user_login) {
+    return user_name;
+  }
+  return `${user_name} (${user_login})`;
+}
+
+/**
  * Filter events for specific reward title
  * @param {Array} events - Events array
  * @param {string} rewardTitle - Reward title to filter

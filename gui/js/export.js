@@ -80,10 +80,10 @@ export async function exportEvents() {
 }
 
 /**
- * Export filtered events as Excel (Dailyおみくじ only)
+ * Export filtered events as CSV (Dailyおみくじ only)
  * @param {Array} events - Events array to export
  */
-export async function exportAsExcel(events) {
+export async function exportAsCSV(events) {
   const redemptions = filterRedemptionEvents(events, DAILY_OMIKUJI_TITLE);
 
   if (redemptions.length === 0) {
@@ -92,13 +92,13 @@ export async function exportAsExcel(events) {
   }
 
   try {
-    // Save via Electron - Excel generation happens in main process
+    // Save via Electron - CSV generation happens in main process
     const dateStr = formatDateForFilename();
 
     const result = await window.electronAPI.showSaveDialog({
       title: t('export.saveTitle'),
-      defaultPath: `daily-omikuji-${dateStr}.xlsx`,
-      filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+      defaultPath: `daily-omikuji-${dateStr}.csv`,
+      filters: [{ name: 'CSV Files', extensions: ['csv'] }]
     });
 
     if (result.canceled || !result.filePath) {
@@ -106,12 +106,12 @@ export async function exportAsExcel(events) {
     }
 
     let filePath = result.filePath;
-    if (!filePath.toLowerCase().endsWith('.xlsx')) {
-      filePath += '.xlsx';
+    if (!filePath.toLowerCase().endsWith('.csv')) {
+      filePath += '.csv';
     }
 
-    // Send redemptions to main process for Excel generation
-    const saveResult = await window.electronAPI.exportToExcel(filePath, redemptions);
+    // Send redemptions to main process for CSV generation
+    const saveResult = await window.electronAPI.exportToCSV(filePath, redemptions);
 
     if (saveResult.success) {
       alert(t('messages.export.success', { count: redemptions.length, path: filePath }));
@@ -119,26 +119,26 @@ export async function exportAsExcel(events) {
       alert(t('messages.export.failed', { error: saveResult.error }));
     }
   } catch (error) {
-    console.error('Excel export error:', error);
+    console.error('CSV export error:', error);
     alert(t('messages.export.failed', { error: error.message }));
   }
 }
 
 /**
- * Export current session events as Excel
+ * Export current session events as CSV
  */
-export async function exportSessionAsExcel() {
+export async function exportSessionAsCSV() {
   if (state.allEvents.length === 0) {
     alert(t('messages.validation.noEvents'));
     return;
   }
-  await exportAsExcel(state.allEvents);
+  await exportAsCSV(state.allEvents);
 }
 
 /**
- * Load JSON file and convert to Excel
+ * Load JSON file and convert to CSV
  */
-export async function convertJsonToExcel() {
+export async function convertJsonToCSV() {
   try {
     // Open file dialog to select JSON
     const result = await window.electronAPI.showOpenDialog({
@@ -173,10 +173,10 @@ export async function convertJsonToExcel() {
       return;
     }
 
-    // Export as Excel
-    await exportAsExcel(events);
+    // Export as CSV
+    await exportAsCSV(events);
   } catch (error) {
-    console.error('JSON to Excel conversion error:', error);
+    console.error('JSON to CSV conversion error:', error);
     alert(t('messages.export.failed', { error: error.message }));
   }
 }

@@ -4,11 +4,6 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { fork } from 'child_process';
 import { randomUUID } from 'crypto';
-// SECURITY NOTE: xlsx@0.18.5 - Prototype Pollution (GHSA-4r6h-8v6p-xvw6) is patched in this version.
-// ReDoS vulnerability (GHSA-5pgg-2g8v-p4x9) affects parsing only; we use xlsx for writing only.
-// All data comes from trusted internal EventSub events, significantly reducing attack surface.
-// Monitor for updates if read functionality is added in the future.
-import * as XLSX from 'xlsx';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -754,25 +749,25 @@ ipcMain.handle('eventlog:save', async (event, filePath, content) => {
   }
 });
 
-// Export to Excel - generates Excel file from redemption data
+// Export to CSV - generates CSV file from redemption data
 // Security: Validate that the file path is within allowed directories
-ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
+ipcMain.handle('export:csv', async (event, filePath, redemptions) => {
   try {
     // Validate input: redemptions must be an array
     if (!Array.isArray(redemptions)) {
       return { success: false, error: 'Invalid data: redemptions must be an array' };
     }
 
-    // Validate each redemption has required fields
-    // Note: user_id, user_login, user_input, and status are optional (use ?? '' in utils.js)
-    const requiredFields = ['redeemed_at', 'reward_title', 'user_name', 'redemption_id'];
+    // Validate each redemption has required fields for CSV export
+    // Note: user_login can be empty (used as fallback via ?? operator in filterRedemptionEvents)
+    const requiredFields = ['user_name'];
     for (const r of redemptions) {
       if (!r || typeof r !== 'object') {
         return { success: false, error: 'Invalid redemption data: each item must be an object' };
       }
-      const missingFields = requiredFields.filter(field => !(field in r));
+      const missingFields = requiredFields.filter(field => !(field in r) || r[field] === '');
       if (missingFields.length > 0) {
-        return { success: false, error: `Invalid redemption data: missing fields: ${missingFields.join(', ')}` };
+        return { success: false, error: `Invalid redemption data: missing or empty fields: ${missingFields.join(', ')}` };
       }
     }
 
@@ -790,7 +785,6 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
         resolvedPath = fs.realpathSync(resolvedPath);
       }
     } catch (error) {
-      // Log the error and reject the operation for security
       console.error('Symlink resolution failed:', error.message);
       return {
         success: false,
@@ -820,74 +814,48 @@ ipcMain.handle('export:excel', async (event, filePath, redemptions) => {
     }
 
     /**
-     * Convert UTC timestamp to JST (Asia/Tokyo) using Intl.DateTimeFormat
-     * NOTE: This function is duplicated in gui/js/utils.js due to Electron architecture.
-     * The main process cannot import ES modules from the renderer process without a bundler.
-     * Keep both implementations in sync when making changes.
-     * @see gui/js/utils.js#formatToJST
+     * Format user name for display
+     * Returns user_name if user_login is empty or matches user_name,
+     * otherwise "user_name (user_login)"
      */
-    const formatToJST = (isoString) => {
-      const date = new Date(isoString);
-      const formatter = new Intl.DateTimeFormat('ja-JP', {
-        timeZone: 'Asia/Tokyo',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-      });
-      const parts = formatter.formatToParts(date);
-      // Use optional chaining with fallbacks for defensive programming
-      const y = parts.find(p => p.type === 'year')?.value ?? '0000';
-      const m = parts.find(p => p.type === 'month')?.value ?? '00';
-      const d = parts.find(p => p.type === 'day')?.value ?? '00';
-      const h = parts.find(p => p.type === 'hour')?.value ?? '00';
-      const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-      const s = parts.find(p => p.type === 'second')?.value ?? '00';
-      return `${y}-${m}-${d} ${h}:${min}:${s}`;
+    const formatUserName = (user_name, user_login) => {
+      if (!user_login || user_name === user_login) {
+        return user_name;
+      }
+      return `${user_name} (${user_login})`;
     };
 
     /**
-     * Sanitize field for Excel to prevent formula injection
-     * Prefixes with single quote if value starts with formula characters (=, +, -, @)
-     * @see https://owasp.org/www-community/attacks/CSV_Injection
+     * Escape field for CSV according to RFC 4180
+     * Always wraps in quotes and escapes internal quotes by doubling them.
+     * Note: While RFC 4180 only requires quoting for fields containing special
+     * characters, we always quote for safety since Twitch display names may
+     * contain unexpected characters. This is valid per RFC 4180 and ensures
+     * consistent parsing across all CSV readers.
      */
-    const sanitizeExcelField = (value) => {
+    const escapeCSVField = (value) => {
       const str = String(value ?? '');
-      if (/^[=+\-@]/.test(str)) {
-        return "'" + str;
-      }
-      return str;
+      return `"${str.replace(/"/g, '""')}"`;
     };
 
-    // Convert redemptions to Excel rows with Japanese headers
-    // All fields are sanitized to prevent Excel formula injection (defense-in-depth)
-    const rows = redemptions.map(r => ({
-      '引き換え時間 (UTC+9)': formatToJST(r.redeemed_at),
-      '報酬名': sanitizeExcelField(r.reward_title),
-      'ユーザー名': sanitizeExcelField(r.user_name),
-      'ユーザーID': sanitizeExcelField(r.user_id),
-      'ログイン名': sanitizeExcelField(r.user_login),
-      'ユーザー入力': sanitizeExcelField(r.user_input),
-      'ステータス': sanitizeExcelField(r.status),
-      '引き換えID': sanitizeExcelField(r.redemption_id)
-    }));
+    // Build CSV content with single column: ユーザー (user name only)
+    const rows = [escapeCSVField('ユーザー')];
 
-    // Create workbook and worksheet
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Dailyおみくじ');
+    for (const r of redemptions) {
+      rows.push(escapeCSVField(formatUserName(r.user_name, r.user_login)));
+    }
 
-    // Write to file
-    XLSX.writeFile(workbook, resolvedPath);
+    const csvContent = rows.join('\r\n');
+
+    // Write to file with UTF-8 BOM for proper Japanese character display in Excel
+    const BOM = '\uFEFF';
+    await fs.promises.writeFile(resolvedPath, BOM + csvContent, 'utf-8');
     return { success: true };
   } catch (error) {
-    console.error('Excel export failed:', error);
+    console.error('CSV export failed:', error);
     return {
       success: false,
-      error: `Failed to create Excel file: ${error.message}`
+      error: `Failed to create CSV file: ${error.message}`
     };
   }
 });
@@ -949,4 +917,3 @@ ipcMain.handle('logs:deleteAll', async () => {
     return { success: false, error: error.message };
   }
 });
-

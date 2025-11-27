@@ -65,7 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Event log export
   saveEventLog: (filePath, content) => ipcRenderer.invoke('eventlog:save', filePath, content),
-  exportToExcel: (filePath, redemptions) => ipcRenderer.invoke('export:excel', filePath, redemptions),
+  exportToCSV: (filePath, redemptions) => ipcRenderer.invoke('export:csv', filePath, redemptions),
 
   // Session management
   getSessionId: () => ipcRenderer.invoke('session:getId'),
