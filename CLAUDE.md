@@ -9,7 +9,7 @@ This document provides essential information for AI assistants working on the Tw
 - **Desktop GUI** (Electron) - Windows/macOS app with setup wizard and real-time dashboard
 - **CLI Mode** - Lightweight command-line interface for server deployments
 
-**Current Version:** 1.4.0
+**Current Version:** 1.5.0
 
 ## Tech Stack
 
