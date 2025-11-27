@@ -101,6 +101,8 @@ const sessionLogger = new SessionLogger();
  * Filters out WebSocket keepalive messages from EventSub stream to reduce UI clutter
  * and prevent session log pollution.
  *
+ * Uses word boundaries to avoid false positives on unrelated messages.
+ *
  * @param {string} message - Message to check
  * @returns {boolean} True if keepalive message
  * @example
@@ -108,12 +110,40 @@ const sessionLogger = new SessionLogger();
  * isKeepaliveMessage('Keepalive received from WebSocket') // true
  * isKeepaliveMessage('Channel point redemption event') // false
  */
+const KEEPALIVE_REGEX = /\b(session_keepalive|keepalive received|keepalive)\b/i;
+
 function isKeepaliveMessage(message) {
   if (!message) return false;
-  const lowerMessage = message.toLowerCase();
-  return lowerMessage.includes('session_keepalive') ||
-         lowerMessage.includes('keepalive received') ||
-         lowerMessage.includes('keepalive');
+  return KEEPALIVE_REGEX.test(message);
+}
+
+/**
+ * Handle process log output from EventSub child process
+ * Filters keepalive messages and sends to UI and session log
+ *
+ * @param {string} type - Log type ('info' or 'error')
+ * @param {Buffer|string} data - Raw data from process stream
+ */
+function handleProcessLog(type, data) {
+  const message = data.toString();
+
+  // Filter out keepalive messages
+  if (isKeepaliveMessage(message)) {
+    return;
+  }
+
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    type: type,
+    message: message
+  };
+
+  if (mainWindow) {
+    mainWindow.webContents.send('eventsub:log', logEntry);
+  }
+
+  // Auto-save to session log
+  sessionLogger.append(logEntry);
 }
 
 /**
@@ -519,27 +549,7 @@ ipcMain.handle('eventsub:start', async () => {
       eventSubProcess = null;
     });
 
-    eventSubProcess.stdout.on('data', (data) => {
-      const message = data.toString();
-
-      // Filter out keepalive messages completely
-      if (isKeepaliveMessage(message)) {
-        return;
-      }
-
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        type: 'info',
-        message: message
-      };
-
-      if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', logEntry);
-      }
-
-      // Auto-save to session log
-      sessionLogger.append(logEntry);
-    });
+    eventSubProcess.stdout.on('data', (data) => handleProcessLog('info', data));
 
     // Handle structured IPC messages from child process
     eventSubProcess.on('message', (message) => {
@@ -548,27 +558,7 @@ ipcMain.handle('eventsub:start', async () => {
       }
     });
 
-    eventSubProcess.stderr.on('data', (data) => {
-      const message = data.toString();
-
-      // Filter out keepalive messages for consistency with stdout
-      if (isKeepaliveMessage(message)) {
-        return;
-      }
-
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        type: 'error',
-        message: message
-      };
-
-      if (mainWindow) {
-        mainWindow.webContents.send('eventsub:log', logEntry);
-      }
-
-      // Auto-save to session log
-      sessionLogger.append(logEntry);
-    });
+    eventSubProcess.stderr.on('data', (data) => handleProcessLog('error', data));
 
     eventSubProcess.on('exit', (code) => {
       eventSubProcess = null;
