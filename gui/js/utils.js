@@ -355,7 +355,14 @@ export function combineEntriesByTimestamp(events) {
         message: entry.message || ''
       };
     } else {
-      currentGroup.message += '\n' + (entry.message || '');
+      const newMessage = entry.message || '';
+      if (newMessage) {
+        if (currentGroup.message) {
+          currentGroup.message += '\n' + newMessage;
+        } else {
+          currentGroup.message = newMessage;
+        }
+      }
     }
   }
   if (currentGroup) combined.push(currentGroup);

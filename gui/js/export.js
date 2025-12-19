@@ -146,12 +146,14 @@ export async function exportSessionAsCSV() {
 
     // Parse NDJSON (one JSON object per line)
     const events = [];
-    for (const line of content.split('\n')) {
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (line.trim()) {
         try {
           events.push(JSON.parse(line));
         } catch (e) {
-          console.warn('Failed to parse log line:', e);
+          console.warn(`Failed to parse log line ${i + 1}:`, e.message, '- Content:', line.slice(0, 100));
         }
       }
     }
