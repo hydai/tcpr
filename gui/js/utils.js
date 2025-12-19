@@ -336,6 +336,41 @@ export function formatUserName(user_name, user_login) {
 }
 
 /**
+ * Combine log entries with the same timestamp
+ * Fixes issue where TCPR splits a single event across multiple log entries
+ * due to stdout buffering in child process communication
+ * @param {Array} events - Events array
+ * @returns {Array} Combined events
+ */
+export function combineEntriesByTimestamp(events) {
+  const combined = [];
+  let currentGroup = null;
+
+  for (const entry of events) {
+    if (!currentGroup || currentGroup.timestamp !== entry.timestamp) {
+      if (currentGroup) combined.push(currentGroup);
+      currentGroup = {
+        timestamp: entry.timestamp,
+        type: entry.type,
+        message: entry.message || ''
+      };
+    } else {
+      const newMessage = entry.message || '';
+      if (newMessage) {
+        if (currentGroup.message) {
+          currentGroup.message += '\n' + newMessage;
+        } else {
+          currentGroup.message = newMessage;
+        }
+      }
+    }
+  }
+  if (currentGroup) combined.push(currentGroup);
+
+  return combined;
+}
+
+/**
  * Filter events for specific reward title
  * @param {Array} events - Events array
  * @param {string} rewardTitle - Reward title to filter
@@ -344,7 +379,11 @@ export function formatUserName(user_name, user_login) {
 export function filterRedemptionEvents(events, rewardTitle) {
   const redemptions = [];
 
-  for (const event of events) {
+  // Pre-process: combine entries with same timestamp
+  // This handles cases where TCPR splits a single event across multiple log entries
+  const combinedEvents = combineEntriesByTimestamp(events);
+
+  for (const event of combinedEvents) {
     const data = parseRedemptionFromMessage(event.message);
     // Validate required fields to prevent incomplete data export
     if (data &&

@@ -251,9 +251,7 @@
       "success": "Successfully exported {{count}} events to {{path}}",
       "failed": "Failed to export events: {{error}}",
       "noRedemptions": "No Dailyおみくじ redemptions found in the events.",
-      "invalidJson": "The selected file is not a valid JSON array.",
-      "invalidJsonSyntax": "The selected file contains invalid JSON syntax. Please ensure the file is a properly formatted JSON file.",
-      "invalidEventFormat": "The selected file does not contain valid event data. Expected events with 'message' property."
+      "noSession": "No active session found. Please start monitoring first."
     },
     "folder": {
       "openFailed": "Failed to open {{type}} folder: {{error}}",

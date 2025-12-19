@@ -1,6 +1,6 @@
 {
   "name": "twitch-channel-points-redemption",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Simple WebSocket client to subscribe to Twitch channel points redemption events",
   "main": "electron/main.js",
   "types": "types/index.d.ts",
