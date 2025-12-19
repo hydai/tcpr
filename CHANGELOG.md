@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.1] - 2025-12-20
+
+### Fixed
+- CSV export now reads from session log file instead of in-memory events
+- Split log entries (same timestamp) are now properly combined before parsing
+- This fixes ~50% of Dailyおみくじ redemptions being missing from exports
+
+### Changed
+- CSV header changed from "ユーザー" to "名前" to match expected format
+- Removed "Convert JSON" button and functionality (no longer needed)
+
+### Added
+- `combineEntriesByTimestamp()` helper function in utils.js
+- `getSessionLogPath()` API exposed in preload.js
+
+---
+
 ## [1.5.0] - 2025-11-27
 
 ### Changed

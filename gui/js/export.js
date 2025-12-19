@@ -125,58 +125,45 @@ export async function exportAsCSV(events) {
 }
 
 /**
- * Export current session events as CSV
+ * Export current session events as CSV from session log file
+ * Uses session log (not in-memory) to capture all events without memory limit
  */
 export async function exportSessionAsCSV() {
-  if (state.allEvents.length === 0) {
-    alert(t('messages.validation.noEvents'));
-    return;
-  }
-  await exportAsCSV(state.allEvents);
-}
-
-/**
- * Load JSON file and convert to CSV
- */
-export async function convertJsonToCSV() {
   try {
-    // Open file dialog to select JSON
-    const result = await window.electronAPI.showOpenDialog({
-      title: t('export.selectJson'),
-      filters: [{ name: 'JSON Files', extensions: ['json'] }],
-      properties: ['openFile']
-    });
-
-    if (result.canceled || !result.filePaths?.length) {
+    // Get session log path from main process
+    const result = await window.electronAPI.getSessionLogPath();
+    if (!result.success || !result.path) {
+      alert(t('messages.export.noSession'));
       return;
     }
 
-    // Read and parse JSON file
-    const content = await window.electronAPI.readFile(result.filePaths[0]);
-
-    let events;
-    try {
-      events = JSON.parse(content);
-    } catch (parseError) {
-      alert(t('messages.export.invalidJsonSyntax'));
+    // Read session log file (NDJSON format)
+    const content = await window.electronAPI.readFile(result.path);
+    if (!content || content.trim() === '') {
+      alert(t('messages.validation.noEvents'));
       return;
     }
 
-    if (!Array.isArray(events)) {
-      alert(t('messages.export.invalidJson'));
+    // Parse NDJSON (one JSON object per line)
+    const events = [];
+    for (const line of content.split('\n')) {
+      if (line.trim()) {
+        try {
+          events.push(JSON.parse(line));
+        } catch (e) {
+          console.warn('Failed to parse log line:', e);
+        }
+      }
+    }
+
+    if (events.length === 0) {
+      alert(t('messages.validation.noEvents'));
       return;
     }
 
-    // Validate that all events have the expected format (message must be a string)
-    if (events.length > 0 && !events.every(e => e && typeof e.message === 'string')) {
-      alert(t('messages.export.invalidEventFormat'));
-      return;
-    }
-
-    // Export as CSV
     await exportAsCSV(events);
   } catch (error) {
-    console.error('JSON to CSV conversion error:', error);
+    console.error('Session export error:', error);
     alert(t('messages.export.failed', { error: error.message }));
   }
 }

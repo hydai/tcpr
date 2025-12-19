@@ -838,8 +838,8 @@ ipcMain.handle('export:csv', async (event, filePath, redemptions) => {
       return `"${str.replace(/"/g, '""')}"`;
     };
 
-    // Build CSV content with single column: ユーザー (user name only)
-    const rows = [escapeCSVField('ユーザー')];
+    // Build CSV content with single column: 名前 (name only)
+    const rows = [escapeCSVField('名前')];
 
     for (const r of redemptions) {
       rows.push(escapeCSVField(formatUserName(r.user_name, r.user_login)));
