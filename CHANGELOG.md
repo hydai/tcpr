@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.3] - 2025-12-21
+
+### Changed
+- Extract shared `parseNDJSON()` helper function for consistent NDJSON parsing
+- Both `exportEvents()` and `exportSessionAsCSV()` now use the same parsing logic
+- Improved error messages include source path and line content for debugging
+
+---
+
 ## [1.5.2] - 2025-12-20
 
 ### Fixed
