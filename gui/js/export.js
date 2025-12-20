@@ -34,13 +34,12 @@ export async function exportEvents() {
     // Parse NDJSON (one JSON object per line)
     const events = [];
     const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+    for (const [i, line] of lines.entries()) {
       if (line.trim()) {
         try {
           events.push(JSON.parse(line));
         } catch (e) {
-          console.warn(`Failed to parse log line ${i + 1}:`, e.message);
+          console.warn(`Failed to parse line ${i + 1} in session log (${sessionResult.path}): ${e.message}`);
         }
       }
     }
