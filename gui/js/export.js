@@ -12,6 +12,27 @@ import { t } from './i18n-helper.js';
 const DAILY_OMIKUJI_TITLE = 'Dailyおみくじ';
 
 /**
+ * Parse NDJSON content (one JSON object per line)
+ * @param {string} content - The NDJSON content to parse
+ * @param {string} sourcePath - Path to the source file (for error messages)
+ * @returns {Array} Array of parsed JSON objects
+ */
+function parseNDJSON(content, sourcePath) {
+  const events = [];
+  const lines = content.split('\n');
+  for (const [i, line] of lines.entries()) {
+    if (line.trim()) {
+      try {
+        events.push(JSON.parse(line));
+      } catch (e) {
+        console.warn(`Failed to parse line ${i + 1} in ${sourcePath}: ${e.message} - Content: ${line.slice(0, 100)}`);
+      }
+    }
+  }
+  return events;
+}
+
+/**
  * Export Events from session log file
  * Uses session log (not in-memory) to capture all events without memory limit
  */
@@ -31,18 +52,8 @@ export async function exportEvents() {
       return;
     }
 
-    // Parse NDJSON (one JSON object per line)
-    const events = [];
-    const lines = content.split('\n');
-    for (const [i, line] of lines.entries()) {
-      if (line.trim()) {
-        try {
-          events.push(JSON.parse(line));
-        } catch (e) {
-          console.warn(`Failed to parse line ${i + 1} in session log (${sessionResult.path}): ${e.message}`);
-        }
-      }
-    }
+    // Parse NDJSON content
+    const events = parseNDJSON(content, sessionResult.path);
 
     if (events.length === 0) {
       alert(t('messages.validation.noEvents'));
@@ -175,19 +186,8 @@ export async function exportSessionAsCSV() {
       return;
     }
 
-    // Parse NDJSON (one JSON object per line)
-    const events = [];
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.trim()) {
-        try {
-          events.push(JSON.parse(line));
-        } catch (e) {
-          console.warn(`Failed to parse log line ${i + 1}:`, e.message, '- Content:', line.slice(0, 100));
-        }
-      }
-    }
+    // Parse NDJSON content
+    const events = parseNDJSON(content, result.path);
 
     if (events.length === 0) {
       alert(t('messages.validation.noEvents'));
