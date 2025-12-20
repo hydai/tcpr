@@ -2,7 +2,6 @@
  * Event Export Functionality
  */
 
-import { state } from './state.js';
 import { convertToCSV, filterRedemptionEvents, formatDateForFilename } from './utils.js';
 import { t } from './i18n-helper.js';
 
@@ -13,15 +12,55 @@ import { t } from './i18n-helper.js';
 const DAILY_OMIKUJI_TITLE = 'Dailyおみくじ';
 
 /**
- * Export Events
+ * Parse NDJSON content (one JSON object per line)
+ * @param {string} content - The NDJSON content to parse
+ * @param {string} sourcePath - Path to the source file (for error messages)
+ * @returns {Array} Array of parsed JSON objects
+ */
+function parseNDJSON(content, sourcePath) {
+  const events = [];
+  const lines = content.split('\n');
+  for (const [i, line] of lines.entries()) {
+    if (line.trim()) {
+      try {
+        events.push(JSON.parse(line));
+      } catch (e) {
+        console.warn(`Failed to parse line ${i + 1} in ${sourcePath}: ${e.message} - Content: ${line.slice(0, 100)}`);
+      }
+    }
+  }
+  return events;
+}
+
+/**
+ * Export Events from session log file
+ * Uses session log (not in-memory) to capture all events without memory limit
  */
 export async function exportEvents() {
-  if (state.allEvents.length === 0) {
-    alert(t('messages.validation.noEvents'));
-    return;
-  }
-
   try {
+    // Get session log path from main process
+    const sessionResult = await window.electronAPI.getSessionLogPath();
+    if (!sessionResult.success || !sessionResult.path) {
+      alert(t('messages.export.noSession'));
+      return;
+    }
+
+    // Read session log file (NDJSON format)
+    const content = await window.electronAPI.readFile(sessionResult.path);
+    if (!content || content.trim() === '') {
+      alert(t('messages.validation.noEvents'));
+      return;
+    }
+
+    // Parse NDJSON content
+    const events = parseNDJSON(content, sessionResult.path);
+
+    if (events.length === 0) {
+      alert(t('messages.validation.noEvents'));
+      return;
+    }
+
+    // Show save dialog
     const dateStr = formatDateForFilename();
     const result = await window.electronAPI.showSaveDialog({
       title: 'Export Events',
@@ -37,6 +76,7 @@ export async function exportEvents() {
       return;
     }
 
+    // Determine format and ensure correct extension
     let filePath = result.filePath;
     let format;
     if (result.filterIndex === 1) {
@@ -59,17 +99,19 @@ export async function exportEvents() {
       filePath += '.json';
     }
 
-    let content;
+    // Generate content using parsed events
+    let exportContent;
     if (format === 'csv') {
-      content = convertToCSV(state.allEvents);
+      exportContent = convertToCSV(events);
     } else {
-      content = JSON.stringify(state.allEvents, null, 2);
+      exportContent = JSON.stringify(events, null, 2);
     }
 
-    const saveResult = await window.electronAPI.saveEventLog(filePath, content);
+    // Save the file
+    const saveResult = await window.electronAPI.saveEventLog(filePath, exportContent);
 
     if (saveResult.success) {
-      alert(t('messages.export.success', { count: state.allEvents.length, path: filePath }));
+      alert(t('messages.export.success', { count: events.length, path: filePath }));
     } else {
       alert(t('messages.export.failed', { error: saveResult.error }));
     }
@@ -144,19 +186,8 @@ export async function exportSessionAsCSV() {
       return;
     }
 
-    // Parse NDJSON (one JSON object per line)
-    const events = [];
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.trim()) {
-        try {
-          events.push(JSON.parse(line));
-        } catch (e) {
-          console.warn(`Failed to parse log line ${i + 1}:`, e.message, '- Content:', line.slice(0, 100));
-        }
-      }
-    }
+    // Parse NDJSON content
+    const events = parseNDJSON(content, result.path);
 
     if (events.length === 0) {
       alert(t('messages.validation.noEvents'));
