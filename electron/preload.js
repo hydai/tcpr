@@ -72,5 +72,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSessionLogPath: () => ipcRenderer.invoke('session:getLogPath'),
 
   // Logs management
-  deleteAllLogs: () => ipcRenderer.invoke('logs:deleteAll')
+  deleteAllLogs: () => ipcRenderer.invoke('logs:deleteAll'),
+
+  // Shared utilities (avoid code duplication between main and renderer)
+  formatToJST: (isoString) => ipcRenderer.invoke('utils:formatToJST', isoString),
+  isInvalidClientSecret: (message) => ipcRenderer.invoke('utils:isInvalidClientSecret', message),
+  isInvalidClientId: (message) => ipcRenderer.invoke('utils:isInvalidClientId', message),
+  isInvalidCredentials: (message) => ipcRenderer.invoke('utils:isInvalidCredentials', message)
 });

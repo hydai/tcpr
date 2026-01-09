@@ -31,18 +31,17 @@ export const SCOPES = {
 };
 
 /**
- * Array of required scopes (at least one needed)
+ * Required OAuth scopes for channel points operations.
+ * Used for both validation (at least one needed) and OAuth flow (default scopes).
  */
 export const REQUIRED_SCOPES = [
   SCOPES.READ_REDEMPTIONS
 ];
 
 /**
- * Default scopes for OAuth flow
+ * @deprecated since v1.6.0, will be removed in v2.0.0. Use REQUIRED_SCOPES instead. Kept for backward compatibility.
  */
-export const DEFAULT_OAUTH_SCOPES = [
-  SCOPES.READ_REDEMPTIONS
-];
+export const DEFAULT_OAUTH_SCOPES = REQUIRED_SCOPES;
 
 /**
  * EventSub message types

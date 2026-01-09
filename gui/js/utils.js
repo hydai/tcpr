@@ -137,12 +137,17 @@ export function convertToCSV(events) {
 /**
  * Credential error detection utilities for the renderer process
  *
- * NOTE: This is a copy of CredentialErrors from lib/errors.js for use in the
- * renderer process. Keep these in sync! The canonical implementation is in
- * lib/errors.js - any changes should be made there first, then mirrored here.
+ * ARCHITECTURE NOTE: This is intentionally duplicated from lib/errors.js.
  *
- * Twitch OAuth token endpoint returns HTTP 400 with these error messages
- * (empirically observed behavior - Twitch API docs don't specify exact messages):
+ * Why duplicate?
+ * - Electron renderer process cannot import Node.js modules directly
+ * - These functions are called synchronously in loops (e.g., checking recent events)
+ * - Using IPC for each check would add unnecessary async complexity
+ *
+ * The canonical implementation is in lib/errors.js - sync changes there.
+ * An async IPC version is also available via window.electronAPI for new code.
+ *
+ * Twitch OAuth error messages (empirically observed):
  * - "invalid client" when Client ID is wrong or doesn't exist
  * - "invalid client secret" when Client Secret is wrong or has been regenerated
  */
@@ -180,7 +185,6 @@ export const CredentialErrors = {
     const msgLower = (message || '').toLowerCase();
     return (
       msgLower.includes('invalid client secret') ||
-      msgLower.includes('invalid client id') ||
       (msgLower.includes('invalid client') && !msgLower.includes('invalid client secret'))
     );
   }
@@ -288,33 +292,42 @@ export function parseRedemptionFromMessage(message) {
 /**
  * Convert UTC timestamp to JST (Asia/Tokyo) formatted string
  * Uses Intl.DateTimeFormat for proper timezone handling
- * NOTE: This function is duplicated in electron/main.js due to Electron architecture.
- * Keep both implementations in sync when making changes.
- * @see electron/main.js#formatToJST
+ *
+ * ARCHITECTURE NOTE: This is intentionally duplicated from electron/main.js.
+ * See CredentialErrors above for rationale on intentional duplication.
+ * An async IPC version is also available via window.electronAPI.formatToJST()
+ *
  * @param {string} isoString - ISO 8601 timestamp
  * @returns {string} Formatted datetime in JST (YYYY-MM-DD HH:mm:ss)
  */
 export function formatToJST(isoString) {
-  const date = new Date(isoString);
-  const formatter = new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-  const parts = formatter.formatToParts(date);
-  // Use optional chaining with fallbacks for defensive programming
-  const y = parts.find(p => p.type === 'year')?.value ?? '0000';
-  const m = parts.find(p => p.type === 'month')?.value ?? '00';
-  const d = parts.find(p => p.type === 'day')?.value ?? '00';
-  const h = parts.find(p => p.type === 'hour')?.value ?? '00';
-  const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-  const s = parts.find(p => p.type === 'second')?.value ?? '00';
-  return `${y}-${m}-${d} ${h}:${min}:${s}`;
+  if (!isoString) {
+    return '';
+  }
+
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+      return isoString;
+    }
+
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const get = (type, fallback) => parts.find(p => p.type === type)?.value ?? fallback;
+
+    return `${get('year', '0000')}-${get('month', '00')}-${get('day', '00')} ${get('hour', '00')}:${get('minute', '00')}:${get('second', '00')}`;
+  } catch (error) {
+    return isoString;
+  }
 }
 
 /**
@@ -387,10 +400,10 @@ export function filterRedemptionEvents(events, rewardTitle) {
     const data = parseRedemptionFromMessage(event.message);
     // Validate required fields to prevent incomplete data export
     if (data &&
-        data.reward?.title === rewardTitle &&
-        data.redeemed_at &&
-        data.user_name &&
-        data.id) {
+      data.reward?.title === rewardTitle &&
+      data.redeemed_at &&
+      data.user_name &&
+      data.id) {
       redemptions.push({
         redeemed_at: data.redeemed_at,
         reward_title: data.reward.title,

@@ -917,3 +917,89 @@ ipcMain.handle('logs:deleteAll', async () => {
     return { success: false, error: error.message };
   }
 });
+
+// ============================================================================
+// Shared Utility IPC Handlers
+// These handlers expose utility functions to the renderer process to avoid
+// code duplication between main process and renderer.
+// ============================================================================
+
+/**
+ * Convert UTC timestamp to JST (Asia/Tokyo) formatted string
+ * Uses Intl.DateTimeFormat for proper timezone handling
+ * @param {string} isoString - ISO 8601 timestamp
+ * @returns {string} Formatted datetime in JST (YYYY-MM-DD HH:mm:ss)
+ */
+function formatToJST(isoString) {
+  if (!isoString) {
+    return '';
+  }
+
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+      return isoString;
+    }
+
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    const parts = formatter.formatToParts(date);
+    const get = (type, fallback) => parts.find(p => p.type === type)?.value ?? fallback;
+
+    return `${get('year', '0000')}-${get('month', '00')}-${get('day', '00')} ${get('hour', '00')}:${get('minute', '00')}:${get('second', '00')}`;
+  } catch (error) {
+    return isoString;
+  }
+}
+
+/**
+ * Credential error detection utilities
+ * Check for specific Twitch OAuth error messages
+ */
+const CredentialErrorChecks = {
+  isInvalidClientSecret(message) {
+    return (message || '').toLowerCase().includes('invalid client secret');
+  },
+
+  isInvalidClientId(message) {
+    const msgLower = (message || '').toLowerCase();
+    return msgLower.includes('invalid client') && !msgLower.includes('invalid client secret');
+  },
+
+  isInvalidCredentials(message) {
+    const msgLower = (message || '').toLowerCase();
+    return (
+      msgLower.includes('invalid client secret') ||
+      (msgLower.includes('invalid client') && !msgLower.includes('invalid client secret'))
+    );
+  }
+};
+
+// Format timestamp to JST
+ipcMain.handle('utils:formatToJST', async (event, isoString) => {
+  return formatToJST(isoString);
+});
+
+// Check if error indicates invalid client secret
+ipcMain.handle('utils:isInvalidClientSecret', async (event, message) => {
+  return CredentialErrorChecks.isInvalidClientSecret(message);
+});
+
+// Check if error indicates invalid client ID
+ipcMain.handle('utils:isInvalidClientId', async (event, message) => {
+  return CredentialErrorChecks.isInvalidClientId(message);
+});
+
+// Check if error indicates any invalid credentials
+ipcMain.handle('utils:isInvalidCredentials', async (event, message) => {
+  return CredentialErrorChecks.isInvalidCredentials(message);
+});
