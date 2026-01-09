@@ -39,7 +39,7 @@ export const REQUIRED_SCOPES = [
 ];
 
 /**
- * @deprecated Use REQUIRED_SCOPES instead. Kept for backward compatibility.
+ * @deprecated since v1.6.0, will be removed in v2.0.0. Use REQUIRED_SCOPES instead. Kept for backward compatibility.
  */
 export const DEFAULT_OAUTH_SCOPES = REQUIRED_SCOPES;
 

@@ -953,9 +953,9 @@ function formatToJST(isoString) {
     });
 
     const parts = formatter.formatToParts(date);
-    const get = (type) => parts.find(p => p.type === type)?.value || '';
+    const get = (type, fallback) => parts.find(p => p.type === type)?.value ?? fallback;
 
-    return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+    return `${get('year', '0000')}-${get('month', '00')}-${get('day', '00')} ${get('hour', '00')}:${get('minute', '00')}:${get('second', '00')}`;
   } catch (error) {
     return isoString;
   }
