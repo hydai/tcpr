@@ -302,26 +302,33 @@ export function parseRedemptionFromMessage(message) {
  * @returns {string} Formatted datetime in JST (YYYY-MM-DD HH:mm:ss)
  */
 export function formatToJST(isoString) {
-  const date = new Date(isoString);
-  const formatter = new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-  const parts = formatter.formatToParts(date);
-  // Use optional chaining with fallbacks for defensive programming
-  const y = parts.find(p => p.type === 'year')?.value ?? '0000';
-  const m = parts.find(p => p.type === 'month')?.value ?? '00';
-  const d = parts.find(p => p.type === 'day')?.value ?? '00';
-  const h = parts.find(p => p.type === 'hour')?.value ?? '00';
-  const min = parts.find(p => p.type === 'minute')?.value ?? '00';
-  const s = parts.find(p => p.type === 'second')?.value ?? '00';
-  return `${y}-${m}-${d} ${h}:${min}:${s}`;
+  if (!isoString) {
+    return '';
+  }
+
+  try {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+      return isoString;
+    }
+
+    const formatter = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const get = (type, fallback) => parts.find(p => p.type === type)?.value ?? fallback;
+
+    return `${get('year', '0000')}-${get('month', '00')}-${get('day', '00')} ${get('hour', '00')}:${get('minute', '00')}:${get('second', '00')}`;
+  } catch (error) {
+    return isoString;
+  }
 }
 
 /**
