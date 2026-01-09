@@ -185,7 +185,6 @@ export const CredentialErrors = {
     const msgLower = (message || '').toLowerCase();
     return (
       msgLower.includes('invalid client secret') ||
-      msgLower.includes('invalid client id') ||
       (msgLower.includes('invalid client') && !msgLower.includes('invalid client secret'))
     );
   }
